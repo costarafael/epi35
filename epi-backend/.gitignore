@@ -1,0 +1,17 @@
+node_modules/
+dist/
+.env
+.env.local
+*.log
+.DS_Store
+coverage/
+.vitest-cache
+.vscode/*
+!.vscode/settings.json
+.claude/memory
+.claude/logs
+.claude/cache
+prisma/*.db
+prisma/*.db-journal
+*.tmp
+*.temp

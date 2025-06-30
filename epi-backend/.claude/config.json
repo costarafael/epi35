@@ -1,0 +1,15 @@
+{
+  "version": "1.0.72",
+  "project": {
+    "name": "epi-backend",
+    "type": "claude-flow",
+    "created": "2025-06-30T17:48:32.134Z"
+  },
+  "features": {
+    "swarm": true,
+    "sparc": true,
+    "memory": true,
+    "terminal": true,
+    "mcp": true
+  }
+}

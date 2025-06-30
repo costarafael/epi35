@@ -1,0 +1,44 @@
+{
+  "project": {
+    "name": "epi-backend",
+    "type": "nestjs-api",
+    "description": "Backend do Módulo de Gestão de EPIs v3.5"
+  },
+  "automation": {
+    "commandTimeout": 600000,
+    "maxOutputSize": 512000,
+    "permissions": "*",
+    "autoConfirm": true,
+    "parallelExecution": true,
+    "maxConcurrentAgents": 8
+  },
+  "memory": {
+    "persistenceMode": "aggressive",
+    "sharedContext": true,
+    "contextWindowSize": "large",
+    "checkpointFrequency": "high"
+  },
+  "sparc": {
+    "defaultModes": [
+      "architect-epi",
+      "database-designer",
+      "prisma-expert",
+      "nestjs-coder",
+      "usecase-developer",
+      "transaction-specialist",
+      "test-engineer"
+    ]
+  },
+  "swarm": {
+    "strategy": "task-parallel",
+    "coordinationMode": "memory-first"
+  },
+  "batchtool": {
+    "parallelism": "aggressive",
+    "errorHandling": "retry-with-backoff"
+  },
+  "monitoring": {
+    "enableDashboard": true,
+    "logLevel": "info"
+  }
+}

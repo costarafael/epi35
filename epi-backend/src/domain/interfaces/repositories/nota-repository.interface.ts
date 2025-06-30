@@ -28,6 +28,7 @@ export interface NotaMovimentacaoWithItens extends NotaMovimentacao {
 }
 
 export interface INotaRepository extends IBaseRepository<NotaMovimentacao> {
+  createNota(entity: Omit<NotaMovimentacao, 'id' | 'createdAt' | 'updatedAt' | 'dataConclusao'>): Promise<NotaMovimentacao>;
   findByNumero(numero: string): Promise<NotaMovimentacao | null>;
 
   findByFilters(filtros: NotaMovimentacaoFilters): Promise<NotaMovimentacao[]>;

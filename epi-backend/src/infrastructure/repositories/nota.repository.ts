@@ -38,7 +38,11 @@ export class NotaRepository implements INotaRepository {
     return notas.map(this.toDomain);
   }
 
-  async create(entity: Omit<NotaMovimentacao, 'id' | 'createdAt' | 'updatedAt' | 'dataConclusao'>): Promise<NotaMovimentacao> {
+  async create(entity: Omit<NotaMovimentacao, 'id' | 'createdAt' | 'updatedAt'>): Promise<NotaMovimentacao> {
+    return this.createNota(entity as any);
+  }
+
+  async createNota(entity: Omit<NotaMovimentacao, 'id' | 'createdAt' | 'updatedAt' | 'dataConclusao'>): Promise<NotaMovimentacao> {
     const nota = await this.prisma.notaMovimentacao.create({
       data: {
         numero: entity.numero,

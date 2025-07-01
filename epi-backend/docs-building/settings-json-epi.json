@@ -1,0 +1,91 @@
+{
+  "project": {
+    "name": "epi-backend",
+    "type": "nestjs-api",
+    "description": "Backend do Módulo de Gestão de EPIs"
+  },
+  "automation": {
+    "commandTimeout": 600000,
+    "maxOutputSize": 512000,
+    "permissions": "*",
+    "autoConfirm": true,
+    "parallelExecution": true,
+    "maxConcurrentAgents": 8
+  },
+  "development": {
+    "testOnSave": true,
+    "lintOnSave": true,
+    "autoFormat": true,
+    "coverageThreshold": 80
+  },
+  "database": {
+    "type": "postgresql",
+    "migrations": "auto",
+    "seedOnInit": true,
+    "transactionMode": "strict"
+  },
+  "memory": {
+    "persistenceMode": "aggressive",
+    "sharedContext": true,
+    "contextWindowSize": "large",
+    "checkpointFrequency": "high"
+  },
+  "sparc": {
+    "defaultModes": [
+      "architect-epi",
+      "database-designer",
+      "prisma-expert",
+      "nestjs-coder",
+      "usecase-developer",
+      "transaction-specialist",
+      "test-engineer"
+    ],
+    "phaseTimeout": {
+      "specification": 300000,
+      "architecture": 300000,
+      "implementation": 600000,
+      "testing": 600000,
+      "refinement": 300000
+    }
+  },
+  "swarm": {
+    "strategy": "task-parallel",
+    "coordinationMode": "memory-first",
+    "taskDecomposition": "automatic",
+    "maxTasksPerAgent": 3,
+    "rebalanceThreshold": 0.7
+  },
+  "batchtool": {
+    "batchSize": 5,
+    "parallelism": "aggressive",
+    "errorHandling": "retry-with-backoff",
+    "maxRetries": 3,
+    "coordinationProtocol": "shared-memory"
+  },
+  "monitoring": {
+    "enableDashboard": true,
+    "logLevel": "info",
+    "metricsCollection": true,
+    "performanceTracking": true,
+    "errorReporting": "detailed"
+  },
+  "git": {
+    "autoCommit": true,
+    "commitFrequency": "per-feature",
+    "branchingStrategy": "feature-based",
+    "conventionalCommits": true
+  },
+  "testing": {
+    "framework": "vitest",
+    "runInBand": false,
+    "coverage": true,
+    "watchMode": false,
+    "testTimeout": 30000
+  },
+  "deployment": {
+    "containerize": true,
+    "healthCheck": true,
+    "gracefulShutdown": true,
+    "environment": "development"
+  }
+}

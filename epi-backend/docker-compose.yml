@@ -1,0 +1,60 @@
+version: '3.8'
+
+services:
+  # Banco de dados para desenvolvimento
+  db:
+    image: postgres:16-alpine
+    container_name: epi_db_dev_v35
+    restart: always
+    environment:
+      POSTGRES_DB: epi_db_v35
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5435:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d epi_db_v35"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Banco de dados para testes
+  db_test:
+    image: postgres:16-alpine
+    container_name: epi_db_test_v35
+    restart: always
+    environment:
+      POSTGRES_DB: epi_test_db_v35
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5436:5432"
+    volumes:
+      - db_test_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d epi_test_db_v35"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis para cache (opcional)
+  redis:
+    image: redis:7-alpine
+    container_name: epi_redis
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  db_data:
+  db_test_data:
+  redis_data:

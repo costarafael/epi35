@@ -1,200 +1,232 @@
 import { TipoMovimentacao } from '../enums';
 import { BusinessError } from '../exceptions/business.exception';
 
+/**
+ * Entidade MovimentacaoEstoque reformulada conforme nova estrutura:
+ * - estoqueItemId (antes: almoxarifadoId + tipoEpiId)
+ * - quantidadeMovida (antes: quantidade)
+ * - movimentacaoOrigemId (para estornos)
+ * - Removidos: saldoAnterior, saldoPosterior, observacoes
+ */
 export class MovimentacaoEstoque {
   constructor(
     public readonly id: string,
-    public readonly almoxarifadoId: string,
-    public readonly tipoEpiId: string,
+    public readonly estoqueItemId: string,
     public readonly tipoMovimentacao: TipoMovimentacao,
-    public readonly quantidade: number,
-    public readonly saldoAnterior: number,
-    public readonly saldoPosterior: number,
+    public readonly quantidadeMovida: number,
     public readonly notaMovimentacaoId: string | null,
-    public readonly usuarioId: string,
-    public readonly observacoes: string | null,
-    public readonly movimentacaoEstornoId: string | null,
+    public readonly responsavelId: string,
+    public readonly movimentacaoOrigemId: string | null,
     public readonly createdAt: Date,
   ) {
     this.validate();
   }
 
   private validate(): void {
-    if (!this.almoxarifadoId) {
-      throw new BusinessError('Almoxarifado é obrigatório');
+    if (!this.estoqueItemId) {
+      throw new BusinessError('Estoque item é obrigatório');
     }
 
-    if (!this.tipoEpiId) {
-      throw new BusinessError('Tipo de EPI é obrigatório');
+    if (!this.responsavelId) {
+      throw new BusinessError('Responsável é obrigatório');
     }
 
-    if (!this.usuarioId) {
-      throw new BusinessError('Usuário é obrigatório');
+    if (this.quantidadeMovida === 0) {
+      throw new BusinessError('Quantidade movida não pode ser zero');
     }
 
-    if (this.quantidade === 0) {
-      throw new BusinessError('Quantidade não pode ser zero');
+    if (this.quantidadeMovida < 0) {
+      throw new BusinessError('Quantidade movida deve ser positiva');
     }
 
-    this.validateSaldos();
+    this.validateEstorno();
   }
 
-  private validateSaldos(): void {
-    const quantidadeCalculada = this.saldoAnterior + this.getQuantidadeComSinal();
+  private validateEstorno(): void {
+    const isEstorno = this.isEstorno();
     
-    if (quantidadeCalculada !== this.saldoPosterior) {
-      throw new BusinessError(
-        `Saldo posterior inválido. Esperado: ${quantidadeCalculada}, Informado: ${this.saldoPosterior}`
-      );
+    if (isEstorno && !this.movimentacaoOrigemId) {
+      throw new BusinessError('Movimentação de estorno deve referenciar a movimentação original');
+    }
+
+    if (!isEstorno && this.movimentacaoOrigemId) {
+      throw new BusinessError('Apenas estornos podem referenciar movimentação original');
     }
   }
 
-  private getQuantidadeComSinal(): number {
-    switch (this.tipoMovimentacao) {
-      case TipoMovimentacao.ENTRADA:
-      case TipoMovimentacao.AJUSTE:
-        return Math.abs(this.quantidade);
-      
-      case TipoMovimentacao.SAIDA:
-      case TipoMovimentacao.TRANSFERENCIA:
-      case TipoMovimentacao.DESCARTE:
-        return -Math.abs(this.quantidade);
-      
-      case TipoMovimentacao.ESTORNO:
-        // Para estorno, inverte o sinal da movimentação original
-        return this.quantidade > 0 ? -this.quantidade : Math.abs(this.quantidade);
-      
-      default:
-        throw new BusinessError(`Tipo de movimentação inválido: ${this.tipoMovimentacao}`);
-    }
-  }
-
+  /**
+   * Métodos de verificação para novos tipos de movimentação
+   */
   public isEntrada(): boolean {
-    return this.tipoMovimentacao === TipoMovimentacao.ENTRADA;
+    return [
+      TipoMovimentacao.ENTRADA_NOTA,
+      TipoMovimentacao.ENTRADA_DEVOLUCAO,
+      TipoMovimentacao.ENTRADA_TRANSFERENCIA,
+    ].includes(this.tipoMovimentacao);
   }
 
   public isSaida(): boolean {
-    return this.tipoMovimentacao === TipoMovimentacao.SAIDA;
-  }
-
-  public isTransferencia(): boolean {
-    return this.tipoMovimentacao === TipoMovimentacao.TRANSFERENCIA;
+    return [
+      TipoMovimentacao.SAIDA_ENTREGA,
+      TipoMovimentacao.SAIDA_TRANSFERENCIA,
+      TipoMovimentacao.SAIDA_DESCARTE,
+    ].includes(this.tipoMovimentacao);
   }
 
   public isAjuste(): boolean {
-    return this.tipoMovimentacao === TipoMovimentacao.AJUSTE;
-  }
-
-  public isDescarte(): boolean {
-    return this.tipoMovimentacao === TipoMovimentacao.DESCARTE;
+    return [
+      TipoMovimentacao.AJUSTE_POSITIVO,
+      TipoMovimentacao.AJUSTE_NEGATIVO,
+    ].includes(this.tipoMovimentacao);
   }
 
   public isEstorno(): boolean {
-    return this.tipoMovimentacao === TipoMovimentacao.ESTORNO;
+    return this.tipoMovimentacao.startsWith('ESTORNO_');
   }
 
   public isEstornavel(): boolean {
-    // Não pode estornar estornos
-    return !this.isEstorno() && !this.movimentacaoEstornoId;
+    // Não pode estornar estornos nem movimentações já estornadas
+    return !this.isEstorno() && !this.movimentacaoOrigemId;
   }
 
-  public static createEntrada(
-    almoxarifadoId: string,
-    tipoEpiId: string,
-    quantidade: number,
-    saldoAnterior: number,
-    usuarioId: string,
-    notaMovimentacaoId?: string,
-    observacoes?: string,
+  /**
+   * Verifica se é uma movimentação que incrementa o estoque
+   */
+  public isPositiva(): boolean {
+    return [
+      TipoMovimentacao.ENTRADA_NOTA,
+      TipoMovimentacao.ENTRADA_DEVOLUCAO,
+      TipoMovimentacao.ENTRADA_TRANSFERENCIA,
+      TipoMovimentacao.AJUSTE_POSITIVO,
+      TipoMovimentacao.ESTORNO_SAIDA_ENTREGA,
+      TipoMovimentacao.ESTORNO_SAIDA_TRANSFERENCIA,
+      TipoMovimentacao.ESTORNO_SAIDA_DESCARTE,
+      TipoMovimentacao.ESTORNO_AJUSTE_NEGATIVO,
+    ].includes(this.tipoMovimentacao);
+  }
+
+  /**
+   * Verifica se é uma movimentação que decrementa o estoque
+   */
+  public isNegativa(): boolean {
+    return !this.isPositiva();
+  }
+
+  /**
+   * Obtém o tipo de estorno correspondente
+   */
+  public getTipoEstorno(): TipoMovimentacao | null {
+    const estornoMap = {
+      [TipoMovimentacao.ENTRADA_NOTA]: TipoMovimentacao.ESTORNO_ENTRADA_NOTA,
+      [TipoMovimentacao.SAIDA_ENTREGA]: TipoMovimentacao.ESTORNO_SAIDA_ENTREGA,
+      [TipoMovimentacao.ENTRADA_DEVOLUCAO]: TipoMovimentacao.ESTORNO_ENTRADA_DEVOLUCAO,
+      [TipoMovimentacao.SAIDA_TRANSFERENCIA]: TipoMovimentacao.ESTORNO_SAIDA_TRANSFERENCIA,
+      [TipoMovimentacao.ENTRADA_TRANSFERENCIA]: TipoMovimentacao.ESTORNO_ENTRADA_TRANSFERENCIA,
+      [TipoMovimentacao.SAIDA_DESCARTE]: TipoMovimentacao.ESTORNO_SAIDA_DESCARTE,
+      [TipoMovimentacao.AJUSTE_POSITIVO]: TipoMovimentacao.ESTORNO_AJUSTE_POSITIVO,
+      [TipoMovimentacao.AJUSTE_NEGATIVO]: TipoMovimentacao.ESTORNO_AJUSTE_NEGATIVO,
+    };
+
+    return estornoMap[this.tipoMovimentacao] || null;
+  }
+
+  /**
+   * Métodos de criação atualizados para nova estrutura
+   */
+  public static createEntradaNota(
+    estoqueItemId: string,
+    quantidadeMovida: number,
+    responsavelId: string,
+    notaMovimentacaoId: string,
   ): Omit<MovimentacaoEstoque, 'id' | 'createdAt'> {
     return this.createMovimentacao(
-      almoxarifadoId,
-      tipoEpiId,
-      TipoMovimentacao.ENTRADA,
-      quantidade,
-      saldoAnterior,
-      usuarioId,
+      estoqueItemId,
+      TipoMovimentacao.ENTRADA_NOTA,
+      quantidadeMovida,
+      responsavelId,
       notaMovimentacaoId,
-      observacoes,
     );
   }
 
-  public static createSaida(
-    almoxarifadoId: string,
-    tipoEpiId: string,
-    quantidade: number,
-    saldoAnterior: number,
-    usuarioId: string,
-    notaMovimentacaoId?: string,
-    observacoes?: string,
+  public static createSaidaEntrega(
+    estoqueItemId: string,
+    quantidadeMovida: number,
+    responsavelId: string,
   ): Omit<MovimentacaoEstoque, 'id' | 'createdAt'> {
     return this.createMovimentacao(
-      almoxarifadoId,
-      tipoEpiId,
-      TipoMovimentacao.SAIDA,
-      quantidade,
-      saldoAnterior,
-      usuarioId,
-      notaMovimentacaoId,
-      observacoes,
+      estoqueItemId,
+      TipoMovimentacao.SAIDA_ENTREGA,
+      quantidadeMovida,
+      responsavelId,
     );
   }
 
-  public static createAjuste(
-    almoxarifadoId: string,
-    tipoEpiId: string,
-    quantidadeAjuste: number,
-    saldoAnterior: number,
-    usuarioId: string,
-    observacoes?: string,
+  public static createAjustePositivo(
+    estoqueItemId: string,
+    quantidadeMovida: number,
+    responsavelId: string,
   ): Omit<MovimentacaoEstoque, 'id' | 'createdAt'> {
     return this.createMovimentacao(
-      almoxarifadoId,
-      tipoEpiId,
-      TipoMovimentacao.AJUSTE,
-      quantidadeAjuste,
-      saldoAnterior,
-      usuarioId,
-      undefined,
-      observacoes,
+      estoqueItemId,
+      TipoMovimentacao.AJUSTE_POSITIVO,
+      quantidadeMovida,
+      responsavelId,
+    );
+  }
+
+  public static createAjusteNegativo(
+    estoqueItemId: string,
+    quantidadeMovida: number,
+    responsavelId: string,
+  ): Omit<MovimentacaoEstoque, 'id' | 'createdAt'> {
+    return this.createMovimentacao(
+      estoqueItemId,
+      TipoMovimentacao.AJUSTE_NEGATIVO,
+      quantidadeMovida,
+      responsavelId,
+    );
+  }
+
+  public static createEstorno(
+    estoqueItemId: string,
+    quantidadeMovida: number,
+    responsavelId: string,
+    tipoEstorno: TipoMovimentacao,
+    movimentacaoOrigemId: string,
+  ): Omit<MovimentacaoEstoque, 'id' | 'createdAt'> {
+    return this.createMovimentacao(
+      estoqueItemId,
+      tipoEstorno,
+      quantidadeMovida,
+      responsavelId,
+      null,
+      movimentacaoOrigemId,
     );
   }
 
   private static createMovimentacao(
-    almoxarifadoId: string,
-    tipoEpiId: string,
+    estoqueItemId: string,
     tipoMovimentacao: TipoMovimentacao,
-    quantidade: number,
-    saldoAnterior: number,
-    usuarioId: string,
-    notaMovimentacaoId?: string,
-    observacoes?: string,
+    quantidadeMovida: number,
+    responsavelId: string,
+    notaMovimentacaoId?: string | null,
+    movimentacaoOrigemId?: string | null,
   ): Omit<MovimentacaoEstoque, 'id' | 'createdAt'> {
-    const quantidadeComSinal = MovimentacaoEstoque.prototype.getQuantidadeComSinal.call({
-      tipoMovimentacao,
-      quantidade: Math.abs(quantidade),
-    });
-    
-    const saldoPosterior = saldoAnterior + quantidadeComSinal;
-
     return {
-      almoxarifadoId,
-      tipoEpiId,
+      estoqueItemId,
       tipoMovimentacao,
-      quantidade: Math.abs(quantidade),
-      saldoAnterior,
-      saldoPosterior,
+      quantidadeMovida: Math.abs(quantidadeMovida),
       notaMovimentacaoId: notaMovimentacaoId || null,
-      usuarioId,
-      observacoes: observacoes || null,
-      movimentacaoEstornoId: null,
+      responsavelId,
+      movimentacaoOrigemId: movimentacaoOrigemId || null,
       isEntrada: MovimentacaoEstoque.prototype.isEntrada,
       isSaida: MovimentacaoEstoque.prototype.isSaida,
-      isTransferencia: MovimentacaoEstoque.prototype.isTransferencia,
       isAjuste: MovimentacaoEstoque.prototype.isAjuste,
-      isDescarte: MovimentacaoEstoque.prototype.isDescarte,
       isEstorno: MovimentacaoEstoque.prototype.isEstorno,
       isEstornavel: MovimentacaoEstoque.prototype.isEstornavel,
+      isPositiva: MovimentacaoEstoque.prototype.isPositiva,
+      isNegativa: MovimentacaoEstoque.prototype.isNegativa,
+      getTipoEstorno: MovimentacaoEstoque.prototype.getTipoEstorno,
     } as any;
   }
 }

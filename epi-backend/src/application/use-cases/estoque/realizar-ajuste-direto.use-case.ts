@@ -3,7 +3,7 @@ import { PrismaService } from '../../../infrastructure/database/prisma.service';
 import { IMovimentacaoRepository } from '../../../domain/interfaces/repositories/movimentacao-repository.interface';
 import { IEstoqueRepository } from '../../../domain/interfaces/repositories/estoque-repository.interface';
 import { MovimentacaoEstoque } from '../../../domain/entities/movimentacao-estoque.entity';
-import { StatusEstoqueItem } from '../../../domain/enums';
+import { StatusEstoqueItem, TipoMovimentacao } from '../../../domain/enums';
 import { BusinessError } from '../../../domain/exceptions/business.exception';
 
 export interface AjusteDirectoInput {
@@ -83,17 +83,30 @@ export class RealizarAjusteDirectoUseCase {
         throw new BusinessError('Nova quantidade é igual ao saldo atual. Nenhum ajuste necessário.');
       }
 
-      // Criar movimentação de ajuste
-      const movimentacao = MovimentacaoEstoque.createAjuste(
+      // Buscar ou criar estoque item
+      const estoqueItem = await this.estoqueRepository.criarOuAtualizar(
         input.almoxarifadoId,
         input.tipoEpiId,
-        Math.abs(diferenca),
+        StatusEstoqueItem.DISPONIVEL,
         saldoAnterior,
-        input.usuarioId,
-        `Ajuste direto: ${input.motivo}`,
       );
 
-      const movimentacaoCriada = await this.movimentacaoRepository.create(movimentacao);
+      // Determinar tipo de ajuste
+      const tipoMovimentacao = diferenca >= 0 
+        ? TipoMovimentacao.AJUSTE_POSITIVO 
+        : TipoMovimentacao.AJUSTE_NEGATIVO;
+
+      // Criar movimentação de ajuste usando Prisma direto
+      const movimentacaoCriada = await this.prisma.movimentacaoEstoque.create({
+        data: {
+          estoqueItemId: estoqueItem.id,
+          tipoMovimentacao,
+          quantidadeMovida: Math.abs(diferenca),
+          notaMovimentacaoId: null,
+          responsavelId: input.usuarioId,
+          movimentacaoOrigemId: null,
+        },
+      });
 
       // Atualizar estoque
       await this.estoqueRepository.criarOuAtualizar(
@@ -146,17 +159,30 @@ export class RealizarAjusteDirectoUseCase {
             const motivo = ajuste.motivo || 
               `Inventário: contagem ${ajuste.quantidadeContada}, saldo sistema ${saldoAnterior}`;
 
-            // Criar movimentação
-            const movimentacao = MovimentacaoEstoque.createAjuste(
+            // Buscar ou criar estoque item
+            const estoqueItem = await this.estoqueRepository.criarOuAtualizar(
               input.almoxarifadoId,
               ajuste.tipoEpiId,
-              Math.abs(diferenca),
+              StatusEstoqueItem.DISPONIVEL,
               saldoAnterior,
-              input.usuarioId,
-              motivo,
             );
 
-            const movimentacaoCriada = await this.movimentacaoRepository.create(movimentacao);
+            // Determinar tipo de ajuste
+            const tipoMovimentacao = diferenca >= 0 
+              ? TipoMovimentacao.AJUSTE_POSITIVO 
+              : TipoMovimentacao.AJUSTE_NEGATIVO;
+
+            // Criar movimentação usando Prisma direto
+            const movimentacaoCriada = await this.prisma.movimentacaoEstoque.create({
+              data: {
+                estoqueItemId: estoqueItem.id,
+                tipoMovimentacao,
+                quantidadeMovida: Math.abs(diferenca),
+                notaMovimentacaoId: null,
+                responsavelId: input.usuarioId,
+                movimentacaoOrigemId: null,
+              },
+            });
 
             // Atualizar estoque
             await this.estoqueRepository.criarOuAtualizar(
@@ -262,38 +288,57 @@ export class RealizarAjusteDirectoUseCase {
       somaAjustesNegativos: number;
     };
   }> {
-    const filtros: any = {
-      tipoMovimentacao: 'AJUSTE',
+    // Buscar movimentações de ajuste usando Prisma direto
+    const whereClause: any = {
+      OR: [
+        { tipoMovimentacao: TipoMovimentacao.AJUSTE_POSITIVO },
+        { tipoMovimentacao: TipoMovimentacao.AJUSTE_NEGATIVO },
+      ],
     };
 
-    if (almoxarifadoId) {
-      filtros.almoxarifadoId = almoxarifadoId;
-    }
-
-    if (tipoEpiId) {
-      filtros.tipoEpiId = tipoEpiId;
-    }
-
     if (dataInicio || dataFim) {
-      filtros.dataInicio = dataInicio;
-      filtros.dataFim = dataFim;
+      whereClause.createdAt = {};
+      if (dataInicio) whereClause.createdAt.gte = dataInicio;
+      if (dataFim) whereClause.createdAt.lte = dataFim;
     }
 
-    const movimentacoes = await this.movimentacaoRepository.findByFilters(filtros);
+    if (almoxarifadoId || tipoEpiId) {
+      whereClause.estoqueItem = {};
+      if (almoxarifadoId) whereClause.estoqueItem.almoxarifadoId = almoxarifadoId;
+      if (tipoEpiId) whereClause.estoqueItem.tipoEpiId = tipoEpiId;
+    }
+
+    const movimentacoes = await this.prisma.movimentacaoEstoque.findMany({
+      where: whereClause,
+      include: {
+        estoqueItem: {
+          include: {
+            almoxarifado: true,
+            tipoEpi: true,
+          },
+        },
+        responsavel: true,
+      },
+      orderBy: { dataMovimentacao: 'desc' },
+    });
 
     const ajustes = movimentacoes.map(mov => {
-      const diferenca = mov.saldoPosterior - mov.saldoAnterior;
+      // Calcular diferença baseado no tipo (positivo ou negativo)
+      const diferenca = mov.tipoMovimentacao === TipoMovimentacao.AJUSTE_POSITIVO 
+        ? mov.quantidadeMovida 
+        : -mov.quantidadeMovida;
+      
       return {
         id: mov.id,
-        data: mov.createdAt,
-        almoxarifadoId: mov.almoxarifadoId,
-        tipoEpiId: mov.tipoEpiId,
-        quantidade: mov.quantidade,
-        saldoAnterior: mov.saldoAnterior,
-        saldoPosterior: mov.saldoPosterior,
+        data: mov.dataMovimentacao,
+        almoxarifadoId: mov.estoqueItem?.almoxarifado?.id || '',
+        tipoEpiId: mov.estoqueItem?.tipoEpi?.id || '',
+        quantidade: mov.quantidadeMovida,
+        saldoAnterior: 0, // Não disponível no novo schema
+        saldoPosterior: 0, // Não disponível no novo schema 
         diferenca,
-        usuarioId: mov.usuarioId,
-        observacoes: mov.observacoes || '',
+        usuarioId: mov.responsavelId,
+        observacoes: `Ajuste ${mov.tipoMovimentacao}`,
       };
     });
 

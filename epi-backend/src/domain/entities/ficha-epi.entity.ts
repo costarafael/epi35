@@ -1,15 +1,19 @@
 import { StatusFichaEPI } from '../enums';
 import { BusinessError } from '../exceptions/business.exception';
 
+/**
+ * Entidade FichaEPI reformulada conforme nova estrutura:
+ * - Uma ficha por colaborador (não mais por tipo de EPI)
+ * - Colaborador UNIQUE constraint
+ * - Campos: colaboradorId, dataEmissao, status
+ */
 export class FichaEPI {
   constructor(
     public readonly id: string,
     public readonly colaboradorId: string,
-    public readonly tipoEpiId: string,
-    public readonly almoxarifadoId: string,
+    public readonly dataEmissao: Date,
     private _status: StatusFichaEPI,
     public readonly createdAt: Date,
-    public readonly updatedAt: Date,
   ) {
     this.validate();
   }
@@ -23,12 +27,12 @@ export class FichaEPI {
       throw new BusinessError('Colaborador é obrigatório');
     }
 
-    if (!this.tipoEpiId) {
-      throw new BusinessError('Tipo de EPI é obrigatório');
+    if (!this.dataEmissao) {
+      throw new BusinessError('Data de emissão é obrigatória');
     }
 
-    if (!this.almoxarifadoId) {
-      throw new BusinessError('Almoxarifado é obrigatório');
+    if (this.dataEmissao > new Date()) {
+      throw new BusinessError('Data de emissão não pode ser futura');
     }
   }
 
@@ -69,20 +73,33 @@ export class FichaEPI {
     this._status = StatusFichaEPI.SUSPENSA;
   }
 
+  /**
+   * Nova chave única baseada apenas no colaborador
+   * (uma ficha por colaborador)
+   */
   public getChaveUnica(): string {
-    return `${this.colaboradorId}-${this.tipoEpiId}-${this.almoxarifadoId}`;
+    return this.colaboradorId;
   }
 
+  /**
+   * Verifica se a ficha pode ser inativada
+   * (não deve ter entregas pendentes)
+   */
+  public podeSerInativada(): boolean {
+    return this.isAtiva();
+  }
+
+  /**
+   * Método de criação atualizado para nova estrutura
+   */
   public static create(
     colaboradorId: string,
-    tipoEpiId: string,
-    almoxarifadoId: string,
     status: StatusFichaEPI = StatusFichaEPI.ATIVA,
-  ): Omit<FichaEPI, 'id' | 'createdAt' | 'updatedAt'> {
+    dataEmissao: Date = new Date(),
+  ): Omit<FichaEPI, 'id' | 'createdAt'> {
     return {
       colaboradorId,
-      tipoEpiId,
-      almoxarifadoId,
+      dataEmissao,
       status,
       isAtiva: FichaEPI.prototype.isAtiva,
       isInativa: FichaEPI.prototype.isInativa,
@@ -92,6 +109,7 @@ export class FichaEPI {
       inativar: FichaEPI.prototype.inativar,
       suspender: FichaEPI.prototype.suspender,
       getChaveUnica: FichaEPI.prototype.getChaveUnica,
+      podeSerInativada: FichaEPI.prototype.podeSerInativada,
     } as any;
   }
 }

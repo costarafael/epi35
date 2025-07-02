@@ -1,0 +1,38 @@
+version: '3.8'
+
+services:
+  db_gemini:
+    image: postgres:16-alpine
+    container_name: epi-backend-gemini-db
+    restart: always
+    environment:
+      POSTGRES_DB: epi_gemini_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5437:5432"
+    volumes:
+      - db_gemini_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d epi_gemini_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis_gemini:
+    image: redis:7-alpine
+    container_name: epi-backend-gemini-redis
+    restart: always
+    ports:
+      - "6380:6379"
+    volumes:
+      - redis_gemini_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  db_gemini_data:
+  redis_gemini_data:

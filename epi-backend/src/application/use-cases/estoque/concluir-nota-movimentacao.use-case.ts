@@ -76,8 +76,14 @@ export class ConcluirNotaMovimentacaoUseCase {
           const movimentacoes = await this.movimentacaoRepository.findByNotaMovimentacao(
             input.notaId,
           );
-          const novaMovimentacao = movimentacoes.find(
-            mov => mov.tipoEpiId === item.tipoEpiId,
+          // Buscar nova movimentação por estoqueItemId
+          const estoqueItem = await this.estoqueRepository.findByAlmoxarifadoAndTipo(
+            notaComItens.almoxarifadoOrigemId || notaComItens.almoxarifadoDestinoId || '',
+            item.tipoEpiId,
+            StatusEstoqueItem.DISPONIVEL,
+          );
+          const novaMovimentacao = movimentacoes?.find(
+            mov => mov.estoqueItemId === estoqueItem?.id,
           );
           if (novaMovimentacao) {
             movimentacoesCriadas.push(novaMovimentacao);
@@ -182,21 +188,20 @@ export class ConcluirNotaMovimentacaoUseCase {
     notaId: string,
     usuarioId: string,
   ): Promise<void> {
-    // Obter saldo atual
-    const saldoAnterior = await this.movimentacaoRepository.obterUltimaSaldo(
+    // Buscar ou criar o estoque item
+    const estoqueItem = await this.estoqueRepository.criarOuAtualizar(
       almoxarifadoId,
       item.tipoEpiId,
+      StatusEstoqueItem.DISPONIVEL,
+      0, // quantidade inicial se não existir
     );
 
     // Criar movimentação de entrada
-    const movimentacao = MovimentacaoEstoque.createEntrada(
-      almoxarifadoId,
-      item.tipoEpiId,
+    const movimentacao = MovimentacaoEstoque.createEntradaNota(
+      estoqueItem.id,
       item.quantidade,
-      saldoAnterior,
       usuarioId,
       notaId,
-      `Entrada via nota ${notaId}`,
     );
 
     await this.movimentacaoRepository.create(movimentacao);
@@ -217,41 +222,46 @@ export class ConcluirNotaMovimentacaoUseCase {
     notaId: string,
     usuarioId: string,
   ): Promise<void> {
-    // Saída do almoxarifado de origem
-    const saldoAnteriorOrigem = await this.movimentacaoRepository.obterUltimaSaldo(
+    // Buscar estoque item de origem
+    const estoqueItemOrigem = await this.estoqueRepository.findByAlmoxarifadoAndTipo(
       almoxarifadoOrigemId,
       item.tipoEpiId,
+      StatusEstoqueItem.DISPONIVEL,
     );
+    if (!estoqueItemOrigem) {
+      throw new BusinessError('Item de estoque não encontrado no almoxarifado de origem');
+    }
 
-    const movimentacaoSaida = MovimentacaoEstoque.createSaida(
-      almoxarifadoOrigemId,
-      item.tipoEpiId,
-      item.quantidade,
-      saldoAnteriorOrigem,
-      usuarioId,
-      notaId,
-      `Transferência - saída via nota ${notaId}`,
-    );
-
-    await this.movimentacaoRepository.create(movimentacaoSaida);
-
-    // Entrada no almoxarifado de destino
-    const saldoAnteriorDestino = await this.movimentacaoRepository.obterUltimaSaldo(
+    // Buscar ou criar estoque item de destino
+    const estoqueItemDestino = await this.estoqueRepository.criarOuAtualizar(
       almoxarifadoDestinoId,
       item.tipoEpiId,
+      StatusEstoqueItem.DISPONIVEL,
+      0,
     );
 
-    const movimentacaoEntrada = MovimentacaoEstoque.createEntrada(
-      almoxarifadoDestinoId,
-      item.tipoEpiId,
-      item.quantidade,
-      saldoAnteriorDestino,
-      usuarioId,
-      notaId,
-      `Transferência - entrada via nota ${notaId}`,
-    );
+    // Criar movimentações usando dados diretos (sem static methods por falta de compatibilidade)
+    await this.prisma.movimentacaoEstoque.create({
+      data: {
+        estoqueItemId: estoqueItemOrigem.id,
+        tipoMovimentacao: TipoMovimentacao.SAIDA_TRANSFERENCIA,
+        quantidadeMovida: item.quantidade,
+        notaMovimentacaoId: notaId,
+        responsavelId: usuarioId,
+        movimentacaoOrigemId: null,
+      },
+    });
 
-    await this.movimentacaoRepository.create(movimentacaoEntrada);
+    await this.prisma.movimentacaoEstoque.create({
+      data: {
+        estoqueItemId: estoqueItemDestino.id,
+        tipoMovimentacao: TipoMovimentacao.ENTRADA_TRANSFERENCIA,
+        quantidadeMovida: item.quantidade,
+        notaMovimentacaoId: notaId,
+        responsavelId: usuarioId,
+        movimentacaoOrigemId: null,
+      },
+    });
 
     // Atualizar estoques
     await this.estoqueRepository.removerQuantidade(
@@ -275,24 +285,27 @@ export class ConcluirNotaMovimentacaoUseCase {
     notaId: string,
     usuarioId: string,
   ): Promise<void> {
-    // Obter saldo atual
-    const saldoAnterior = await this.movimentacaoRepository.obterUltimaSaldo(
+    // Buscar estoque item
+    const estoqueItem = await this.estoqueRepository.findByAlmoxarifadoAndTipo(
       almoxarifadoId,
       item.tipoEpiId,
+      StatusEstoqueItem.DISPONIVEL,
     );
+    if (!estoqueItem) {
+      throw new BusinessError('Item de estoque não encontrado para descarte');
+    }
 
     // Criar movimentação de saída (descarte)
-    const movimentacao = MovimentacaoEstoque.createSaida(
-      almoxarifadoId,
-      item.tipoEpiId,
-      item.quantidade,
-      saldoAnterior,
-      usuarioId,
-      notaId,
-      `Descarte via nota ${notaId}`,
-    );
-
-    await this.movimentacaoRepository.create(movimentacao);
+    await this.prisma.movimentacaoEstoque.create({
+      data: {
+        estoqueItemId: estoqueItem.id,
+        tipoMovimentacao: TipoMovimentacao.SAIDA_DESCARTE,
+        quantidadeMovida: item.quantidade,
+        notaMovimentacaoId: notaId,
+        responsavelId: usuarioId,
+        movimentacaoOrigemId: null,
+      },
+    });
 
     // Remover do estoque disponível
     await this.estoqueRepository.removerQuantidade(
@@ -309,31 +322,38 @@ export class ConcluirNotaMovimentacaoUseCase {
     notaId: string,
     usuarioId: string,
   ): Promise<void> {
-    // Obter saldo atual
-    const saldoAnterior = await this.movimentacaoRepository.obterUltimaSaldo(
+    // Buscar ou criar estoque item
+    const estoqueItem = await this.estoqueRepository.criarOuAtualizar(
       almoxarifadoId,
       item.tipoEpiId,
+      StatusEstoqueItem.DISPONIVEL,
+      0,
     );
+
+    // Determinar tipo de ajuste (positivo ou negativo)
+    const tipoMovimentacao = item.quantidade >= 0 
+      ? TipoMovimentacao.AJUSTE_POSITIVO 
+      : TipoMovimentacao.AJUSTE_NEGATIVO;
 
     // Criar movimentação de ajuste
-    const movimentacao = MovimentacaoEstoque.createAjuste(
-      almoxarifadoId,
-      item.tipoEpiId,
-      item.quantidade,
-      saldoAnterior,
-      usuarioId,
-      `Ajuste de inventário via nota ${notaId}`,
-    );
-
-    await this.movimentacaoRepository.create(movimentacao);
+    await this.prisma.movimentacaoEstoque.create({
+      data: {
+        estoqueItemId: estoqueItem.id,
+        tipoMovimentacao,
+        quantidadeMovida: Math.abs(item.quantidade),
+        notaMovimentacaoId: notaId,
+        responsavelId: usuarioId,
+        movimentacaoOrigemId: null,
+      },
+    });
 
     // Definir nova quantidade no estoque
-    const novaQuantidade = saldoAnterior + item.quantidade;
+    const novaQuantidade = estoqueItem.quantidade + item.quantidade;
     await this.estoqueRepository.atualizarQuantidade(
       almoxarifadoId,
       item.tipoEpiId,
       StatusEstoqueItem.DISPONIVEL,
-      novaQuantidade,
+      Math.max(0, novaQuantidade), // Evitar saldo negativo
     );
   }
 
@@ -364,13 +384,13 @@ export class ConcluirNotaMovimentacaoUseCase {
   private mapearTipoMovimentacao(tipoNota: TipoNotaMovimentacao): TipoMovimentacao {
     switch (tipoNota) {
       case TipoNotaMovimentacao.ENTRADA:
-        return TipoMovimentacao.ENTRADA;
+        return TipoMovimentacao.ENTRADA_NOTA;
       case TipoNotaMovimentacao.TRANSFERENCIA:
-        return TipoMovimentacao.TRANSFERENCIA;
+        return TipoMovimentacao.SAIDA_TRANSFERENCIA; // Pode ser saída ou entrada dependendo do contexto
       case TipoNotaMovimentacao.DESCARTE:
-        return TipoMovimentacao.DESCARTE;
+        return TipoMovimentacao.SAIDA_DESCARTE;
       case TipoNotaMovimentacao.AJUSTE:
-        return TipoMovimentacao.AJUSTE;
+        return TipoMovimentacao.AJUSTE_POSITIVO; // Pode ser positivo ou negativo dependendo do valor
       default:
         throw new BusinessError(`Tipo de nota não suportado: ${tipoNota}`);
     }

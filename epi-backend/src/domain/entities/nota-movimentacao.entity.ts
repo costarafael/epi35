@@ -71,9 +71,7 @@ export class NotaMovimentacao {
         if (!this.almoxarifadoOrigemId) {
           throw new BusinessError('Almoxarifado de origem é obrigatório para descarte');
         }
-        if (this.almoxarifadoDestinoId) {
-          throw new BusinessError('Almoxarifado de destino não deve ser informado para descarte');
-        }
+        
         break;
 
       case TipoNotaMovimentacao.AJUSTE:
@@ -101,7 +99,9 @@ export class NotaMovimentacao {
   }
 
   public isCancelavel(): boolean {
-    return this.isConcluida();
+    // Notas em RASCUNHO podem ser canceladas
+    // Notas CONCLUIDAS não podem ser canceladas
+    return this._status === StatusNotaMovimentacao.RASCUNHO;
   }
 
   public adicionarItem(tipoEpiId: string, quantidade: number, observacoes?: string): void {

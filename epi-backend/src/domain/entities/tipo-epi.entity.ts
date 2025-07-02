@@ -1,94 +1,138 @@
 import { BusinessError } from '../exceptions/business.exception';
 
+/**
+ * Tipo de status para TipoEPI conforme novo schema
+ */
+export type StatusTipoEpi = 'ATIVO' | 'DESCONTINUADO';
+
+/**
+ * Entidade TipoEPI reformulada conforme nova estrutura:
+ * - nomeEquipamento (antes: nome)
+ * - numeroCa (antes: ca) 
+ * - vidaUtilDias (antes: validadeMeses)
+ * - status enum (antes: ativo boolean)
+ * - Removidos: codigo, diasAvisoVencimento, exigeAssinaturaEntrega
+ */
 export class TipoEPI {
   constructor(
     public readonly id: string,
-    public readonly nome: string,
-    public readonly codigo: string,
+    public readonly nomeEquipamento: string,
+    public readonly numeroCa: string,
     public readonly descricao: string | null,
-    public readonly ca: string | null,
-    public readonly validadeMeses: number | null,
-    public readonly diasAvisoVencimento: number,
-    public readonly exigeAssinaturaEntrega: boolean,
-    public readonly ativo: boolean,
+    public readonly vidaUtilDias: number | null,
+    public readonly status: StatusTipoEpi,
     public readonly createdAt: Date,
-    public readonly updatedAt: Date,
   ) {
     this.validate();
   }
 
   private validate(): void {
-    if (!this.nome || this.nome.trim().length === 0) {
-      throw new BusinessError('Nome do tipo de EPI é obrigatório');
+    if (!this.nomeEquipamento || this.nomeEquipamento.trim().length === 0) {
+      throw new BusinessError('Nome do equipamento é obrigatório');
     }
 
-    if (!this.codigo || this.codigo.trim().length === 0) {
-      throw new BusinessError('Código do tipo de EPI é obrigatório');
+    if (!this.numeroCa || this.numeroCa.trim().length === 0) {
+      throw new BusinessError('Número CA é obrigatório');
     }
 
-    if (this.validadeMeses !== null && this.validadeMeses <= 0) {
-      throw new BusinessError('Validade em meses deve ser positiva');
+    if (this.vidaUtilDias !== null && this.vidaUtilDias <= 0) {
+      throw new BusinessError('Vida útil em dias deve ser positiva');
     }
 
-    if (this.diasAvisoVencimento < 0) {
-      throw new BusinessError('Dias de aviso de vencimento não pode ser negativo');
+    if (!['ATIVO', 'DESCONTINUADO'].includes(this.status)) {
+      throw new BusinessError('Status deve ser ATIVO ou DESCONTINUADO');
     }
   }
 
+  /**
+   * Calcula data de vencimento baseado na vida útil em dias
+   */
   public calcularDataVencimento(dataEntrega: Date): Date | null {
-    if (!this.validadeMeses) {
+    if (!this.vidaUtilDias) {
       return null;
     }
 
     const dataVencimento = new Date(dataEntrega);
-    dataVencimento.setMonth(dataVencimento.getMonth() + this.validadeMeses);
+    dataVencimento.setDate(dataVencimento.getDate() + this.vidaUtilDias);
     return dataVencimento;
   }
 
-  public calcularDataAvisoVencimento(dataVencimento: Date): Date {
+  /**
+   * Calcula data de aviso (30 dias antes do vencimento por padrão)
+   */
+  public calcularDataAvisoVencimento(dataVencimento: Date, diasAviso: number = 30): Date {
     const dataAviso = new Date(dataVencimento);
-    dataAviso.setDate(dataAviso.getDate() - this.diasAvisoVencimento);
+    dataAviso.setDate(dataAviso.getDate() - diasAviso);
     return dataAviso;
   }
 
-  public isVencidoOuProximoVencimento(dataVencimento: Date | null): boolean {
+  /**
+   * Verifica se está vencido ou próximo do vencimento
+   */
+  public isVencidoOuProximoVencimento(dataVencimento: Date | null, diasAviso: number = 30): boolean {
     if (!dataVencimento) {
       return false;
     }
 
     const hoje = new Date();
-    const dataAviso = this.calcularDataAvisoVencimento(dataVencimento);
+    const dataAviso = this.calcularDataAvisoVencimento(dataVencimento, diasAviso);
     
     return hoje >= dataAviso;
   }
 
+  /**
+   * Verifica se o tipo de EPI está ativo
+   */
   public isAtivo(): boolean {
-    return this.ativo;
+    return this.status === 'ATIVO';
   }
 
+  /**
+   * Verifica se o tipo de EPI está descontinuado
+   */
+  public isDescontinuado(): boolean {
+    return this.status === 'DESCONTINUADO';
+  }
+
+  /**
+   * Converte vida útil de meses para dias (para migração)
+   */
+  public static mesesParaDias(meses: number): number {
+    return meses * 30;
+  }
+
+  /**
+   * Converte vida útil de dias para meses (para exibição)
+   */
+  public getVidaUtilMeses(): number | null {
+    if (!this.vidaUtilDias) {
+      return null;
+    }
+    return Math.round(this.vidaUtilDias / 30);
+  }
+
+  /**
+   * Método de criação atualizado para nova estrutura
+   */
   public static create(
-    nome: string,
-    codigo: string,
+    nomeEquipamento: string,
+    numeroCa: string,
     descricao: string | null = null,
-    ca: string | null = null,
-    validadeMeses: number | null = null,
-    diasAvisoVencimento: number = 30,
-    exigeAssinaturaEntrega: boolean = true,
-    ativo: boolean = true,
-  ): Omit<TipoEPI, 'id' | 'createdAt' | 'updatedAt'> {
+    vidaUtilDias: number | null = null,
+    status: StatusTipoEpi = 'ATIVO',
+  ): Omit<TipoEPI, 'id' | 'createdAt'> {
     return {
-      nome: nome.trim(),
-      codigo: codigo.trim().toUpperCase(),
+      nomeEquipamento: nomeEquipamento.trim(),
+      numeroCa: numeroCa.trim().toUpperCase(),
       descricao: descricao?.trim() || null,
-      ca: ca?.trim() || null,
-      validadeMeses,
-      diasAvisoVencimento,
-      exigeAssinaturaEntrega,
-      ativo,
+      vidaUtilDias,
+      status,
       calcularDataVencimento: TipoEPI.prototype.calcularDataVencimento,
       calcularDataAvisoVencimento: TipoEPI.prototype.calcularDataAvisoVencimento,
       isVencidoOuProximoVencimento: TipoEPI.prototype.isVencidoOuProximoVencimento,
       isAtivo: TipoEPI.prototype.isAtivo,
+      isDescontinuado: TipoEPI.prototype.isDescontinuado,
+      getVidaUtilMeses: TipoEPI.prototype.getVidaUtilMeses,
     } as any;
   }
 }

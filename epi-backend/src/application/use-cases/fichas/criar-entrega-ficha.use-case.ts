@@ -2,8 +2,7 @@ import { Injectable, Inject } from '@nestjs/common';
 import { PrismaService } from '../../../infrastructure/database/prisma.service';
 import { IEstoqueRepository } from '../../../domain/interfaces/repositories/estoque-repository.interface';
 import { IMovimentacaoRepository } from '../../../domain/interfaces/repositories/movimentacao-repository.interface';
-import { Entrega, EntregaItemData } from '../../../domain/entities/entrega.entity';
-import { TipoEPI } from '../../../domain/entities/tipo-epi.entity';
+// Removidas importações não utilizadas
 import { StatusEstoqueItem, StatusEntrega, StatusEntregaItem } from '../../../domain/enums';
 import { BusinessError, NotFoundError } from '../../../domain/exceptions/business.exception';
 
@@ -12,8 +11,7 @@ export interface CriarEntregaInput {
   quantidade: number;
   itens: {
     numeroSerie?: string;
-    lote?: string;
-    dataFabricacao?: Date;
+    // Removidos campos lote e dataFabricacao conforme alinhamento do schema
   }[];
   assinaturaColaborador?: string;
   observacoes?: string;
@@ -34,9 +32,10 @@ export interface EntregaOutput {
     tipoEpiId: string;
     quantidadeEntregue: number;
     numeroSerie?: string;
+    estoqueItemOrigemId?: string; // Campo adicionado para rastreabilidade
     lote?: string;
     dataFabricacao?: Date;
-    dataVencimento?: Date;
+    dataLimiteDevolucao?: Date; // Campo renomeado
     status: StatusEntregaItem;
   }[];
   colaborador: {
@@ -84,13 +83,8 @@ export class CriarEntregaFichaUseCase {
       // Criar entrega
       const entrega = await this.criarEntrega(fichaComDetalhes, input, tx);
 
-      // Criar itens de entrega (rastreabilidade unitária)
-      const itensEntrega = await this.criarItensEntrega(
-        entrega.id,
-        fichaComDetalhes.tipoEpi,
-        input,
-        tx,
-      );
+      // Criar itens de entrega (comum a ambos os fluxos)
+      await this.criarItensEntrega(entrega.id, fichaComDetalhes.tipoEpi, input, tx);
 
       // Movimentar estoque (saída)
       await this.movimentarEstoque(fichaComDetalhes, input, tx);
@@ -489,11 +483,12 @@ export class CriarEntregaFichaUseCase {
     const itens = [];
 
     for (const itemInput of input.itens) {
-      // Calcular data de vencimento do item (se diferente da entrega)
-      let dataVencimentoItem: Date | null = null;
-      if (itemInput.dataFabricacao && tipoEpi.validadeMeses) {
-        dataVencimentoItem = new Date(itemInput.dataFabricacao);
-        dataVencimentoItem.setMonth(dataVencimentoItem.getMonth() + tipoEpi.validadeMeses);
+      // Calcular data de devolução sugerida com base no diasAvisoVencimento
+      let dataLimiteDevolucao: Date | null = null;
+      
+      if (tipoEpi.diasAvisoVencimento) {
+        dataLimiteDevolucao = new Date();
+        dataLimiteDevolucao.setDate(dataLimiteDevolucao.getDate() + tipoEpi.diasAvisoVencimento);
       }
 
       const item = await tx.entregaItem.create({
@@ -502,10 +497,9 @@ export class CriarEntregaFichaUseCase {
           tipoEpiId: tipoEpi.id,
           quantidadeEntregue: 1, // Sempre 1 para rastreabilidade unitária
           numeroSerie: itemInput.numeroSerie,
-          lote: itemInput.lote,
-          dataFabricacao: itemInput.dataFabricacao,
-          dataVencimento: dataVencimentoItem,
-          status: 'ENTREGUE',
+          estoqueItemOrigemId: itemInput.estoqueItemOrigemId, // Campo adicionado para rastreabilidade
+          dataLimiteDevolucao,
+          status: 'COM_COLABORADOR', // Corrigido para o novo valor do enum
         },
       });
 
@@ -634,9 +628,10 @@ export class CriarEntregaFichaUseCase {
         tipoEpiId: item.tipoEpiId,
         quantidadeEntregue: item.quantidadeEntregue,
         numeroSerie: item.numeroSerie,
+        estoqueItemOrigemId: item.estoqueItemOrigemId, // Campo adicionado para rastreabilidade
         lote: item.lote,
         dataFabricacao: item.dataFabricacao,
-        dataVencimento: item.dataVencimento,
+        dataLimiteDevolucao: item.dataLimiteDevolucao, // Campo renomeado
         status: item.status as StatusEntregaItem,
       })),
       colaborador: {

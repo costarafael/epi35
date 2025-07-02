@@ -18,10 +18,9 @@ export interface CancelarNotaInput {
 export interface EstornoMovimentacao {
   movimentacaoOriginalId: string;
   movimentacaoEstornoId: string;
+  estoqueItemId: string;
   tipoEpiId: string;
-  quantidade: number;
-  saldoAnterior: number;
-  saldoPosterior: number;
+  quantidadeEstornada: number;
 }
 
 export interface ResultadoCancelamento {
@@ -113,13 +112,15 @@ export class CancelarNotaMovimentacaoUseCase {
         // Ajustar estoque
         await this.ajustarEstoqueEstorno(movimentacao, nota.tipo);
 
+        // Buscar dados do estoque item para incluir no resultado
+        const estoqueItem = await this.estoqueRepository.findById(movimentacao.estoqueItemId);
+        
         estornosGerados.push({
           movimentacaoOriginalId: movimentacao.id,
           movimentacaoEstornoId: estorno.id,
-          tipoEpiId: movimentacao.tipoEpiId,
-          quantidade: movimentacao.quantidade,
-          saldoAnterior: estorno.saldoAnterior,
-          saldoPosterior: estorno.saldoPosterior,
+          estoqueItemId: movimentacao.estoqueItemId,
+          tipoEpiId: estoqueItem?.tipoEpiId || '',
+          quantidadeEstornada: movimentacao.quantidadeMovida,
         });
       }
 
@@ -142,9 +143,15 @@ export class CancelarNotaMovimentacaoUseCase {
     movimentacaoOriginal: MovimentacaoEstoque,
     tipoNota: TipoNotaMovimentacao,
   ): Promise<void> {
-    const almoxarifadoId = movimentacaoOriginal.almoxarifadoId;
-    const tipoEpiId = movimentacaoOriginal.tipoEpiId;
-    const quantidade = movimentacaoOriginal.quantidade;
+    // Buscar dados do estoque item
+    const estoqueItem = await this.estoqueRepository.findById(movimentacaoOriginal.estoqueItemId);
+    if (!estoqueItem) {
+      throw new BusinessError('Item de estoque não encontrado na movimentação original');
+    }
+    
+    const almoxarifadoId = estoqueItem.almoxarifadoId;
+    const tipoEpiId = estoqueItem.tipoEpiId;
+    const quantidade = movimentacaoOriginal.quantidadeMovida;
 
     switch (tipoNota) {
       case TipoNotaMovimentacao.ENTRADA:
@@ -183,9 +190,15 @@ export class CancelarNotaMovimentacaoUseCase {
   }
 
   private async estornarTransferencia(movimentacaoOriginal: MovimentacaoEstoque): Promise<void> {
-    const almoxarifadoId = movimentacaoOriginal.almoxarifadoId;
-    const tipoEpiId = movimentacaoOriginal.tipoEpiId;
-    const quantidade = movimentacaoOriginal.quantidade;
+    // Buscar dados do estoque item
+    const estoqueItem = await this.estoqueRepository.findById(movimentacaoOriginal.estoqueItemId);
+    if (!estoqueItem) {
+      throw new BusinessError('Item de estoque não encontrado na movimentação original');
+    }
+    
+    const almoxarifadoId = estoqueItem.almoxarifadoId;
+    const tipoEpiId = estoqueItem.tipoEpiId;
+    const quantidade = movimentacaoOriginal.quantidadeMovida;
 
     if (movimentacaoOriginal.isSaida()) {
       // Era uma saída, estorno adiciona de volta
@@ -207,15 +220,32 @@ export class CancelarNotaMovimentacaoUseCase {
   }
 
   private async estornarAjuste(movimentacaoOriginal: MovimentacaoEstoque): Promise<void> {
-    const almoxarifadoId = movimentacaoOriginal.almoxarifadoId;
-    const tipoEpiId = movimentacaoOriginal.tipoEpiId;
+    // Buscar dados do estoque item
+    const estoqueItem = await this.estoqueRepository.findById(movimentacaoOriginal.estoqueItemId);
+    if (!estoqueItem) {
+      throw new BusinessError('Item de estoque não encontrado na movimentação original');
+    }
     
-    // Para ajuste, o estorno retorna ao saldo anterior
+    const almoxarifadoId = estoqueItem.almoxarifadoId;
+    const tipoEpiId = estoqueItem.tipoEpiId;
+    
+    // Para ajuste, precisamos calcular o saldo anterior
+    // Como não temos mais saldoAnterior, vamos obter o estoque atual e ajustar
+    const estoqueAtualItem = await this.estoqueRepository.findByAlmoxarifadoAndTipo(
+      almoxarifadoId,
+      tipoEpiId,
+      StatusEstoqueItem.DISPONIVEL,
+    );
+    
+    const estoqueAtual = estoqueAtualItem?.quantidade || 0;
+    
+    // Reverter o ajuste original (quantidade movimentada)
+    const novoSaldo = estoqueAtual - movimentacaoOriginal.quantidadeMovida;
     await this.estoqueRepository.atualizarQuantidade(
       almoxarifadoId,
       tipoEpiId,
       StatusEstoqueItem.DISPONIVEL,
-      movimentacaoOriginal.saldoAnterior,
+      novoSaldo,
     );
   }
 
@@ -292,20 +322,26 @@ export class CancelarNotaMovimentacaoUseCase {
     const movimentacoesAfetadas = [];
 
     for (const mov of movimentacoes) {
+      // Buscar dados do estoque item
+      const estoqueItem = await this.estoqueRepository.findById(mov.estoqueItemId);
+      if (!estoqueItem) {
+        continue; // Pular se não encontrar o item
+      }
+      
       // Calcular impacto no estoque
       const estoqueAtual = await this.estoqueRepository.findByAlmoxarifadoAndTipo(
-        mov.almoxarifadoId,
-        mov.tipoEpiId,
+        estoqueItem.almoxarifadoId,
+        estoqueItem.tipoEpiId,
         StatusEstoqueItem.DISPONIVEL,
       );
 
       const saldoAtual = estoqueAtual?.quantidade || 0;
-      const diferenca = mov.isEntrada() ? -mov.quantidade : mov.quantidade;
+      const diferenca = mov.isEntrada() ? -mov.quantidadeMovida : mov.quantidadeMovida;
       const saldoAposCancelamento = saldoAtual + diferenca;
 
       estoqueAfetado.push({
-        almoxarifadoId: mov.almoxarifadoId,
-        tipoEpiId: mov.tipoEpiId,
+        almoxarifadoId: estoqueItem.almoxarifadoId,
+        tipoEpiId: estoqueItem.tipoEpiId,
         saldoAtual,
         saldoAposCancelamento,
         diferenca,
@@ -314,9 +350,9 @@ export class CancelarNotaMovimentacaoUseCase {
       movimentacoesAfetadas.push({
         id: mov.id,
         tipoMovimentacao: mov.tipoMovimentacao,
-        quantidade: mov.quantidade,
-        saldoAnterior: mov.saldoAnterior,
-        saldoPosterior: mov.saldoPosterior,
+        quantidade: mov.quantidadeMovida,
+        saldoAnterior: 0, // Não disponível no novo schema
+        saldoPosterior: 0, // Não disponível no novo schema
       });
     }
 

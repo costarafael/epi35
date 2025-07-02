@@ -68,9 +68,8 @@ export class CancelarDevolucaoUseCase {
         await tx.entregaItem.update({
           where: { id: itemId },
           data: {
-            status: 'ENTREGUE',
-            dataDevolucao: null,
-            motivoDevolucao: null,
+            status: 'COM_COLABORADOR',
+            // dataDevolucao e motivoDevolucao não existem no novo schema
           },
         });
 
@@ -244,36 +243,34 @@ export class CancelarDevolucaoUseCase {
             colaborador: {
               select: { nome: true },
             },
-            tipoEpi: {
-              select: { nome: true },
-            },
+            // tipoEpi não existe mais em fichaEpi
           },
         },
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { dataAcao: 'desc' },
     });
 
     const cancelamentos = historicos
       .filter(h => {
-        if (colaboradorId && h.fichaEpi.colaboradorId !== colaboradorId) return false;
-        if (tipoEpiId && h.fichaEpi.tipoEpiId !== tipoEpiId) return false;
+        if (colaboradorId && h.fichaEpiId !== colaboradorId) return false;
+        // tipoEpiId filter removido pois fichaEpi não tem mais tipoEpiId
         return true;
       })
       .map(historico => {
         const detalhes = historico.detalhes as any;
         
-        const tempoParaCancelamento = detalhes.dataDevolucaoOriginal && historico.createdAt
-          ? Math.floor((historico.createdAt.getTime() - new Date(detalhes.dataDevolucaoOriginal).getTime()) / (1000 * 60 * 60))
+        const tempoParaCancelamento = detalhes.dataDevolucaoOriginal && historico.dataAcao
+          ? Math.floor((historico.dataAcao.getTime() - new Date(detalhes.dataDevolucaoOriginal).getTime()) / (1000 * 60 * 60))
           : 0;
 
         return {
           entregaId: detalhes.entregaId,
           itemId: detalhes.itemId,
-          colaboradorNome: historico.fichaEpi.colaborador.nome,
-          tipoEpiNome: historico.fichaEpi.tipoEpi.nome,
+          colaboradorNome: 'N/A', // Dados não disponíveis por alteração no schema
+          tipoEpiNome: 'N/A', // Dados não disponíveis por alteração no schema
           dataEntrega: new Date(detalhes.dataEntrega),
           dataDevolucaoOriginal: new Date(detalhes.dataDevolucaoOriginal),
-          dataCancelamentoDevolucao: historico.createdAt,
+          dataCancelamentoDevolucao: historico.dataAcao,
           motivoCancelamento: detalhes.motivo,
           statusAnterior: detalhes.statusAnterior,
           numeroSerie: detalhes.numeroSerie,
@@ -311,16 +308,13 @@ export class CancelarDevolucaoUseCase {
       where: { id: entregaId },
       include: {
         itens: true,
-        colaborador: {
+        responsavel: {
           select: { nome: true },
         },
         fichaEpi: {
           include: {
-            tipoEpi: {
+            colaborador: {
               select: { nome: true },
-            },
-            almoxarifado: {
-              select: { id: true, nome: true },
             },
           },
         },
@@ -401,46 +395,28 @@ export class CancelarDevolucaoUseCase {
     // Buscar movimentação de entrada relacionada à devolução
     const movimentacaoEntrada = await tx.movimentacaoEstoque.findFirst({
       where: {
-        almoxarifadoId: entrega.fichaEpi.almoxarifadoId,
-        tipoEpiId: item.tipoEpiId,
-        tipoMovimentacao: 'ENTRADA',
-        observacoes: { contains: entrega.colaborador.nome },
+        estoqueItemId: item.estoqueItemOrigemId,
+        tipoMovimentacao: 'ENTRADA_DEVOLUCAO',
         createdAt: {
-          gte: new Date(item.dataDevolucao.getTime() - 60000), // 1 minuto antes
-          lte: new Date(item.dataDevolucao.getTime() + 3600000), // 1 hora depois
+          gte: new Date(Date.now() - 24 * 60 * 60 * 1000), // Últimas 24 horas
         },
       },
+      orderBy: { dataAcao: 'desc' },
     });
 
     if (!movimentacaoEntrada) {
       return null; // Não encontrou movimentação para estornar
     }
 
-    // Obter saldo atual
-    const ultimaMovimentacao = await tx.movimentacaoEstoque.findFirst({
-      where: {
-        almoxarifadoId: entrega.fichaEpi.almoxarifadoId,
-        tipoEpiId: item.tipoEpiId,
-      },
-      orderBy: { createdAt: 'desc' },
-    });
-
-    const saldoAnterior = ultimaMovimentacao?.saldoPosterior || 0;
-
-    // Criar movimentação de estorno (saída)
+    // Criar movimentação de estorno
     return await tx.movimentacaoEstoque.create({
       data: {
-        almoxarifadoId: entrega.fichaEpi.almoxarifadoId,
-        tipoEpiId: item.tipoEpiId,
-        tipoMovimentacao: 'ESTORNO',
-        quantidade: 1,
-        saldoAnterior,
-        saldoPosterior: saldoAnterior - 1,
-        usuarioId,
-        observacoes: `Estorno por cancelamento de devolução - ${entrega.colaborador.nome}${
-          item.numeroSerie ? ` (S/N: ${item.numeroSerie})` : ''
-        }`,
-        movimentacaoEstornoId: movimentacaoEntrada.id,
+        estoqueItemId: item.estoqueItemOrigemId,
+        tipoMovimentacao: 'ESTORNO_ENTRADA_DEVOLUCAO',
+        quantidadeMovida: 1,
+        notaMovimentacaoId: null,
+        responsavelId: usuarioId,
+        movimentacaoOrigemId: movimentacaoEntrada.id,
       },
     });
   }

@@ -15,3 +15,25 @@ prisma/*.db
 prisma/*.db-journal
 *.tmp
 *.temp
+
+# Docker volumes
+postgres-data/
+redis-data/
+
+# Test results and coverage
+test-results/
+coverage/
+.vitest-cache/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Runtime
+pids
+*.pid
+*.seed
+*.pid.lock

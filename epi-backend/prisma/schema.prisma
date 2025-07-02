@@ -11,91 +11,118 @@ datasource db {
 }
 
 // ========================================
-// ENUMS
+// ENUMS conforme documentação oficial
 // ========================================
 
-enum StatusUsuario {
+// Status para um tipo de EPI no catálogo
+enum StatusTipoEpiEnum {
   ATIVO
-  INATIVO
-  BLOQUEADO
+  DESCONTINUADO
+
+  @@map("status_tipo_epi_enum")
 }
 
-enum TipoMovimentacao {
+// Status de um item no estoque físico
+enum StatusEstoqueItemEnum {
+  DISPONIVEL
+  AGUARDANDO_INSPECAO
+  QUARENTENA
+
+  @@map("status_estoque_item_enum")
+}
+
+// Tipos de notas de movimentação
+enum TipoNotaEnum {
   ENTRADA
-  SAIDA
   TRANSFERENCIA
-  AJUSTE
   DESCARTE
-  ESTORNO
+  ENTRADA_AJUSTE
+  SAIDA_AJUSTE
+
+  @@map("tipo_nota_enum")
 }
 
-enum StatusNotaMovimentacao {
+// Status de uma nota de movimentação
+enum StatusNotaEnum {
   RASCUNHO
   CONCLUIDA
   CANCELADA
+
+  @@map("status_nota_enum")
 }
 
-enum TipoNotaMovimentacao {
-  ENTRADA
-  TRANSFERENCIA
-  DESCARTE
-  AJUSTE
+// Tipos de movimentação no livro-razão
+enum TipoMovimentacaoEnum {
+  // Movimentações Diretas
+  ENTRADA_NOTA
+  SAIDA_ENTREGA
+  ENTRADA_DEVOLUCAO
+  SAIDA_TRANSFERENCIA
+  ENTRADA_TRANSFERENCIA
+  SAIDA_DESCARTE
+  AJUSTE_POSITIVO
+  AJUSTE_NEGATIVO
+  // Movimentações de Estorno/Cancelamento
+  ESTORNO_ENTRADA_NOTA
+  ESTORNO_SAIDA_ENTREGA
+  ESTORNO_ENTRADA_DEVOLUCAO
+  ESTORNO_SAIDA_DESCARTE
+  ESTORNO_SAIDA_TRANSFERENCIA
+  ESTORNO_ENTRADA_TRANSFERENCIA
+  ESTORNO_AJUSTE_POSITIVO
+  ESTORNO_AJUSTE_NEGATIVO
+
+  @@map("tipo_movimentacao_enum")
 }
 
-enum StatusEstoqueItem {
-  DISPONIVEL
-  RESERVADO
-  AGUARDANDO_INSPECAO
-  DESCARTADO
-}
-
-enum StatusEntrega {
-  ATIVA
-  DEVOLVIDA_PARCIAL
-  DEVOLVIDA_TOTAL
-  CANCELADA
-}
-
-enum StatusEntregaItem {
-  ENTREGUE
-  DEVOLVIDO
-  PERDIDO
-  DANIFICADO
-}
-
-enum StatusFichaEPI {
+// Status da ficha de EPI geral do colaborador
+enum StatusFichaEnum {
   ATIVA
   INATIVA
-  SUSPENSA
+
+  @@map("status_ficha_enum")
+}
+
+// Status do evento de entrega
+enum StatusEntregaEnum {
+  PENDENTE_ASSINATURA
+  ASSINADA
+  CANCELADA
+
+  @@map("status_entrega_enum")
+}
+
+// Status de um item entregue a um colaborador (unitário)
+enum StatusEntregaItemEnum {
+  COM_COLABORADOR
+  DEVOLVIDO
+
+  @@map("status_entrega_item_enum")
 }
 
 // ========================================
-// TABELAS PRINCIPAIS
+// TABELAS conforme documentação oficial
 // ========================================
 
 model Usuario {
-  id        String        @id @default(cuid())
-  nome      String
-  email     String        @unique
-  senha     String
-  status    StatusUsuario @default(ATIVO)
-  createdAt DateTime      @default(now())
-  updatedAt DateTime      @updatedAt
+  id        String   @id @default(uuid())
+  nome      String   @db.VarChar(255)
+  email     String   @unique @db.VarChar(255)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
   // Relacionamentos
   notasMovimentacao NotaMovimentacao[]
   movimentacoes     MovimentacaoEstoque[]
+  entregas          Entrega[]
 
   @@map("usuarios")
 }
 
 model UnidadeNegocio {
-  id        String   @id @default(cuid())
-  nome      String
-  codigo    String   @unique
-  ativa     Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id        String   @id @default(uuid())
+  nome      String   @db.VarChar(255)
+  codigo    String   @unique @db.VarChar(50)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
   // Relacionamentos
   almoxarifados Almoxarifado[]
@@ -105,86 +132,76 @@ model UnidadeNegocio {
 }
 
 model Almoxarifado {
-  id               String   @id @default(cuid())
-  nome             String
-  codigo           String   @unique
-  descricao        String?
-  unidadeNegocioId String
-  ativo            Boolean  @default(true)
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  id               String   @id @default(uuid())
+  unidadeNegocioId String   @map("unidade_negocio_id")
+  nome             String   @db.VarChar(255)
+  isPrincipal      Boolean  @default(false) @map("is_principal")
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
   // Relacionamentos
-  unidadeNegocio    UnidadeNegocio        @relation(fields: [unidadeNegocioId], references: [id])
-  estoqueItens      EstoqueItem[]
-  notasOrigem       NotaMovimentacao[]    @relation("NotaAlmoxarifadoOrigem")
-  notasDestino      NotaMovimentacao[]    @relation("NotaAlmoxarifadoDestino")
-  movimentacoes     MovimentacaoEstoque[]
-  fichasEPI         FichaEPI[]
+  unidadeNegocio         UnidadeNegocio        @relation(fields: [unidadeNegocioId], references: [id])
+  estoqueItens           EstoqueItem[]
+  notasMovimentacaoOrigem NotaMovimentacao[]   @relation("NotaAlmoxarifadoOrigem")
+  notasMovimentacaoDestino NotaMovimentacao[]  @relation("NotaAlmoxarifadoDestino")
+  entregas               Entrega[]
 
   @@map("almoxarifados")
 }
 
 model TipoEPI {
-  id                    String   @id @default(cuid())
-  nome                  String
-  codigo                String   @unique
-  descricao             String?
-  ca                    String?  // Certificado de Aprovação
-  validadeMeses         Int?     // Validade em meses
-  diasAvisoVencimento   Int      @default(30)
-  exigeAssinaturaEntrega Boolean @default(true)
-  ativo                 Boolean  @default(true)
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
+  id              String              @id @default(uuid())
+  nomeEquipamento String              @map("nome_equipamento") @db.VarChar(255)
+  numeroCa        String              @unique @map("numero_ca") @db.VarChar(50)
+  descricao       String?             @db.Text
+  vidaUtilDias    Int?                @map("vida_util_dias")
+  status          StatusTipoEpiEnum   @default(ATIVO)
+  createdAt       DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
 
   // Relacionamentos
   estoqueItens         EstoqueItem[]
   notaMovimentacaoItens NotaMovimentacaoItem[]
-  movimentacoes        MovimentacaoEstoque[]
-  entregaItens         EntregaItem[]
-  fichasEPI            FichaEPI[]
 
   @@map("tipos_epi")
 }
 
 model EstoqueItem {
-  id             String           @id @default(cuid())
-  almoxarifadoId String
-  tipoEpiId      String
-  quantidade     Int              @default(0)
-  status         StatusEstoqueItem @default(DISPONIVEL)
-  createdAt      DateTime         @default(now())
-  updatedAt      DateTime         @updatedAt
+  id            String                 @id @default(uuid())
+  almoxarifadoId String                @map("almoxarifado_id")
+  tipoEpiId     String                 @map("tipo_epi_id")
+  quantidade    Int                    @default(0)
+  custoUnitario Decimal?               @map("custo_unitario") @db.Decimal(12, 2)
+  status        StatusEstoqueItemEnum  @default(DISPONIVEL)
+  createdAt     DateTime               @default(now()) @map("created_at") @db.Timestamptz(6)
 
   // Relacionamentos
-  almoxarifado Almoxarifado @relation(fields: [almoxarifadoId], references: [id])
-  tipoEpi      TipoEPI      @relation(fields: [tipoEpiId], references: [id])
+  almoxarifado     Almoxarifado          @relation(fields: [almoxarifadoId], references: [id])
+  tipoEpi          TipoEPI               @relation(fields: [tipoEpiId], references: [id])
+  movimentacoes    MovimentacaoEstoque[]
+  entregaItens     EntregaItem[]
+  notaMovimentacaoItens NotaMovimentacaoItem[]
 
-  // Constraint: Unique per almoxarifado, tipo and status
   @@unique([almoxarifadoId, tipoEpiId, status])
-  @@index([almoxarifadoId, status])
-  @@index([tipoEpiId, status])
+  @@index([almoxarifadoId])
+  @@index([tipoEpiId])
   @@map("estoque_itens")
 }
 
 model NotaMovimentacao {
-  id                     String                 @id @default(cuid())
-  numero                 String                 @unique
-  tipo                   TipoNotaMovimentacao
-  almoxarifadoOrigemId   String?
-  almoxarifadoDestinoId  String?
-  usuarioId              String
-  observacoes            String?
-  status                 StatusNotaMovimentacao @default(RASCUNHO)
-  dataConclusao          DateTime?
-  createdAt              DateTime               @default(now())
-  updatedAt              DateTime               @updatedAt
+  id                    String          @id @default(uuid())
+  almoxarifadoId        String          @map("almoxarifado_id")
+  almoxarifadoDestinoId String?         @map("almoxarifado_destino_id")
+  responsavelId         String          @map("responsavel_id")
+  tipoNota              TipoNotaEnum    @map("tipo_nota")
+  status                StatusNotaEnum  @default(RASCUNHO)
+  numeroDocumento       String?         @map("numero_documento") @db.VarChar(255)
+  dataDocumento         DateTime        @default(dbgenerated("CURRENT_DATE")) @map("data_documento") @db.Date
+  observacoes           String?         @db.Text
+  createdAt             DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
 
   // Relacionamentos
-  almoxarifadoOrigem  Almoxarifado?            @relation("NotaAlmoxarifadoOrigem", fields: [almoxarifadoOrigemId], references: [id])
+  almoxarifadoOrigem  Almoxarifado             @relation("NotaAlmoxarifadoOrigem", fields: [almoxarifadoId], references: [id])
   almoxarifadoDestino Almoxarifado?            @relation("NotaAlmoxarifadoDestino", fields: [almoxarifadoDestinoId], references: [id])
-  usuario             Usuario                  @relation(fields: [usuarioId], references: [id])
+  responsavel         Usuario                  @relation(fields: [responsavelId], references: [id])
   itens               NotaMovimentacaoItem[]
   movimentacoes       MovimentacaoEstoque[]
 
@@ -192,161 +209,140 @@ model NotaMovimentacao {
 }
 
 model NotaMovimentacaoItem {
-  id                   String @id @default(cuid())
-  notaMovimentacaoId   String
-  tipoEpiId            String
+  id                   String @id @default(uuid())
+  notaMovimentacaoId   String @map("nota_movimentacao_id")
   quantidade           Int
-  quantidadeProcessada Int    @default(0)
-  observacoes          String?
+  estoqueItemId        String? @map("estoque_item_id")
+  tipoEpiId            String? @map("tipo_epi_id")
+  custoUnitario        Decimal? @map("custo_unitario") @db.Decimal(12, 2)
 
   // Relacionamentos
   notaMovimentacao NotaMovimentacao @relation(fields: [notaMovimentacaoId], references: [id], onDelete: Cascade)
-  tipoEpi          TipoEPI          @relation(fields: [tipoEpiId], references: [id])
+  estoqueItem      EstoqueItem?     @relation(fields: [estoqueItemId], references: [id])
+  tipoEpi          TipoEPI?         @relation(fields: [tipoEpiId], references: [id])
 
   @@map("nota_movimentacao_itens")
 }
 
 model MovimentacaoEstoque {
-  id                   String            @id @default(cuid())
-  almoxarifadoId       String
-  tipoEpiId            String
-  tipoMovimentacao     TipoMovimentacao
-  quantidade           Int
-  saldoAnterior        Int
-  saldoPosterior       Int
-  notaMovimentacaoId   String?
-  usuarioId            String
-  observacoes          String?
-  movimentacaoEstornoId String?          // Referência para estorno
-  createdAt            DateTime          @default(now())
+  id                   String                @id @default(uuid())
+  estoqueItemId        String                @map("estoque_item_id")
+  responsavelId        String                @map("responsavel_id")
+  tipoMovimentacao     TipoMovimentacaoEnum  @map("tipo_movimentacao")
+  quantidadeMovida     Int                   @map("quantidade_movida")
+  notaMovimentacaoId   String?               @map("nota_movimentacao_id")
+  entregaId            String?               @map("entrega_id")
+  movimentacaoOrigemId String?               @map("movimentacao_origem_id")
+  dataMovimentacao     DateTime              @default(now()) @map("data_movimentacao") @db.Timestamptz(6)
 
   // Relacionamentos
-  almoxarifado         Almoxarifado       @relation(fields: [almoxarifadoId], references: [id])
-  tipoEpi              TipoEPI            @relation(fields: [tipoEpiId], references: [id])
-  notaMovimentacao     NotaMovimentacao?  @relation(fields: [notaMovimentacaoId], references: [id])
-  usuario              Usuario            @relation(fields: [usuarioId], references: [id])
-  movimentacaoEstorno  MovimentacaoEstoque? @relation("EstornoMovimentacao", fields: [movimentacaoEstornoId], references: [id])
-  estornos             MovimentacaoEstoque[] @relation("EstornoMovimentacao")
+  estoqueItem         EstoqueItem          @relation(fields: [estoqueItemId], references: [id])
+  responsavel         Usuario              @relation(fields: [responsavelId], references: [id])
+  notaMovimentacao    NotaMovimentacao?    @relation(fields: [notaMovimentacaoId], references: [id])
+  entrega             Entrega?             @relation(fields: [entregaId], references: [id])
+  movimentacaoOrigem  MovimentacaoEstoque? @relation("EstornoMovimentacao", fields: [movimentacaoOrigemId], references: [id])
+  estornos            MovimentacaoEstoque[] @relation("EstornoMovimentacao")
 
-  @@index([almoxarifadoId, tipoEpiId, createdAt])
-  @@index([tipoMovimentacao, createdAt])
+  @@index([estoqueItemId])
+  @@index([tipoMovimentacao])
   @@index([notaMovimentacaoId])
+  @@index([entregaId])
   @@map("movimentacoes_estoque")
 }
 
 model Colaborador {
-  id               String   @id @default(cuid())
-  nome             String
-  cpf              String   @unique
-  matricula        String?
-  cargo            String?
-  setor            String?
-  unidadeNegocioId String
+  id               String   @id @default(uuid())
+  nome             String   @db.VarChar(255)
+  cpf              String   @unique @db.VarChar(11)
+  matricula        String?  @db.VarChar(50)
+  cargo            String?  @db.VarChar(100)
+  setor            String?  @db.VarChar(100)
+  unidadeNegocioId String   @map("unidade_negocio_id")
   ativo            Boolean  @default(true)
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
   // Relacionamentos
   unidadeNegocio UnidadeNegocio @relation(fields: [unidadeNegocioId], references: [id])
   fichasEPI      FichaEPI[]
-  entregas       Entrega[]
 
   @@map("colaboradores")
 }
 
 model FichaEPI {
-  id             String        @id @default(cuid())
-  colaboradorId  String
-  tipoEpiId      String
-  almoxarifadoId String
-  status         StatusFichaEPI @default(ATIVA)
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
+  id            String          @id @default(uuid())
+  colaboradorId String          @unique @map("colaborador_id")
+  dataEmissao   DateTime        @default(dbgenerated("CURRENT_DATE")) @map("data_emissao") @db.Date
+  status        StatusFichaEnum @default(ATIVA)
+  createdAt     DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
 
   // Relacionamentos
-  colaborador  Colaborador  @relation(fields: [colaboradorId], references: [id])
-  tipoEpi      TipoEPI      @relation(fields: [tipoEpiId], references: [id])
-  almoxarifado Almoxarifado @relation(fields: [almoxarifadoId], references: [id])
-  entregas     Entrega[]
-  historicos   HistoricoFicha[]
+  colaborador Colaborador      @relation(fields: [colaboradorId], references: [id])
+  entregas    Entrega[]
+  historicos  HistoricoFicha[]
 
-  // Uma ficha por colaborador/tipo/almoxarifado
-  @@unique([colaboradorId, tipoEpiId, almoxarifadoId])
-  @@index([colaboradorId, status])
-  @@index([almoxarifadoId, status])
   @@map("fichas_epi")
 }
 
 model Entrega {
-  id                      String        @id @default(cuid())
-  fichaEpiId              String
-  colaboradorId           String
-  dataEntrega             DateTime      @default(now())
-  dataVencimento          DateTime?
-  assinaturaColaborador   String?       // Base64 ou path
-  observacoes             String?
-  status                  StatusEntrega @default(ATIVA)
-  createdAt               DateTime      @default(now())
-  updatedAt               DateTime      @updatedAt
+  id               String             @id @default(uuid())
+  fichaEpiId       String             @map("ficha_epi_id")
+  almoxarifadoId   String             @map("almoxarifado_id")
+  responsavelId    String             @map("responsavel_id")
+  dataEntrega      DateTime           @default(now()) @map("data_entrega") @db.Timestamptz(6)
+  status           StatusEntregaEnum  @default(PENDENTE_ASSINATURA)
+  linkAssinatura   String?            @map("link_assinatura") @db.Text
+  dataAssinatura   DateTime?          @map("data_assinatura") @db.Timestamptz(6)
 
   // Relacionamentos
-  fichaEpi     FichaEPI      @relation(fields: [fichaEpiId], references: [id])
-  colaborador  Colaborador   @relation(fields: [colaboradorId], references: [id])
-  itens        EntregaItem[]
+  fichaEpi      FichaEPI              @relation(fields: [fichaEpiId], references: [id])
+  almoxarifado  Almoxarifado          @relation(fields: [almoxarifadoId], references: [id])
+  responsavel   Usuario               @relation(fields: [responsavelId], references: [id])
+  itens         EntregaItem[]
+  movimentacoes MovimentacaoEstoque[]
 
-  @@index([colaboradorId, status])
-  @@index([dataVencimento, status])
+  @@index([fichaEpiId])
+  @@index([almoxarifadoId])
   @@map("entregas")
 }
 
 model EntregaItem {
-  id                String            @id @default(cuid())
-  entregaId         String
-  tipoEpiId         String
-  quantidadeEntregue Int              @default(1) // Sempre 1 para rastreabilidade unitária
-  numeroSerie       String?
-  lote              String?
-  dataFabricacao    DateTime?
-  dataVencimento    DateTime?
-  status            StatusEntregaItem @default(ENTREGUE)
-  dataDevolucao     DateTime?
-  motivoDevolucao   String?
-  createdAt         DateTime          @default(now())
-  updatedAt         DateTime          @updatedAt
+  id                   String                @id @default(uuid())
+  entregaId            String                @map("entrega_id")
+  estoqueItemOrigemId  String                @map("estoque_item_origem_id")
+  quantidadeEntregue   Int                   @default(1) @map("quantidade_entregue")
+  dataLimiteDevolucao  DateTime?             @map("data_limite_devolucao") @db.Date
+  status               StatusEntregaItemEnum @default(COM_COLABORADOR)
+  createdAt            DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
 
   // Relacionamentos
-  entrega Entrega @relation(fields: [entregaId], references: [id], onDelete: Cascade)
-  tipoEpi TipoEPI @relation(fields: [tipoEpiId], references: [id])
+  entrega     Entrega     @relation(fields: [entregaId], references: [id], onDelete: Cascade)
+  estoqueItem EstoqueItem @relation(fields: [estoqueItemOrigemId], references: [id])
 
-  // Note: Quantidade deve sempre = 1 (validação em código)
-  @@index([status, dataVencimento])
-  @@index([tipoEpiId, status])
+  @@index([status, dataLimiteDevolucao])
+  @@index([estoqueItemOrigemId])
   @@map("entrega_itens")
 }
 
 model HistoricoFicha {
-  id         String   @id @default(cuid())
-  fichaEpiId String
-  acao       String
-  detalhes   Json?
-  usuarioId  String?
-  createdAt  DateTime @default(now())
+  id           String   @id @default(uuid())
+  fichaEpiId   String   @map("ficha_epi_id")
+  responsavelId String? @map("responsavel_id")
+  acao         String   @db.Text
+  detalhes     Json?
+  dataAcao     DateTime @default(now()) @map("data_acao") @db.Timestamptz(6)
 
   // Relacionamentos
   fichaEpi FichaEPI @relation(fields: [fichaEpiId], references: [id])
 
+  @@index([fichaEpiId])
   @@map("historico_fichas")
 }
 
 model Configuracao {
-  id        String   @id @default(cuid())
-  chave     String   @unique
-  valor     String
-  descricao String?
-  ativa     Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  chave     String  @id @db.VarChar(255)
+  valor     String  @db.Text
+  descricao String? @db.Text
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
   @@map("configuracoes")
 }
-

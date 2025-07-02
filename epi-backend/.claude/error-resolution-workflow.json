@@ -1,0 +1,177 @@
+{
+  "workflow": {
+    "name": "EPI Backend Error Resolution",
+    "description": "Parallel error resolution using conservative claude-flow strategy",
+    "version": "1.0.0",
+    "created": "2025-07-02"
+  },
+  "memory_setup": {
+    "migration_patterns": {
+      "movimentacao_entity": "Use estoqueItemId instead of almoxarifadoId+tipoEpiId",
+      "static_methods": "createEntrada → createEntradaNota, createSaida → createSaidaEntrega", 
+      "enum_values": "ENTRADA → ENTRADA_NOTA, ENTREGUE → COM_COLABORADOR",
+      "prisma_fields": "createdAt → dataMovimentacao, quantidade → quantidadeMovida",
+      "includes": "Remove tipoEpi/almoxarifado from fichaEpi includes"
+    },
+    "file_groups": {
+      "group_1_fichas": ["src/application/use-cases/fichas/"],
+      "group_2_estoque": ["src/application/use-cases/estoque/"],
+      "group_3_queries": ["src/application/use-cases/queries/"],
+      "group_4_controllers": ["src/presentation/"],
+      "group_5_repositories": ["src/domain/interfaces/", "src/infrastructure/"],
+      "group_6_tests": ["test/"]
+    }
+  },
+  "execution_phases": [
+    {
+      "phase": "setup",
+      "commands": [
+        {
+          "type": "memory",
+          "action": "store",
+          "key": "migration_patterns",
+          "source": "CLAUDE.md migration section"
+        },
+        {
+          "type": "memory", 
+          "action": "store",
+          "key": "baseline_errors",
+          "value": "493"
+        }
+      ]
+    },
+    {
+      "phase": "wave_1_parallel",
+      "conflict_level": "low",
+      "parallel": true,
+      "tasks": [
+        {
+          "id": "fix_fichas",
+          "agent_type": "swarm",
+          "strategy": "development",
+          "max_agents": 2,
+          "files": ["src/application/use-cases/fichas/"],
+          "prompt": "Fix all compilation errors in fichas use cases by migrating to single-ficha-per-collaborator model following migration patterns from memory",
+          "memory_dependencies": ["migration_patterns"],
+          "expected_errors_reduction": 80
+        },
+        {
+          "id": "fix_queries", 
+          "agent_type": "swarm",
+          "strategy": "development",
+          "max_agents": 2,
+          "files": ["src/application/use-cases/queries/"],
+          "prompt": "Fix all compilation errors in query use cases by updating Prisma field names, includes, and orderBy clauses following migration patterns",
+          "memory_dependencies": ["migration_patterns"],
+          "expected_errors_reduction": 120
+        },
+        {
+          "id": "fix_tests",
+          "agent_type": "swarm", 
+          "strategy": "development",
+          "max_agents": 2,
+          "files": ["test/"],
+          "prompt": "Fix compilation errors in integration tests by updating to new schema structure and correct includes",
+          "memory_dependencies": ["migration_patterns"],
+          "expected_errors_reduction": 60
+        }
+      ]
+    },
+    {
+      "phase": "checkpoint_1",
+      "commands": [
+        {
+          "type": "build",
+          "action": "validate",
+          "success_threshold": "<240 errors"
+        },
+        {
+          "type": "memory",
+          "action": "store", 
+          "key": "wave1_results",
+          "source": "build output"
+        }
+      ]
+    },
+    {
+      "phase": "wave_2_sequential",
+      "conflict_level": "medium", 
+      "parallel": false,
+      "tasks": [
+        {
+          "id": "fix_controllers",
+          "agent_type": "sparc",
+          "mode": "coder",
+          "files": ["src/presentation/"],
+          "prompt": "Fix compilation errors in controllers and DTOs by updating to new schema structure and correct validation",
+          "memory_dependencies": ["migration_patterns", "wave1_results"],
+          "expected_errors_reduction": 80
+        }
+      ]
+    },
+    {
+      "phase": "wave_3_critical",
+      "conflict_level": "high",
+      "parallel": false,
+      "tasks": [
+        {
+          "id": "fix_repositories",
+          "agent_type": "sparc",
+          "mode": "architect", 
+          "files": ["src/domain/interfaces/", "src/infrastructure/"],
+          "prompt": "Analyze and fix repository interfaces and implementations to match new schema structure",
+          "memory_dependencies": ["migration_patterns", "wave1_results"],
+          "expected_errors_reduction": 100
+        }
+      ]
+    },
+    {
+      "phase": "final_validation",
+      "commands": [
+        {
+          "type": "build",
+          "action": "validate",
+          "success_threshold": "<50 errors"
+        },
+        {
+          "type": "test",
+          "action": "run",
+          "target": "integration"
+        },
+        {
+          "type": "memory",
+          "action": "store",
+          "key": "final_results", 
+          "source": "build and test output"
+        }
+      ]
+    }
+  ],
+  "rollback_strategy": {
+    "triggers": [
+      "errors_increase_by > 50",
+      "build_time > 60s",
+      "test_failures > previous_baseline"
+    ],
+    "actions": [
+      "git reset --hard HEAD",
+      "switch to sequential mode",
+      "reduce max_agents to 1"
+    ]
+  },
+  "monitoring": {
+    "check_interval": "30s",
+    "metrics": [
+      "compilation_errors_count",
+      "build_time", 
+      "test_pass_rate",
+      "memory_usage"
+    ],
+    "alerts": [
+      {
+        "condition": "errors_increase",
+        "action": "pause_parallel_execution"
+      }
+    ]
+  }
+}

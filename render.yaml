@@ -7,8 +7,8 @@ services:
     runtime: node
     plan: free  # Change to starter/standard for production
     region: oregon  # or ohio/frankfurt depending on your location
-    buildCommand: npm ci && npm run build && npx prisma generate
-    startCommand: npm run start:prod
+    buildCommand: cd epi-backend && npm ci && npm run build && npx prisma generate
+    startCommand: cd epi-backend && npm run start:prod
     healthCheckPath: /health
     
     # =================================
@@ -38,7 +38,7 @@ services:
     # 🔧 Runtime Configuration
     # =================================
     runtime: node
-    rootDir: epi-backend
+    rootDir: .
     
     # Auto-deploy when pushing to main
     autoDeploy: true
@@ -86,10 +86,7 @@ services:
       
       # Redis (from Redis service)
       - key: REDIS_URL
-        fromService:
-          type: redis
-          name: epi-redis
-          property: connectionString
+        value: "redis://default:ASlTAAIjcDE0OTNiYjI2MDQ1YWE0Y2M0OWI2NmE2MTJmOWY0M2RmOXAxMA@easy-ray-10579.upstash.io:6379"
       
       # Feature Flags
       - key: ENABLE_SWAGGER_IN_PRODUCTION
@@ -109,10 +106,3 @@ databases:
     
     # Database Version
     ipAllowList: []  # Empty = allow all connections
-    
-# =================================
-# 🔄 Redis Service (Optional)
-# =================================
-# Note: Render doesn't have managed Redis on free tier
-# You'll need to use external Redis (Upstash recommended)
-# or upgrade to paid plan for managed Redis

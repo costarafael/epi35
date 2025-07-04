@@ -44,6 +44,9 @@
   "prisma": {
     "seed": "ts-node prisma/seed.ts"
   },
+  "overrides": {
+    "reflect-metadata": "^0.1.13"
+  },
   "dependencies": {
     "@automapper/classes": "^8.8.1",
     "@automapper/core": "^8.8.1",
@@ -56,7 +59,7 @@
     "@nestjs/swagger": "^8.1.0",
     "@prisma/client": "^5.15.1",
     "date-fns": "^4.1.0",
-    "reflect-metadata": "^0.2.0",
+    "reflect-metadata": "^0.1.13",
     "rxjs": "^7.8.1",
     "swagger-ui-express": "^5.0.1",
     "zod": "^3.23.8",

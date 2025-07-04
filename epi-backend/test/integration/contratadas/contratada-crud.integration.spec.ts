@@ -330,15 +330,14 @@ describe('Contratada CRUD - Integration Tests', () => {
         data: {
           nome: 'Unidade Teste',
           codigo: 'UN-TEST',
-          endereco: 'Rua Teste, 123',
         },
       });
 
       await prismaService.colaborador.create({
         data: {
           nome: 'João da Silva',
-          cpf: '123.456.789-00',
-          funcao: 'Operador',
+          cpf: '12345678900',
+          cargo: 'Operador',
           ativo: true,
           contratadaId: contratada.id,
           unidadeNegocioId: unidadeNegocio.id,

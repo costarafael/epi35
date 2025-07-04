@@ -104,6 +104,8 @@ export class Contratada {
     return {
       nome: nome.trim(),
       cnpj: cnpj.replace(/\D/g, ''), // Armazenar apenas números
+      getFormattedCNPJ: tempContratada.getFormattedCNPJ.bind(tempContratada),
+      getIdentificacao: tempContratada.getIdentificacao.bind(tempContratada),
     };
   }
 }

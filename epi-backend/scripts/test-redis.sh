@@ -4,10 +4,12 @@
 # 🔴 Redis/Upstash Connection Test
 # =================================
 
-REDIS_URL="redis://default:ASlTAAIjcDE0OTNiYjI2MDQ1YWE0Y2M0OWI2NmE2MTJmOWY0M2RmOXAxMA@easy-ray-10579.upstash.io:6379"
+# Read Redis URL from environment or use default
+REDIS_URL="${REDIS_URL:-redis://default:ASlTAAIjcDE0OTNiYjI2MDQ1YWE0Y2M0OWI2NmE2MTJmOWY0M2RmOXAxMA@easy-ray-10579.upstash.io:6379}"
 
 echo "🔴 Testing Redis/Upstash Connection..."
-echo "URL: $REDIS_URL"
+# Hide sensitive URL details  
+echo "URL: $(echo $REDIS_URL | sed 's/:[^@]*@/:***@/')"
 echo ""
 
 # Test 1: Direct Redis Connection

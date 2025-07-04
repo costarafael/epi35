@@ -5,7 +5,8 @@
 # =================================
 
 BASE_URL="https://epi-backend.onrender.com"
-REDIS_URL="redis://default:ASlTAAIjcDE0OTNiYjI2MDQ1YWE0Y2M0OWI2NmE2MTJmOWY0M2RmOXAxMA@easy-ray-10579.upstash.io:6379"
+REDIS_URL="${REDIS_URL:-redis://default:ASlTAAIjcDE0OTNiYjI2MDQ1YWE0Y2M0OWI2NmE2MTJmOWY0M2RmOXAxMA@easy-ray-10579.upstash.io:6379}"
+TIMEOUT=15
 
 # Colors for output
 RED='\033[0;31m'
@@ -33,7 +34,11 @@ test_endpoint() {
     
     print_status "Testing: $description" "INFO"
     
-    response=$(curl -s -w "HTTPSTATUS:%{http_code}" "$BASE_URL$endpoint")
+    response=$(curl -s --max-time $TIMEOUT -w "HTTPSTATUS:%{http_code}" "$BASE_URL$endpoint" 2>/dev/null)
+    if [ $? -ne 0 ]; then
+        print_status "$description - Connection failed (timeout or network error)" "ERROR"
+        return 1
+    fi
     http_code=$(echo $response | tr -d '\n' | sed -e 's/.*HTTPSTATUS://')
     body=$(echo $response | sed -e 's/HTTPSTATUS:.*//g')
     
@@ -57,16 +62,17 @@ test_redis() {
     print_status "Testing Redis Connection" "INFO"
     
     if command -v redis-cli &> /dev/null; then
-        response=$(redis-cli --tls -u "$REDIS_URL" ping 2>/dev/null)
+        response=$(timeout $TIMEOUT redis-cli --tls -u "$REDIS_URL" ping 2>/dev/null)
         if [ "$response" = "PONG" ]; then
             print_status "Redis Connection - PONG received" "SUCCESS"
             return 0
         else
-            print_status "Redis Connection - No PONG response" "ERROR"
+            print_status "Redis Connection - No PONG response (check Upstash connection)" "ERROR"
             return 1
         fi
     else
         print_status "redis-cli not installed - skipping direct Redis test" "WARNING"
+        print_status "To install: brew install redis (macOS) or apt-get install redis-tools" "INFO"
         return 0
     fi
 }
@@ -89,13 +95,17 @@ echo "------------------------------------------------"
 # Basic health check
 test_endpoint "/health" 200 "Basic Health Check"
 
-# Database health check
-test_endpoint "/api/health/database" 200 "Database Health Check" || 
-test_endpoint "/health" 200 "Alternative Health Check"
+# Database health check (may not be implemented)
+if ! test_endpoint "/api/health/database" 200 "Database Health Check"; then
+    print_status "Database health endpoint not implemented - checking basic health" "WARNING"
+    test_endpoint "/health" 200 "Alternative Health Check"
+fi
 
-# Redis health check  
-test_endpoint "/api/health/redis" 200 "Redis Health Check" ||
-test_redis
+# Redis health check (may not be implemented)
+if ! test_endpoint "/api/health/redis" 200 "Redis Health Check"; then
+    print_status "Redis health endpoint not implemented - testing direct connection" "WARNING"
+    test_redis
+fi
 
 echo ""
 
@@ -106,7 +116,11 @@ print_status "📖 API DOCUMENTATION" "INFO"
 echo "------------------------------------------------"
 
 test_endpoint "/api/docs" 200 "Swagger Documentation"
-test_endpoint "/api/docs-json" 200 "OpenAPI JSON Spec"
+# Try different possible OpenAPI spec endpoints
+if ! test_endpoint "/api/docs-json" 200 "OpenAPI JSON Spec"; then
+    test_endpoint "/api/docs/json" 200 "OpenAPI JSON Spec (Alternative)" ||
+    test_endpoint "/api-json" 200 "OpenAPI JSON Spec (Alternative 2)"
+fi
 
 echo ""
 

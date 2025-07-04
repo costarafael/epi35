@@ -7,7 +7,7 @@ services:
     runtime: node
     plan: free  # Change to starter/standard for production
     region: oregon  # or ohio/frankfurt depending on your location
-    buildCommand: cd epi-backend && npm ci --legacy-peer-deps --include=dev && npm run build && npx prisma generate
+    buildCommand: cd epi-backend && npm install --legacy-peer-deps && npx nest build && npx prisma generate
     startCommand: cd epi-backend && npm run start:prod
     healthCheckPath: /health
     

@@ -15,6 +15,34 @@ export const CriarFichaEpiSchema = z.object({
   status: StatusFichaEPISchema.optional(),
 });
 
+// Use case schemas for criar-ficha-epi
+export const CriarFichaEpiUseCaseInputSchema = z.object({
+  colaboradorId: IdSchema,
+  status: StatusFichaEPISchema.optional(),
+});
+
+export const FichaEpiUseCaseOutputSchema = z.object({
+  id: IdSchema,
+  colaboradorId: IdSchema,
+  status: StatusFichaEPISchema,
+  dataEmissao: z.date(),
+  createdAt: z.date(),
+  devolucaoPendente: z.boolean(), // ✅ NOVA FLAG: indica se há itens em atraso de devolução
+  colaborador: z.object({
+    nome: z.string(),
+    cpf: z.string(),
+    matricula: z.string().optional(),
+  }),
+});
+
+export const FichaFiltersSchema = z.object({
+  colaboradorId: IdSchema.optional(),
+  status: StatusFichaEPISchema.optional(),
+  colaboradorNome: z.string().optional(),
+  ativo: z.boolean().optional(),
+  devolucaoPendente: z.boolean().optional(), // ✅ NOVO FILTRO: mostrar apenas fichas com devolução em atraso
+});
+
 export const AtualizarStatusFichaSchema = z.object({
   motivo: z.string().max(500).optional(),
 });
@@ -23,16 +51,18 @@ export const FiltrosFichaEpiSchema = z.object({
   colaboradorId: IdSchema.optional(),
   tipoEpiId: IdSchema.optional(),
   almoxarifadoId: IdSchema.optional(),
+  contratadaId: IdSchema.optional(),
   status: StatusFichaEPISchema.optional(),
   colaboradorNome: z.string().optional(),
   tipoEpiNome: z.string().optional(),
+  devolucaoPendente: z.boolean().optional(), // ✅ NOVO FILTRO: para API controller
 }).merge(SearchSchema).merge(PaginationSchema);
 
-// Delivery schemas
+// Delivery schemas - Single Source of Truth
 export const ItemEntregaSchema = z.object({
   numeroSerie: z.string().max(50).optional(),
-  lote: z.string().max(50).optional(),
-  dataFabricacao: z.coerce.date().optional(),
+  estoqueItemOrigemId: IdSchema, // Required to match use case interface
+  // Removed: lote, dataFabricacao (not in v3.5 schema)
 });
 
 export const CriarEntregaSchema = z.object({
@@ -41,8 +71,50 @@ export const CriarEntregaSchema = z.object({
   itens: z.array(ItemEntregaSchema),
   assinaturaColaborador: z.string().optional(),
   observacoes: ObservacoesSchema,
+  usuarioId: IdSchema, // Added for use case compatibility
 }).refine((data) => data.itens.length === data.quantidade, {
   message: 'Número de itens deve corresponder à quantidade',
+});
+
+// Use case input/output schemas - Single Source of Truth
+export const CriarEntregaUseCaseInputSchema = CriarEntregaSchema;
+
+export const ItemEntregaOutputSchema = z.object({
+  id: IdSchema,
+  tipoEpiId: IdSchema,
+  quantidadeEntregue: z.number(),
+  numeroSerie: z.string().optional(),
+  estoqueItemOrigemId: IdSchema.optional(), // Campo adicionado para rastreabilidade
+  lote: z.string().optional(),
+  dataFabricacao: z.date().optional(),
+  dataLimiteDevolucao: z.date().optional(), // Campo renomeado
+  status: z.enum(['COM_COLABORADOR', 'DEVOLVIDO', 'PERDIDO', 'DANIFICADO']),
+});
+
+export const EntregaUseCaseOutputSchema = z.object({
+  id: IdSchema,
+  fichaEpiId: IdSchema,
+  colaboradorId: IdSchema,
+  dataEntrega: z.date(),
+  assinaturaColaborador: z.string().optional(),
+  observacoes: z.string().optional(),
+  status: z.enum(['PENDENTE_ASSINATURA', 'ASSINADA', 'CANCELADA']),
+  itens: z.array(ItemEntregaOutputSchema),
+  colaborador: z.object({
+    nome: z.string(),
+    cpf: z.string(),
+    matricula: z.string().optional(),
+  }),
+  tipoEpi: z.object({
+    nome: z.string(),
+    codigo: z.string(),
+    validadeMeses: z.number().optional(),
+    exigeAssinaturaEntrega: z.boolean(),
+  }),
+  almoxarifado: z.object({
+    nome: z.string(),
+    codigo: z.string(),
+  }),
 });
 
 export const FiltrosEntregasSchema = z.object({
@@ -69,7 +141,33 @@ export const ProcessarDevolucaoSchema = z.object({
   entregaId: IdSchema,
   itensParaDevolucao: z.array(ItemDevolucaoSchema).min(1, 'Lista de itens para devolução é obrigatória'),
   assinaturaColaborador: z.string().optional(),
+  usuarioId: IdSchema, // Added for use case compatibility
   observacoes: ObservacoesSchema,
+});
+
+// Use case schemas for processar-devolucao
+export const ProcessarDevolucaoUseCaseInputSchema = ProcessarDevolucaoSchema;
+
+export const DevolucaoUseCaseOutputSchema = z.object({
+  entregaId: IdSchema,
+  itensDevolucao: z.array(z.object({
+    itemId: IdSchema,
+    tipoEpiId: IdSchema,
+    numeroSerie: z.string().optional(),
+    lote: z.string().optional(),
+    statusAnterior: z.string(),
+    novoStatus: z.string(),
+    motivoDevolucao: z.string().optional(),
+    condicaoItem: z.string(),
+  })),
+  movimentacoesEstoque: z.array(z.object({
+    id: IdSchema,
+    tipoEpiId: IdSchema,
+    quantidade: z.number(),
+    statusEstoque: z.string(),
+  })),
+  statusEntregaAtualizado: z.string(),
+  dataProcessamento: z.date(),
 });
 
 export const CancelarDevolucaoSchema = z.object({
@@ -268,7 +366,7 @@ export const EstatisticasFichasResponseSchema = z.object({
   })),
 });
 
-// Type exports
+// Type exports - Single Source of Truth with z.infer
 export type CriarFichaEpiRequest = z.infer<typeof CriarFichaEpiSchema>;
 export type AtualizarStatusFichaRequest = z.infer<typeof AtualizarStatusFichaSchema>;
 export type FiltrosFichaEpi = z.infer<typeof FiltrosFichaEpiSchema>;
@@ -288,3 +386,17 @@ export type CancelamentoDevolucaoResponse = z.infer<typeof CancelamentoDevolucao
 export type PosseAtualResponse = z.infer<typeof PosseAtualResponseSchema>;
 export type HistoricoDevolucaoResponse = z.infer<typeof HistoricoDevolucaoResponseSchema>;
 export type EstatisticasFichasResponse = z.infer<typeof EstatisticasFichasResponseSchema>;
+
+// ✅ NEW: Use case types from Zod schemas - Single Source of Truth
+export type CriarEntregaInput = z.infer<typeof CriarEntregaUseCaseInputSchema>;
+export type EntregaOutput = z.infer<typeof EntregaUseCaseOutputSchema>;
+export type ItemEntregaOutput = z.infer<typeof ItemEntregaOutputSchema>;
+
+// ✅ NEW: Processar Devolução types from Zod schemas 
+export type ProcessarDevolucaoInput = z.infer<typeof ProcessarDevolucaoUseCaseInputSchema>;
+export type DevolucaoOutput = z.infer<typeof DevolucaoUseCaseOutputSchema>;
+
+// ✅ NEW: Criar Ficha EPI types from Zod schemas
+export type CriarFichaEpiInput = z.infer<typeof CriarFichaEpiUseCaseInputSchema>;
+export type FichaEpiOutput = z.infer<typeof FichaEpiUseCaseOutputSchema>;
+export type FichaFilters = z.infer<typeof FichaFiltersSchema>;

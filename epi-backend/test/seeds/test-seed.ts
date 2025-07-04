@@ -12,25 +12,28 @@ export async function seedTestData(prisma: PrismaService): Promise<void> {
   await createConfigurations(prisma);
 
   // 3. Criar usuários
-  const usuarios = await createUsers(prisma);
+  await createUsers(prisma);
 
-  // 4. Criar unidades de negócio e almoxarifados
+  // 4. Criar contratadas
+  const contratadas = await createContractors(prisma);
+
+  // 5. Criar unidades de negócio e almoxarifados
   const { unidades, almoxarifados } = await createUnitsAndWarehouses(prisma);
 
-  // 5. Criar tipos de EPI
+  // 6. Criar tipos de EPI
   const tiposEpi = await createEpiTypes(prisma);
 
-  // 6. Criar estoque inicial
+  // 7. Criar estoque inicial
   await createInitialStock(prisma, almoxarifados, tiposEpi);
 
-  // 7. Criar colaboradores
-  const colaboradores = await createEmployees(prisma, unidades);
+  // 8. Criar colaboradores
+  const colaboradores = await createEmployees(prisma, unidades, contratadas);
 
   // 8. Criar fichas de EPI
-  const fichas = await createEpiForms(prisma, colaboradores, tiposEpi, almoxarifados);
+  await createEpiForms(prisma, colaboradores, tiposEpi, almoxarifados);
 
-  // 9. Criar algumas entregas e movimentações para testes
-  await createSampleDeliveries(prisma, usuarios[0], fichas, almoxarifados, tiposEpi);
+  // 9. Não criar entregas e movimentações no seed para evitar interferência nos testes
+  // await createSampleDeliveries(prisma, usuarios[0], fichas, almoxarifados, tiposEpi);
 
   console.log('✅ Seed de dados de teste concluído');
 }
@@ -48,6 +51,7 @@ async function cleanExistingData(prisma: PrismaService): Promise<void> {
   await prisma.colaborador.deleteMany();
   await prisma.almoxarifado.deleteMany();
   await prisma.unidadeNegocio.deleteMany();
+  await prisma.contratada.deleteMany();
   await prisma.usuario.deleteMany();
   await prisma.configuracao.deleteMany();
 }
@@ -64,6 +68,11 @@ async function createConfigurations(prisma: PrismaService): Promise<void> {
         chave: 'PERMITIR_AJUSTES_FORCADOS',
         valor: 'true',
         descricao: 'Permite ajustes diretos de inventário',
+      },
+      {
+        chave: 'ESTOQUE_MINIMO_EQUIPAMENTO',
+        valor: '10',
+        descricao: 'Quantidade mínima padrão para todos os equipamentos',
       },
     ],
   });
@@ -94,6 +103,33 @@ async function createUsers(prisma: PrismaService): Promise<any[]> {
   }));
 
   return usuarios;
+}
+
+async function createContractors(prisma: PrismaService): Promise<any[]> {
+  const contratadas = [];
+  
+  contratadas.push(await prisma.contratada.create({
+    data: {
+      nome: 'Empresa Contratada Alpha LTDA',
+      cnpj: '12345678000190',
+    },
+  }));
+
+  contratadas.push(await prisma.contratada.create({
+    data: {
+      nome: 'Contratada Beta Serviços EIRELI',
+      cnpj: '98765432000101',
+    },
+  }));
+
+  contratadas.push(await prisma.contratada.create({
+    data: {
+      nome: 'Gamma Terceirização S.A.',
+      cnpj: '11222333000144',
+    },
+  }));
+
+  return contratadas;
 }
 
 async function createUnitsAndWarehouses(prisma: PrismaService): Promise<{ unidades: any[], almoxarifados: any[] }> {
@@ -143,57 +179,110 @@ async function createUnitsAndWarehouses(prisma: PrismaService): Promise<{ unidad
 async function createEpiTypes(prisma: PrismaService): Promise<any[]> {
   const tiposEpi = [];
 
-  // Capacete
+  // Capacete - Proteção para Cabeça
   tiposEpi.push(await prisma.tipoEPI.create({
     data: {
       nomeEquipamento: 'Capacete de Segurança',
       numeroCa: 'CA-12345',
+      categoria: 'PROTECAO_CABECA',
       descricao: 'Capacete de segurança classe A',
       vidaUtilDias: 360, // 12 meses * 30 dias
       status: 'ATIVO',
     },
   }));
 
-  // Luva
+  // Luva - Proteção de Mãos e Braços
   tiposEpi.push(await prisma.tipoEPI.create({
     data: {
       nomeEquipamento: 'Luva de Proteção',
       numeroCa: 'CA-67890',
+      categoria: 'PROTECAO_MAOS_BRACCOS',
       descricao: 'Luva de proteção em couro',
       vidaUtilDias: 180, // 6 meses * 30 dias
       status: 'ATIVO',
     },
   }));
 
-  // Óculos
+  // Óculos - Proteção para Olhos e Rosto
   tiposEpi.push(await prisma.tipoEPI.create({
     data: {
       nomeEquipamento: 'Óculos de Proteção',
       numeroCa: 'CA-11111',
+      categoria: 'PROTECAO_OLHOS_ROSTO',
       descricao: 'Óculos de proteção antiembaçante',
       vidaUtilDias: 270, // 9 meses * 30 dias
       status: 'ATIVO',
     },
   }));
 
-  // Bota
+  // Bota - Proteção dos Pés
   tiposEpi.push(await prisma.tipoEPI.create({
     data: {
       nomeEquipamento: 'Bota de Segurança',
       numeroCa: 'CA-22222',
+      categoria: 'PROTECAO_PES',
       descricao: 'Bota de segurança com biqueira de aço',
       vidaUtilDias: 540, // 18 meses * 30 dias
       status: 'ATIVO',
     },
   }));
 
-  // EPI para testes variados
+  // Máscara - Proteção Respiratória
   tiposEpi.push(await prisma.tipoEPI.create({
     data: {
-      nomeEquipamento: 'EPI Teste Variado',
+      nomeEquipamento: 'Máscara Respiratória',
       numeroCa: 'CA-33333',
-      descricao: 'EPI para testes diversos',
-      vidaUtilDias: 90, // 3 meses * 30 dias
+      categoria: 'PROTECAO_RESPIRATORIA',
+      descricao: 'Máscara respiratória PFF2',
+      vidaUtilDias: 30, // 1 mês
+      status: 'ATIVO',
+    },
+  }));
+
+  // Protetor Auricular - Proteção dos Ouvidos
+  tiposEpi.push(await prisma.tipoEPI.create({
+    data: {
+      nomeEquipamento: 'Protetor Auricular',
+      numeroCa: 'CA-44444',
+      categoria: 'PROTECAO_OUVIDOS',
+      descricao: 'Protetor auricular tipo plug',
+      vidaUtilDias: 90, // 3 meses
+      status: 'ATIVO',
+    },
+  }));
+
+  // Jaqueta Térmica - Proteção Climática
+  tiposEpi.push(await prisma.tipoEPI.create({
+    data: {
+      nomeEquipamento: 'Jaqueta Térmica',
+      numeroCa: 'CA-55555',
+      categoria: 'PROTECAO_CLIMATICA',
+      descricao: 'Jaqueta térmica para ambientes frios',
+      vidaUtilDias: 720, // 24 meses
+      status: 'ATIVO',
+    },
+  }));
+
+  // Roupa de Aproximação - Bombeiros
+  tiposEpi.push(await prisma.tipoEPI.create({
+    data: {
+      nomeEquipamento: 'Roupa de Aproximação',
+      numeroCa: 'CA-66666',
+      categoria: 'ROUPA_APROXIMACAO',
+      descricao: 'Roupa de aproximação para combate a incêndio',
+      vidaUtilDias: 1800, // 60 meses
+      status: 'ATIVO',
+    },
+  }));
+
+  // EPI Descontinuado para testes
+  tiposEpi.push(await prisma.tipoEPI.create({
+    data: {
+      nomeEquipamento: 'EPI Teste Descontinuado',
+      numeroCa: 'CA-99999',
+      categoria: 'PROTECAO_CABECA',
+      descricao: 'EPI descontinuado para testes',
+      vidaUtilDias: 90,
       status: 'DESCONTINUADO',
     },
   }));
@@ -208,8 +297,8 @@ async function createInitialStock(
 ): Promise<void> {
   const estoquesData = [];
 
-  // Estoque no almoxarifado principal
-  for (const tipo of tiposEpi.slice(0, 4)) { // Não incluir o descontinuado
+  // Estoque no almoxarifado principal (excluir apenas o descontinuado)
+  for (const tipo of tiposEpi.slice(0, -1)) { // Excluir o último (descontinuado)
     estoquesData.push({
       almoxarifadoId: almoxarifados[0].id,
       tipoEpiId: tipo.id,
@@ -228,8 +317,8 @@ async function createInitialStock(
     }
   }
 
-  // Estoque menor no almoxarifado secundário
-  for (const tipo of tiposEpi.slice(0, 3)) {
+  // Estoque menor no almoxarifado secundário (primeiros 5 tipos)
+  for (const tipo of tiposEpi.slice(0, 5)) {
     estoquesData.push({
       almoxarifadoId: almoxarifados[1].id,
       tipoEpiId: tipo.id,
@@ -243,7 +332,7 @@ async function createInitialStock(
   });
 }
 
-async function createEmployees(prisma: PrismaService, unidades: any[]): Promise<any[]> {
+async function createEmployees(prisma: PrismaService, unidades: any[], contratadas: any[]): Promise<any[]> {
   const colaboradores = [];
   
   // Obter a unidade principal para associar aos colaboradores
@@ -264,7 +353,11 @@ async function createEmployees(prisma: PrismaService, unidades: any[]): Promise<
     { nome: 'Claudia Ferreira Santos', cpf: '13131313131', matricula: 'MAT012', cargo: 'Assistente', setor: 'Administrativo' },
   ];
 
-  for (const funcionario of funcionarios) {
+  for (let i = 0; i < funcionarios.length; i++) {
+    const funcionario = funcionarios[i];
+    // Distribuir colaboradores entre as contratadas (alguns sem contratada)
+    const contratadaId = i < contratadas.length ? contratadas[i % contratadas.length].id : null;
+    
     colaboradores.push(await prisma.colaborador.create({
       data: {
         nome: funcionario.nome,
@@ -273,6 +366,7 @@ async function createEmployees(prisma: PrismaService, unidades: any[]): Promise<
         cargo: funcionario.cargo,
         setor: funcionario.setor,
         unidadeNegocioId: unidadePrincipal.id,
+        contratadaId,
       },
     }));
   }
@@ -283,8 +377,8 @@ async function createEmployees(prisma: PrismaService, unidades: any[]): Promise<
 async function createEpiForms(
   prisma: PrismaService,
   colaboradores: any[],
-  tiposEpi: any[],
-  almoxarifados: any[]
+  _tiposEpi: any[],
+  _almoxarifados: any[]
 ): Promise<any[]> {
   const fichas = [];
 
@@ -304,6 +398,7 @@ async function createEpiForms(
   return fichas;
 }
 
+/*
 async function createSampleDeliveries(
   prisma: PrismaService,
   usuario: any,
@@ -388,6 +483,7 @@ async function createSampleDeliveries(
     });
   }
 }
+*/
 
 // Executar seed se for chamado diretamente
 if (require.main === module) {

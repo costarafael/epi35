@@ -30,7 +30,6 @@ describe('Relatório R-06: EPIs Devolvidos em Análise/Quarentena - Integration 
           ei.quantidade,
           ei.status,
           ei.created_at,
-          ei.updated_at,
           te.nome_equipamento,
           te.numero_ca,
           te.descricao as tipo_descricao,
@@ -41,7 +40,7 @@ describe('Relatório R-06: EPIs Devolvidos em Análise/Quarentena - Integration 
         JOIN almoxarifados a ON ei.almoxarifado_id = a.id
         JOIN unidades_negocio un ON a.unidade_negocio_id = un.id
         WHERE ei.status IN ('AGUARDANDO_INSPECAO', 'QUARENTENA')
-        ORDER BY ei.updated_at DESC, te.nome_equipamento;
+        ORDER BY ei.created_at DESC, te.nome_equipamento;
       `;
 
       // Assert
@@ -94,7 +93,7 @@ describe('Relatório R-06: EPIs Devolvidos em Análise/Quarentena - Integration 
           },
         },
         orderBy: [
-          { updatedAt: 'desc' },
+          { createdAt: 'desc' },
           { tipoEpi: { nomeEquipamento: 'asc' } },
         ],
       });
@@ -132,7 +131,7 @@ describe('Relatório R-06: EPIs Devolvidos em Análise/Quarentena - Integration 
           },
         },
         orderBy: {
-          updatedAt: 'desc',
+          createdAt: 'desc',
         },
       });
 
@@ -166,7 +165,7 @@ describe('Relatório R-06: EPIs Devolvidos em Análise/Quarentena - Integration 
           },
         },
         orderBy: {
-          updatedAt: 'desc',
+          createdAt: 'desc',
         },
       });
 

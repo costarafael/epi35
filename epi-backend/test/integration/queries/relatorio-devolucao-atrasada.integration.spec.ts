@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { IntegrationTestSetup, setupIntegrationTestSuite } from '../setup/integration-test-setup';
+import { IntegrationTestSetup, setupIntegrationTestSuite } from '../../setup/integration-test-setup';
 import { PrismaService } from '@infrastructure/database/prisma.service';
 
 /**
@@ -100,10 +100,13 @@ describe('Relatório R-07: Fichas com Devolução Atrasada - Integration Tests',
         },
       });
 
-      // Criar ficha EPI
-      const fichaEpi = await testSetup.prismaService.fichaEPI.create({
-        data: {
+      // Criar ficha EPI (uma por colaborador no schema v3.5)
+      const fichaEPI = await testSetup.prismaService.fichaEPI.upsert({
+        where: { colaboradorId: colaborador.id },
+        update: { status: 'ATIVA' },
+        create: {
           colaboradorId: colaborador.id,
+          status: 'ATIVA',
         },
       });
 
@@ -111,7 +114,7 @@ describe('Relatório R-07: Fichas com Devolução Atrasada - Integration Tests',
       const usuario = await testSetup.prismaService.usuario.findFirst();
       const entrega = await testSetup.prismaService.entrega.create({
         data: {
-          fichaEpiId: fichaEpi.id,
+          fichaEpiId: fichaEPI.id,
           almoxarifadoId: almoxarifado.id,
           responsavelId: usuario.id,
           status: 'ASSINADA',
@@ -133,6 +136,7 @@ describe('Relatório R-07: Fichas com Devolução Atrasada - Integration Tests',
         data: {
           entregaId: entrega.id,
           estoqueItemOrigemId: estoqueItem.id,
+          quantidadeEntregue: 1,
           dataLimiteDevolucao: dataAtrasada,
           status: 'COM_COLABORADOR',
         },
@@ -200,7 +204,7 @@ describe('Relatório R-07: Fichas com Devolução Atrasada - Integration Tests',
               },
             },
           },
-          estoqueItemOrigem: {
+          estoqueItem: {
             include: {
               tipoEpi: {
                 select: {
@@ -232,7 +236,7 @@ describe('Relatório R-07: Fichas com Devolução Atrasada - Integration Tests',
         expect(item.dataLimiteDevolucao).toBeDefined();
         expect(item.dataLimiteDevolucao! < hoje).toBe(true);
         expect(item.entrega.fichaEpi.colaborador).toHaveProperty('nome');
-        expect(item.estoqueItemOrigem.tipoEpi).toHaveProperty('nomeEquipamento');
+        expect(item.estoqueItem.tipoEpi).toHaveProperty('nomeEquipamento');
       });
     });
 

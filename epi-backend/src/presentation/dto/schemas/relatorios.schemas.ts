@@ -1,8 +1,6 @@
 import { z } from 'zod';
 import {
   IdSchema,
-  PaginationSchema,
-  DateRangeSchema,
 } from './common.schemas';
 
 // General report filters
@@ -11,6 +9,7 @@ export const FiltrosRelatorioGeralSchema = z.object({
   almoxarifadoId: IdSchema.optional(),
   colaboradorId: IdSchema.optional(),
   tipoEpiId: IdSchema.optional(),
+  contratadaId: IdSchema.optional(),
   formato: z.enum(['JSON', 'CSV', 'PDF']).default('JSON'),
   dataInicio: z.coerce.date().optional(),
   dataFim: z.coerce.date().optional(),
@@ -20,6 +19,7 @@ export const FiltrosRelatorioGeralSchema = z.object({
 export const FiltrosDashboardSchema = z.object({
   unidadeNegocioId: IdSchema.optional(),
   almoxarifadoId: IdSchema.optional(),
+  contratadaId: IdSchema.optional(),
   periodo: z.enum(['ULTIMO_MES', 'ULTIMO_TRIMESTRE', 'ULTIMO_SEMESTRE', 'ULTIMO_ANO']).default('ULTIMO_MES'),
 });
 
@@ -27,6 +27,7 @@ export const FiltrosDashboardSchema = z.object({
 export const FiltrosRelatorioConformidadeSchema = z.object({
   unidadeNegocioId: IdSchema.optional(),
   colaboradorId: IdSchema.optional(),
+  contratadaId: IdSchema.optional(),
   incluirVencidos: z.coerce.boolean().default(true),
   incluirProximosVencimento: z.coerce.boolean().default(true),
   diasAvisoVencimento: z.number().int().min(1).max(365).default(30),
@@ -39,6 +40,7 @@ export const FiltrosRelatorioUsoSchema = z.object({
   colaboradorId: IdSchema.optional(),
   tipoEpiId: IdSchema.optional(),
   unidadeNegocioId: IdSchema.optional(),
+  contratadaId: IdSchema.optional(),
   incluirDevolvidos: z.coerce.boolean().default(true),
   incluirPerdidos: z.coerce.boolean().default(false),
   dataInicio: z.coerce.date().optional(),

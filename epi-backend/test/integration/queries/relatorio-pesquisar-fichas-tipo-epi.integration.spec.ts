@@ -87,7 +87,7 @@ describe('Relatório R-08: Pesquisar Fichas por Tipo de EPI - Integration Tests'
             some: {
               itens: {
                 some: {
-                  estoqueItemOrigem: {
+                  estoqueItem: {
                     tipoEpiId: tipoEpi.id,
                   },
                 },
@@ -115,12 +115,12 @@ describe('Relatório R-08: Pesquisar Fichas por Tipo de EPI - Integration Tests'
             include: {
               itens: {
                 where: {
-                  estoqueItemOrigem: {
+                  estoqueItem: {
                     tipoEpiId: tipoEpi.id,
                   },
                 },
                 include: {
-                  estoqueItemOrigem: {
+                  estoqueItem: {
                     include: {
                       tipoEpi: {
                         select: {
@@ -159,7 +159,7 @@ describe('Relatório R-08: Pesquisar Fichas por Tipo de EPI - Integration Tests'
         // Verificar que há pelo menos um item do tipo específico
         const hasTargetType = ficha.entregas.some(entrega =>
           entrega.itens.some(item =>
-            item.estoqueItemOrigem.tipoEpi.numeroCa === 'CA-12345'
+            item.estoqueItem.tipoEpi.numeroCa === 'CA-12345'
           )
         );
         expect(hasTargetType).toBe(true);
@@ -249,7 +249,7 @@ describe('Relatório R-08: Pesquisar Fichas por Tipo de EPI - Integration Tests'
 
     it('deve buscar fichas por múltiplos tipos de EPI', async () => {
       // Arrange - Buscar dois tipos diferentes
-      const tipo1 = await testSetup.findTipoEpi('CA-12345');
+      // const _tipo1 = await testSetup.findTipoEpi('CA-12345');
       const tipos = await prismaService.tipoEPI.findMany({
         where: {
           status: 'ATIVO',
@@ -430,7 +430,7 @@ describe('Relatório R-08: Pesquisar Fichas por Tipo de EPI - Integration Tests'
               some: {
                 itens: {
                   some: {
-                    estoqueItemOrigem: {
+                    estoqueItem: {
                       tipoEpiId: tipoEpi.id,
                     },
                   },
@@ -466,7 +466,7 @@ describe('Relatório R-08: Pesquisar Fichas por Tipo de EPI - Integration Tests'
             entrega: {
               fichaEpiId: ficha.id,
             },
-            estoqueItemOrigem: {
+            estoqueItem: {
               tipoEpiId: tipoEpi.id,
             },
           },

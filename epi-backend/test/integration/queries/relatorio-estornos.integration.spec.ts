@@ -170,7 +170,11 @@ describe('Relatório R-10: Estornos - Integration Tests', () => {
       const estornos = await prismaService.movimentacaoEstoque.findMany({
         where: {
           tipoMovimentacao: {
-            startsWith: 'ESTORNO_',
+            in: [
+              'ESTORNO_ENTRADA_NOTA', 'ESTORNO_SAIDA_ENTREGA', 'ESTORNO_ENTRADA_DEVOLUCAO',
+              'ESTORNO_SAIDA_DESCARTE', 'ESTORNO_SAIDA_TRANSFERENCIA', 'ESTORNO_ENTRADA_TRANSFERENCIA',
+              'ESTORNO_AJUSTE_POSITIVO', 'ESTORNO_AJUSTE_NEGATIVO'
+            ],
           },
         },
         include: {
@@ -220,7 +224,7 @@ describe('Relatório R-10: Estornos - Integration Tests', () => {
             select: {
               numeroDocumento: true,
               tipoNota: true,
-              observacoes: true,
+              // observacoes: // REMOVED FROM SCHEMA true,
             },
           },
         },

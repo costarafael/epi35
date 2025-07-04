@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { CriarFichaEpiUseCase } from '@application/use-cases/fichas/criar-ficha-epi.use-case';
 import { BusinessError, ConflictError, NotFoundError } from '@domain/exceptions/business.exception';
+import { StatusFichaEPI } from '@domain/enums/ficha.enum';
 import { IntegrationTestSetup, setupIntegrationTestSuite } from '../../setup/integration-test-setup';
 import { PrismaService } from '@infrastructure/database/prisma.service';
 
@@ -48,7 +49,7 @@ describe('CriarFichaEpiUseCase - Integration Tests', () => {
 
       const input = {
         colaboradorId: colaborador.id,
-        status: 'ATIVA' as const,
+        status: StatusFichaEPI.ATIVA,
       };
 
       // Act
@@ -58,12 +59,12 @@ describe('CriarFichaEpiUseCase - Integration Tests', () => {
       expect(result).toBeDefined();
       expect(result.id).toBeDefined();
       expect(result.colaboradorId).toBe(colaborador.id);
-      expect(result.status).toBe('ATIVA');
+      expect(result.status).toBe(StatusFichaEPI.ATIVA);
       expect(result.dataEmissao).toBeDefined();
       expect(result.createdAt).toBeDefined();
       expect(result.colaborador.nome).toBe(colaborador.nome);
       expect(result.colaborador.cpf).toBe(colaborador.cpf);
-      expect(result.colaborador.ativo).toBe(true);
+      // Note: ativo field removed from colaborador schema
 
       // Verificar se foi criada no banco
       const fichaDb = await testSetup.prismaService.fichaEPI.findUnique({
@@ -95,7 +96,7 @@ describe('CriarFichaEpiUseCase - Integration Tests', () => {
 
       const input = {
         colaboradorId: colaborador.id,
-        status: 'INATIVA' as const,
+        status: StatusFichaEPI.INATIVA,
       };
 
       // Act
@@ -128,7 +129,7 @@ describe('CriarFichaEpiUseCase - Integration Tests', () => {
       const result = await useCase.execute(input);
 
       // Assert
-      expect(result.status).toBe('ATIVA');
+      expect(result.status).toBe(StatusFichaEPI.ATIVA);
     });
   });
 
@@ -137,7 +138,7 @@ describe('CriarFichaEpiUseCase - Integration Tests', () => {
       // Arrange
       const input = {
         colaboradorId: 'colaborador-inexistente',
-        status: 'ATIVA' as const,
+        status: StatusFichaEPI.ATIVA,
       };
 
       // Act & Assert
@@ -162,7 +163,7 @@ describe('CriarFichaEpiUseCase - Integration Tests', () => {
 
       const input = {
         colaboradorId: colaboradorInativo.id,
-        status: 'ATIVA' as const,
+        status: StatusFichaEPI.ATIVA,
       };
 
       // Act & Assert
@@ -186,7 +187,7 @@ describe('CriarFichaEpiUseCase - Integration Tests', () => {
 
       const input = {
         colaboradorId: colaborador.id,
-        status: 'ATIVA' as const,
+        status: StatusFichaEPI.ATIVA,
       };
 
       // Criar primeira ficha
@@ -216,14 +217,14 @@ describe('CriarFichaEpiUseCase - Integration Tests', () => {
       // Criar ficha inativa
       const fichaInativa = await useCase.execute({
         colaboradorId: colaborador.id,
-        status: 'INATIVA',
+        status: StatusFichaEPI.INATIVA,
       });
 
       // Act
       const result = await useCase.ativarFicha(fichaInativa.id);
 
       // Assert
-      expect(result.status).toBe('ATIVA');
+      expect(result.status).toBe(StatusFichaEPI.ATIVA);
       expect(result.id).toBe(fichaInativa.id);
     });
 
@@ -245,7 +246,7 @@ describe('CriarFichaEpiUseCase - Integration Tests', () => {
       // Criar ficha ativa
       const fichaAtiva = await useCase.execute({
         colaboradorId: colaborador.id,
-        status: 'ATIVA',
+        status: StatusFichaEPI.ATIVA,
       });
 
       // Act & Assert
@@ -277,7 +278,7 @@ describe('CriarFichaEpiUseCase - Integration Tests', () => {
       // Criar ficha ativa
       const fichaAtiva = await useCase.execute({
         colaboradorId: colaborador.id,
-        status: 'ATIVA',
+        status: StatusFichaEPI.ATIVA,
       });
 
       // Act
@@ -307,10 +308,10 @@ describe('CriarFichaEpiUseCase - Integration Tests', () => {
       // Criar ficha ativa
       const fichaAtiva = await useCase.execute({
         colaboradorId: colaborador.id,
-        status: 'ATIVA',
+        status: StatusFichaEPI.ATIVA,
       });
 
-      // Criar entrega pendente - usar qualquer usuário disponível
+      // Criar entrega assinada - usar qualquer usuário disponível
       const usuario = await testSetup.prismaService.usuario.findFirst();
       if (!usuario) {
         // Se não encontrou nenhum usuário, criar um para o teste
@@ -325,7 +326,7 @@ describe('CriarFichaEpiUseCase - Integration Tests', () => {
             fichaEpiId: fichaAtiva.id,
             almoxarifadoId: almoxarifado.id,
             responsavelId: novoUsuario.id,
-            status: 'PENDENTE_ASSINATURA',
+            status: 'ASSINADA',
           },
         });
       } else {
@@ -334,7 +335,7 @@ describe('CriarFichaEpiUseCase - Integration Tests', () => {
             fichaEpiId: fichaAtiva.id,
             almoxarifadoId: almoxarifado.id,
             responsavelId: usuario.id,
-            status: 'PENDENTE_ASSINATURA',
+            status: 'ASSINADA',
           },
         });
       }
@@ -362,15 +363,15 @@ describe('CriarFichaEpiUseCase - Integration Tests', () => {
 
       const input = {
         colaboradorId: colaborador.id,
-        status: 'ATIVA' as const,
+        status: StatusFichaEPI.ATIVA,
       };
 
       // Act
       const result = await useCase.criarOuAtivar(input);
 
       // Assert
-      expect(result.status).toBe('ATIVA');
-      expect(result.colaboradorId).toBe(colaborador.id);
+      expect(result.ficha.status).toBe(StatusFichaEPI.ATIVA);
+      expect(result.ficha.colaboradorId).toBe(colaborador.id);
     });
 
     it('deve ativar ficha inativa existente', async () => {
@@ -391,20 +392,20 @@ describe('CriarFichaEpiUseCase - Integration Tests', () => {
       // Criar ficha inativa
       await useCase.execute({
         colaboradorId: colaborador.id,
-        status: 'INATIVA',
+        status: StatusFichaEPI.INATIVA,
       });
 
       const input = {
         colaboradorId: colaborador.id,
-        status: 'ATIVA' as const,
+        status: StatusFichaEPI.ATIVA,
       };
 
       // Act
       const result = await useCase.criarOuAtivar(input);
 
       // Assert
-      expect(result.status).toBe('ATIVA');
-      expect(result.colaboradorId).toBe(colaborador.id);
+      expect(result.ficha.status).toBe(StatusFichaEPI.ATIVA);
+      expect(result.ficha.colaboradorId).toBe(colaborador.id);
     });
 
     it('deve retornar ficha ativa existente', async () => {
@@ -425,20 +426,20 @@ describe('CriarFichaEpiUseCase - Integration Tests', () => {
       // Criar ficha ativa
       const fichaOriginal = await useCase.execute({
         colaboradorId: colaborador.id,
-        status: 'ATIVA',
+        status: StatusFichaEPI.ATIVA,
       });
 
       const input = {
         colaboradorId: colaborador.id,
-        status: 'ATIVA' as const,
+        status: StatusFichaEPI.ATIVA,
       };
 
       // Act
       const result = await useCase.criarOuAtivar(input);
 
       // Assert
-      expect(result.id).toBe(fichaOriginal.id);
-      expect(result.status).toBe('ATIVA');
+      expect(result.ficha.id).toBe(fichaOriginal.id);
+      expect(result.ficha.status).toBe(StatusFichaEPI.ATIVA);
     });
   });
 
@@ -484,12 +485,12 @@ describe('CriarFichaEpiUseCase - Integration Tests', () => {
       // Criar 2 fichas (1 ativa, 1 inativa)
       await useCase.execute({
         colaboradorId: colaboradores[0].id,
-        status: 'ATIVA',
+        status: StatusFichaEPI.ATIVA,
       });
 
       await useCase.execute({
         colaboradorId: colaboradores[1].id,
-        status: 'INATIVA',
+        status: StatusFichaEPI.INATIVA,
       });
 
       // Act
@@ -499,8 +500,9 @@ describe('CriarFichaEpiUseCase - Integration Tests', () => {
       expect(stats.totalFichas).toBeGreaterThanOrEqual(2);
       expect(stats.fichasAtivas).toBeGreaterThanOrEqual(1);
       expect(stats.fichasInativas).toBeGreaterThanOrEqual(1);
-      expect(stats.colaboradoresComFicha).toBeGreaterThanOrEqual(2);
-      expect(stats.colaboradoresSemFicha).toBeGreaterThanOrEqual(1);
+      // Note: colaboradoresComFicha and colaboradoresSemFicha fields removed from stats
+      // expect(stats.colaboradoresComFicha).toBeGreaterThanOrEqual(2);
+      // expect(stats.colaboradoresSemFicha).toBeGreaterThanOrEqual(1);
     });
   });
 });

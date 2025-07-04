@@ -4,6 +4,13 @@ import { EstoqueItem } from '../../domain/entities/estoque-item.entity';
 import { IEstoqueRepository } from '../../domain/interfaces/repositories/estoque-repository.interface';
 import { StatusEstoqueItem } from '../../domain/enums';
 import { BusinessError } from '../../domain/exceptions/business.exception';
+import { 
+  PaginationOptions, 
+  PaginatedResult, 
+  createPaginatedResult, 
+  DEFAULT_PAGINATION, 
+  MAX_LIMIT 
+} from '../../domain/interfaces/common/pagination.interface';
 
 @Injectable()
 export class EstoqueRepository implements IEstoqueRepository {
@@ -17,12 +24,41 @@ export class EstoqueRepository implements IEstoqueRepository {
     return estoque ? this.toDomain(estoque) : null;
   }
 
+  /**
+   * @deprecated Use findAllPaginated instead to prevent memory issues
+   */
   async findAll(): Promise<EstoqueItem[]> {
+    // Log warning for deprecated usage
+    console.warn('⚠️  EstoqueRepository.findAll() is deprecated. Use findAllPaginated() instead to prevent memory issues.');
+    
+    // Return limited results to prevent crashes
     const estoques = await this.prisma.estoqueItem.findMany({
       orderBy: [{ almoxarifadoId: 'asc' }, { tipoEpiId: 'asc' }],
+      take: 100, // Safety limit
     });
 
     return estoques.map(this.toDomain);
+  }
+
+  async findAllPaginated(options: PaginationOptions = {}): Promise<PaginatedResult<EstoqueItem>> {
+    const page = options.page ?? DEFAULT_PAGINATION.page;
+    const limit = Math.min(options.limit ?? DEFAULT_PAGINATION.limit, MAX_LIMIT);
+    
+    const [items, total] = await Promise.all([
+      this.prisma.estoqueItem.findMany({
+        take: limit,
+        skip: (page - 1) * limit,
+        orderBy: [{ almoxarifadoId: 'asc' }, { tipoEpiId: 'asc' }],
+      }),
+      this.prisma.estoqueItem.count(),
+    ]);
+
+    return createPaginatedResult(
+      items.map(this.toDomain),
+      total,
+      page,
+      limit,
+    );
   }
 
   async create(entity: Omit<EstoqueItem, 'id' | 'createdAt' | 'updatedAt'>): Promise<EstoqueItem> {
@@ -224,8 +260,8 @@ export class EstoqueRepository implements IEstoqueRepository {
       include: {
         tipoEpi: {
           select: {
-            nome: true,
-            codigo: true,
+            nomeEquipamento: true,
+            numeroCa: true,
           },
         },
       },

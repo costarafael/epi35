@@ -1,6 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { FichaRepository } from '@infrastructure/repositories/ficha.repository';
-import { ColaboradorRepository } from '@infrastructure/repositories/colaborador.repository';
+import { PrismaService } from '@infrastructure/database/prisma.service';
 
 export interface RelatorioEntregasInput {
   colaboradorId?: string;
@@ -25,11 +24,10 @@ export interface RelatorioEntregasOutput {
 @Injectable()
 export class RelatorioEntregasColaboradorUseCase {
   constructor(
-    private readonly fichaRepository: FichaRepository,
-    private readonly colaboradorRepository: ColaboradorRepository,
+    private readonly prismaService: PrismaService,
   ) {}
 
-  async gerarRelatorio(input: RelatorioEntregasInput): Promise<RelatorioEntregasOutput[]> {
+  async gerarRelatorio(_input: RelatorioEntregasInput): Promise<RelatorioEntregasOutput[]> {
     // Implementação inicial apenas para que o teste não falhe na importação
     return [];
   }

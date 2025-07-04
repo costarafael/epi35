@@ -1,31 +1,27 @@
-import { Injectable, Inject } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { TipoEPI } from '../../../domain/entities/tipo-epi.entity';
 import { BusinessError, ConflictError } from '../../../domain/exceptions/business.exception';
 import { PrismaService } from '../../../infrastructure/database/prisma.service';
+import { CategoriaEPI } from '../../../domain/enums/categoria-epi.enum';
 
 export interface CriarTipoEpiInput {
-  nome: string;
-  codigo: string;
+  nomeEquipamento: string;
+  numeroCa: string;
+  categoria: CategoriaEPI;
   descricao?: string;
-  ca?: string;
-  validadeMeses?: number;
-  diasAvisoVencimento?: number;
-  exigeAssinaturaEntrega?: boolean;
-  ativo?: boolean;
+  vidaUtilDias?: number;
+  status?: 'ATIVO' | 'DESCONTINUADO';
 }
 
 export interface TipoEpiOutput {
   id: string;
-  nome: string;
-  codigo: string;
+  nomeEquipamento: string;
+  numeroCa: string;
+  categoria: CategoriaEPI;
   descricao?: string;
-  ca?: string;
-  validadeMeses?: number;
-  diasAvisoVencimento: number;
-  exigeAssinaturaEntrega: boolean;
-  ativo: boolean;
+  vidaUtilDias?: number;
+  status: 'ATIVO' | 'DESCONTINUADO';
   createdAt: Date;
-  updatedAt: Date;
 }
 
 @Injectable()
@@ -38,37 +34,28 @@ export class CriarTipoEpiUseCase {
     // Validar dados de entrada
     this.validarInput(input);
 
-    // Verificar se já existe tipo com o mesmo código
-    await this.verificarCodigoUnico(input.codigo);
-
-    // Verificar se já existe tipo com o mesmo CA (se informado)
-    if (input.ca) {
-      await this.verificarCAUnico(input.ca);
-    }
+    // Verificar se já existe tipo com o mesmo CA
+    await this.verificarCAUnico(input.numeroCa);
 
     // Criar entidade de domínio
     const tipoEpiData = TipoEPI.create(
-      input.nome,
-      input.codigo,
+      input.nomeEquipamento,
+      input.numeroCa,
+      input.categoria,
       input.descricao,
-      input.ca,
-      input.validadeMeses,
-      input.diasAvisoVencimento || 30,
-      input.exigeAssinaturaEntrega !== false, // Default true
-      input.ativo !== false, // Default true
+      input.vidaUtilDias,
+      input.status
     );
 
     // Salvar no banco de dados
     const tipoEpi = await this.prisma.tipoEPI.create({
       data: {
-        nome: tipoEpiData.nome,
-        codigo: tipoEpiData.codigo,
+        nomeEquipamento: tipoEpiData.nomeEquipamento,
+        numeroCa: tipoEpiData.numeroCa,
+        categoria: tipoEpiData.categoria,
         descricao: tipoEpiData.descricao,
-        ca: tipoEpiData.ca,
-        validadeMeses: tipoEpiData.validadeMeses,
-        diasAvisoVencimento: tipoEpiData.diasAvisoVencimento,
-        exigeAssinaturaEntrega: tipoEpiData.exigeAssinaturaEntrega,
-        ativo: tipoEpiData.ativo,
+        vidaUtilDias: tipoEpiData.vidaUtilDias,
+        status: tipoEpiData.status,
       },
     });
 
@@ -86,24 +73,28 @@ export class CriarTipoEpiUseCase {
   async listarTiposEpi(
     ativo?: boolean,
     busca?: string,
+    categoria?: CategoriaEPI,
   ): Promise<TipoEpiOutput[]> {
     const where: any = {};
 
     if (ativo !== undefined) {
-      where.ativo = ativo;
+      where.status = ativo ? 'ATIVO' : 'DESCONTINUADO';
+    }
+
+    if (categoria) {
+      where.categoria = categoria;
     }
 
     if (busca) {
       where.OR = [
-        { nome: { contains: busca, mode: 'insensitive' } },
-        { codigo: { contains: busca, mode: 'insensitive' } },
-        { ca: { contains: busca, mode: 'insensitive' } },
+        { nomeEquipamento: { contains: busca, mode: 'insensitive' } },
+        { numeroCa: { contains: busca, mode: 'insensitive' } },
       ];
     }
 
     const tiposEpi = await this.prisma.tipoEPI.findMany({
       where,
-      orderBy: [{ ativo: 'desc' }, { nome: 'asc' }],
+      orderBy: [{ status: 'asc' }, { nomeEquipamento: 'asc' }],
     });
 
     return tiposEpi.map(this.mapToOutput);
@@ -122,61 +113,38 @@ export class CriarTipoEpiUseCase {
       throw new BusinessError('Tipo de EPI não encontrado');
     }
 
-    // Verificar código único se foi alterado
-    if (input.codigo && input.codigo !== tipoEpiExistente.codigo) {
-      await this.verificarCodigoUnico(input.codigo, id);
-    }
-
     // Verificar CA único se foi alterado
-    if (input.ca && input.ca !== tipoEpiExistente.ca) {
-      await this.verificarCAUnico(input.ca, id);
+    if (input.numeroCa && input.numeroCa !== tipoEpiExistente.numeroCa) {
+      await this.verificarCAUnico(input.numeroCa, id);
     }
 
     // Preparar dados para atualização
     const updateData: any = {};
 
-    if (input.nome !== undefined) {
-      if (!input.nome.trim()) {
-        throw new BusinessError('Nome é obrigatório');
+    if (input.nomeEquipamento !== undefined) {
+      if (!input.nomeEquipamento.trim()) {
+        throw new BusinessError('Nome do equipamento é obrigatório');
       }
-      updateData.nome = input.nome.trim();
-    }
-
-    if (input.codigo !== undefined) {
-      if (!input.codigo.trim()) {
-        throw new BusinessError('Código é obrigatório');
-      }
-      updateData.codigo = input.codigo.trim().toUpperCase();
+      updateData.nomeEquipamento = input.nomeEquipamento.trim();
     }
 
     if (input.descricao !== undefined) {
       updateData.descricao = input.descricao?.trim() || null;
     }
 
-    if (input.ca !== undefined) {
-      updateData.ca = input.ca?.trim() || null;
+    if (input.numeroCa !== undefined) {
+      updateData.numeroCa = input.numeroCa?.trim() || null;
     }
 
-    if (input.validadeMeses !== undefined) {
-      if (input.validadeMeses !== null && input.validadeMeses <= 0) {
-        throw new BusinessError('Validade em meses deve ser positiva');
+    if (input.vidaUtilDias !== undefined) {
+      if (input.vidaUtilDias !== null && input.vidaUtilDias <= 0) {
+        throw new BusinessError('Vida útil em dias deve ser positiva');
       }
-      updateData.validadeMeses = input.validadeMeses;
+      updateData.vidaUtilDias = input.vidaUtilDias;
     }
 
-    if (input.diasAvisoVencimento !== undefined) {
-      if (input.diasAvisoVencimento < 0) {
-        throw new BusinessError('Dias de aviso não pode ser negativo');
-      }
-      updateData.diasAvisoVencimento = input.diasAvisoVencimento;
-    }
-
-    if (input.exigeAssinaturaEntrega !== undefined) {
-      updateData.exigeAssinaturaEntrega = input.exigeAssinaturaEntrega;
-    }
-
-    if (input.ativo !== undefined) {
-      updateData.ativo = input.ativo;
+    if (input.status !== undefined) {
+      updateData.status = input.status;
     }
 
     // Atualizar no banco
@@ -191,34 +159,20 @@ export class CriarTipoEpiUseCase {
   async ativarTipoEpi(id: string): Promise<TipoEpiOutput> {
     const tipoEpi = await this.prisma.tipoEPI.update({
       where: { id },
-      data: { ativo: true },
+      data: { status: 'ATIVO' },
     });
 
     return this.mapToOutput(tipoEpi);
   }
 
   async inativarTipoEpi(id: string): Promise<TipoEpiOutput> {
-    // Verificar se há fichas ativas ou estoque para este tipo
-    const [fichasAtivas, estoque] = await Promise.all([
-      this.prisma.fichaEPI.count({
-        where: {
-          tipoEpiId: id,
-          status: 'ATIVA',
-        },
-      }),
-      this.prisma.estoqueItem.count({
-        where: {
-          tipoEpiId: id,
-          quantidade: { gt: 0 },
-        },
-      }),
-    ]);
-
-    if (fichasAtivas > 0) {
-      throw new BusinessError(
-        `Não é possível inativar: existem ${fichasAtivas} ficha(s) ativa(s) para este tipo de EPI`,
-      );
-    }
+    // Verificar se há estoque para este tipo
+    const estoque = await this.prisma.estoqueItem.count({
+      where: {
+        tipoEpiId: id,
+        quantidade: { gt: 0 },
+      },
+    });
 
     if (estoque > 0) {
       throw new BusinessError(
@@ -228,7 +182,7 @@ export class CriarTipoEpiUseCase {
 
     const tipoEpi = await this.prisma.tipoEPI.update({
       where: { id },
-      data: { ativo: false },
+      data: { status: 'DESCONTINUADO' },
     });
 
     return this.mapToOutput(tipoEpi);
@@ -247,12 +201,7 @@ export class CriarTipoEpiUseCase {
       where.tipoEpiId = tipoEpiId;
     }
 
-    const [fichas, estoque, entregas] = await Promise.all([
-      this.prisma.fichaEPI.groupBy({
-        by: ['status'],
-        where,
-        _count: { id: true },
-      }),
+    const [estoque, entregas] = await Promise.all([
       this.prisma.estoqueItem.aggregate({
         where: {
           ...where,
@@ -264,43 +213,100 @@ export class CriarTipoEpiUseCase {
       this.prisma.entrega.groupBy({
         by: ['status'],
         where: {
-          fichaEpi: { tipoEpiId: tipoEpiId },
+          itens: {
+            some: {
+              estoqueItem: { tipoEpiId: tipoEpiId }
+            }
+          }
         },
         _count: { id: true },
       }),
     ]);
 
     return {
-      totalFichas: fichas.reduce((sum, f) => sum + f._count.id, 0),
-      fichasAtivas: fichas.find(f => f.status === 'ATIVA')?._count.id || 0,
+      totalFichas: 0, // Removed - fichas no longer relate to tipo EPI directly
+      fichasAtivas: 0, // Removed - fichas no longer relate to tipo EPI directly
       totalEstoque: estoque._count.id || 0,
       estoqueDisponivel: estoque._sum.quantidade || 0,
       totalEntregas: entregas.reduce((sum, e) => sum + e._count.id, 0),
-      entregasAtivas: entregas.find(e => e.status === 'ATIVA')?._count.id || 0,
+      entregasAtivas: entregas.find(e => e.status === 'ASSINADA')?._count.id || 0,
     };
+  }
+
+  async obterEstatisticasPorCategoria(): Promise<{
+    categoria: CategoriaEPI;
+    tiposAtivos: number;
+    estoqueDisponivel: number;
+    totalItens: number;
+  }[]> {
+    const estatisticas = await this.prisma.tipoEPI.findMany({
+      select: {
+        categoria: true,
+        status: true,
+        estoqueItens: {
+          select: {
+            quantidade: true,
+            status: true,
+          },
+        },
+      },
+    });
+
+    // Agrupar por categoria
+    const groupedData = new Map<string, {
+      tiposAtivos: number;
+      estoqueDisponivel: number;
+      totalItens: number;
+    }>();
+
+    estatisticas.forEach(item => {
+      const categoriaKey = item.categoria as string;
+      if (!groupedData.has(categoriaKey)) {
+        groupedData.set(categoriaKey, {
+          tiposAtivos: 0,
+          estoqueDisponivel: 0,
+          totalItens: 0,
+        });
+      }
+
+      const data = groupedData.get(categoriaKey)!;
+      
+      if (item.status === 'ATIVO') {
+        data.tiposAtivos++;
+      }
+
+      item.estoqueItens.forEach(estoque => {
+        data.totalItens += estoque.quantidade;
+        if (estoque.status === 'DISPONIVEL') {
+          data.estoqueDisponivel += estoque.quantidade;
+        }
+      });
+    });
+
+    return Array.from(groupedData.entries()).map(([categoria, stats]) => ({
+      categoria: categoria as CategoriaEPI,
+      ...stats,
+    }));
   }
 
   private validarInput(input: CriarTipoEpiInput): void {
-    if (!input.nome || input.nome.trim().length === 0) {
-      throw new BusinessError('Nome é obrigatório');
+    if (!input.nomeEquipamento || input.nomeEquipamento.trim().length === 0) {
+      throw new BusinessError('Nome do equipamento é obrigatório');
     }
 
-    if (!input.codigo || input.codigo.trim().length === 0) {
-      throw new BusinessError('Código é obrigatório');
+    if (!input.numeroCa || input.numeroCa.trim().length === 0) {
+      throw new BusinessError('Número CA é obrigatório');
     }
 
-    if (input.validadeMeses !== undefined && input.validadeMeses !== null && input.validadeMeses <= 0) {
-      throw new BusinessError('Validade em meses deve ser positiva');
-    }
-
-    if (input.diasAvisoVencimento !== undefined && input.diasAvisoVencimento < 0) {
-      throw new BusinessError('Dias de aviso de vencimento não pode ser negativo');
+    if (input.vidaUtilDias !== undefined && input.vidaUtilDias !== null && input.vidaUtilDias <= 0) {
+      throw new BusinessError('Vida útil em dias deve ser positiva');
     }
   }
 
-  private async verificarCodigoUnico(codigo: string, excludeId?: string): Promise<void> {
+
+  private async verificarCAUnico(numeroCa: string, excludeId?: string): Promise<void> {
     const where: any = {
-      codigo: codigo.trim().toUpperCase(),
+      numeroCa: numeroCa.trim(),
     };
 
     if (excludeId) {
@@ -310,39 +316,20 @@ export class CriarTipoEpiUseCase {
     const existente = await this.prisma.tipoEPI.findFirst({ where });
 
     if (existente) {
-      throw new ConflictError(`Já existe um tipo de EPI com o código '${codigo}'`);
-    }
-  }
-
-  private async verificarCAUnico(ca: string, excludeId?: string): Promise<void> {
-    const where: any = {
-      ca: ca.trim(),
-    };
-
-    if (excludeId) {
-      where.id = { not: excludeId };
-    }
-
-    const existente = await this.prisma.tipoEPI.findFirst({ where });
-
-    if (existente) {
-      throw new ConflictError(`Já existe um tipo de EPI com o CA '${ca}'`);
+      throw new ConflictError(`Já existe um tipo de EPI com o CA '${numeroCa}'`);
     }
   }
 
   private mapToOutput(tipoEpi: any): TipoEpiOutput {
     return {
       id: tipoEpi.id,
-      nome: tipoEpi.nome,
-      codigo: tipoEpi.codigo,
+      nomeEquipamento: tipoEpi.nomeEquipamento,
+      numeroCa: tipoEpi.numeroCa,
+      categoria: tipoEpi.categoria,
       descricao: tipoEpi.descricao,
-      ca: tipoEpi.ca,
-      validadeMeses: tipoEpi.validadeMeses,
-      diasAvisoVencimento: tipoEpi.diasAvisoVencimento,
-      exigeAssinaturaEntrega: tipoEpi.exigeAssinaturaEntrega,
-      ativo: tipoEpi.ativo,
+      vidaUtilDias: tipoEpi.vidaUtilDias,
+      status: tipoEpi.status,
       createdAt: tipoEpi.createdAt,
-      updatedAt: tipoEpi.updatedAt,
     };
   }
 }

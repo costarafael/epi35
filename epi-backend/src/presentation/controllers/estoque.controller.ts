@@ -5,8 +5,6 @@ import {
   Body,
   Query,
   Param,
-  HttpStatus,
-  UseGuards,
   Request,
 } from '@nestjs/common';
 import {
@@ -38,7 +36,7 @@ import {
   FiltrosKardex,
   FiltrosAnaliseGiro,
 } from '../dto/schemas/estoque.schemas';
-import { IdSchema, SuccessResponse, PaginatedResponse } from '../dto/schemas/common.schemas';
+import { IdSchema, SuccessResponse } from '../dto/schemas/common.schemas';
 
 @ApiTags('estoque')
 @ApiBearerAuth()
@@ -392,7 +390,7 @@ export class EstoqueController {
         resumo: {
           totalAlertas: itensAlerta.length,
           itensBaixo: itensAlerta.filter(i => i.situacao === 'BAIXO').length,
-          itensCritico: itensAlerta.filter(i => i.situacao === 'CRITICO').length,
+          itensCritico: 0, // Removido status CRÍTICO
           itensZero: itensAlerta.filter(i => i.situacao === 'ZERO').length,
         },
         dataGeracao: relatorio.dataGeracao,

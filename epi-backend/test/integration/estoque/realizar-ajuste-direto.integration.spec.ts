@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { RealizarAjusteDiretoUseCase } from '@application/use-cases/estoque/realizar-ajuste-direto.use-case';
+import { RealizarAjusteDirectoUseCase } from '@application/use-cases/estoque/realizar-ajuste-direto.use-case';
 import { EstoqueRepository } from '@infrastructure/repositories/estoque.repository';
 import { MovimentacaoRepository } from '@infrastructure/repositories/movimentacao.repository';
 import { PrismaService } from '@infrastructure/database/prisma.service';
@@ -7,17 +7,17 @@ import { IntegrationTestSetup, setupIntegrationTestSuite } from '../../setup/int
 import { StatusEstoqueItem, TipoMovimentacao } from '@domain/enums';
 import { BusinessError } from '@domain/exceptions/business.exception';
 
-describe('RealizarAjusteDiretoUseCase - Integration Tests', () => {
+describe('RealizarAjusteDirectoUseCase - Integration Tests', () => {
   const { createTestSetup } = setupIntegrationTestSuite();
   let testSetup: IntegrationTestSetup;
-  let useCase: RealizarAjusteDiretoUseCase;
-  let estoqueRepository: EstoqueRepository;
-  let movimentacaoRepository: MovimentacaoRepository;
+  let useCase: RealizarAjusteDirectoUseCase;
+  // let _estoqueRepository: EstoqueRepository;
+  // let _movimentacaoRepository: MovimentacaoRepository;
 
   beforeEach(async () => {
     testSetup = await createTestSetup({
       providers: [
-        RealizarAjusteDiretoUseCase,
+        RealizarAjusteDirectoUseCase,
         {
           provide: 'IEstoqueRepository',
           useFactory: (prisma: PrismaService) => new EstoqueRepository(prisma),
@@ -41,9 +41,9 @@ describe('RealizarAjusteDiretoUseCase - Integration Tests', () => {
       ],
     });
 
-    useCase = testSetup.app.get<RealizarAjusteDiretoUseCase>(RealizarAjusteDiretoUseCase);
-    estoqueRepository = testSetup.app.get<EstoqueRepository>(EstoqueRepository);
-    movimentacaoRepository = testSetup.app.get<MovimentacaoRepository>(MovimentacaoRepository);
+    useCase = testSetup.app.get<RealizarAjusteDirectoUseCase>(RealizarAjusteDirectoUseCase);
+    // _notaRepository = testSetup.app.get<EstoqueRepository>(EstoqueRepository);
+    // _notaRepository = testSetup.app.get<MovimentacaoRepository>(MovimentacaoRepository);
 
     // Reset do banco para cada teste
     await testSetup.resetTestData();
@@ -65,18 +65,19 @@ describe('RealizarAjusteDiretoUseCase - Integration Tests', () => {
       const quantidadeAntes = estoqueAntes?.quantidade || 0;
 
       // Act - Realizar ajuste positivo
-      const result = await useCase.execute({
+      const result = await useCase.executarAjusteDirecto({
         almoxarifadoId: almoxarifado.id,
         tipoEpiId: tipoCapacete.id,
-        quantidade: 15,
-        justificativa: 'Ajuste de inventário - positivo',
+        novaQuantidade: 15,
+        motivo: 'Ajuste de inventário - positivo',
         usuarioId: usuario.id,
       });
 
       // Assert - Verificar resultado do ajuste
       expect(result).toBeDefined();
-      expect(result.quantidade).toBe(15);
-      expect(result.tipoMovimentacao).toBe(TipoMovimentacao.AJUSTE_POSITIVO);
+      expect(result.movimentacaoId).toBeDefined();
+      expect(result.diferenca).toBe(15);
+      expect(result.saldoPosterior).toBe(quantidadeAntes + 15);
 
       // Verificar se o estoque foi atualizado
       const estoqueDepois = await testSetup.getEstoqueDisponivel(almoxarifado.id, tipoCapacete.id);
@@ -86,17 +87,19 @@ describe('RealizarAjusteDiretoUseCase - Integration Tests', () => {
       // Verificar se a movimentação foi registrada
       const movimentacoes = await testSetup.prismaService.movimentacaoEstoque.findMany({
         where: {
-          tipoEpiId: tipoCapacete.id,
-          almoxarifadoId: almoxarifado.id,
-          tipo: TipoMovimentacao.AJUSTE_POSITIVO,
+          estoqueItem: { 
+            tipoEpiId: tipoCapacete.id,
+            almoxarifadoId: almoxarifado.id 
+          },
+          tipoMovimentacao: TipoMovimentacao.AJUSTE_POSITIVO,
         },
-        orderBy: { createdAt: 'desc' },
+        orderBy: { dataMovimentacao: 'desc' },
         take: 1,
       });
 
       expect(movimentacoes).toHaveLength(1);
-      expect(movimentacoes[0].quantidade).toBe(15);
-      expect(movimentacoes[0].observacoes).toContain('Ajuste de inventário - positivo');
+      expect(movimentacoes[0].quantidadeMovida).toBe(15);
+      // Note: observacoes field removed from movimentacao schema v3.5
     });
 
     it('deve realizar ajuste negativo com sucesso', async () => {
@@ -133,18 +136,19 @@ describe('RealizarAjusteDiretoUseCase - Integration Tests', () => {
       const quantidadeAntes = estoqueAtualizado.quantidade;
 
       // Act - Realizar ajuste negativo
-      const result = await useCase.execute({
+      const result = await useCase.executarAjusteDirecto({
         almoxarifadoId: almoxarifado.id,
         tipoEpiId: tipoCapacete.id,
-        quantidade: -5,
-        justificativa: 'Ajuste de inventário - negativo',
+        novaQuantidade: quantidadeAntes - 5,
+        motivo: 'Ajuste de inventário - negativo',
         usuarioId: usuario.id,
       });
 
       // Assert - Verificar resultado do ajuste
       expect(result).toBeDefined();
-      expect(result.quantidade).toBe(5); // Valor absoluto
-      expect(result.tipoMovimentacao).toBe(TipoMovimentacao.AJUSTE_NEGATIVO);
+      expect(result.movimentacaoId).toBeDefined();
+      expect(result.diferenca).toBe(-5); // Valor da diferença
+      expect(result.saldoPosterior).toBe(quantidadeAntes - 5);
 
       // Verificar se o estoque foi atualizado
       const estoqueDepois = await testSetup.getEstoqueDisponivel(almoxarifado.id, tipoCapacete.id);
@@ -154,17 +158,19 @@ describe('RealizarAjusteDiretoUseCase - Integration Tests', () => {
       // Verificar se a movimentação foi registrada
       const movimentacoes = await testSetup.prismaService.movimentacaoEstoque.findMany({
         where: {
-          tipoEpiId: tipoCapacete.id,
-          almoxarifadoId: almoxarifado.id,
-          tipo: TipoMovimentacao.AJUSTE_NEGATIVO,
+          estoqueItem: { 
+            tipoEpiId: tipoCapacete.id,
+            almoxarifadoId: almoxarifado.id 
+          },
+          tipoMovimentacao: TipoMovimentacao.AJUSTE_NEGATIVO,
         },
-        orderBy: { createdAt: 'desc' },
+        orderBy: { dataMovimentacao: 'desc' },
         take: 1,
       });
 
       expect(movimentacoes).toHaveLength(1);
-      expect(movimentacoes[0].quantidade).toBe(5);
-      expect(movimentacoes[0].observacoes).toContain('Ajuste de inventário - negativo');
+      expect(movimentacoes[0].quantidadeMovida).toBe(5);
+      // Note: observacoes field removed from movimentacao schema v3.5
     });
 
     it('deve falhar ao tentar ajuste negativo sem estoque suficiente', async () => {
@@ -174,15 +180,15 @@ describe('RealizarAjusteDiretoUseCase - Integration Tests', () => {
       const tipoCapacete = await testSetup.findTipoEpi('CA-12345');
 
       // Garantir que o estoque é conhecido
-      const estoqueAtual = await testSetup.getEstoqueDisponivel(almoxarifado.id, tipoCapacete.id);
-      const quantidadeAtual = estoqueAtual?.quantidade || 0;
+      await testSetup.getEstoqueDisponivel(almoxarifado.id, tipoCapacete.id);
+      // const _quantidadeAtual = estoqueAtual?.quantidade || 0;
 
       // Act & Assert - Deve falhar ao tentar ajuste negativo maior que o estoque
-      await expect(useCase.execute({
+      await expect(useCase.executarAjusteDirecto({
         almoxarifadoId: almoxarifado.id,
         tipoEpiId: tipoCapacete.id,
-        quantidade: -(quantidadeAtual + 10), // Quantidade maior que o estoque
-        justificativa: 'Ajuste negativo impossível',
+        novaQuantidade: -10, // Quantidade negativa impossível
+        motivo: 'Ajuste negativo impossível',
         usuarioId: usuario.id,
       })).rejects.toThrow(BusinessError);
     });
@@ -194,11 +200,11 @@ describe('RealizarAjusteDiretoUseCase - Integration Tests', () => {
       const tipoCapacete = await testSetup.findTipoEpi('CA-12345');
 
       // Act & Assert - Deve falhar ao tentar ajuste sem justificativa
-      await expect(useCase.execute({
+      await expect(useCase.executarAjusteDirecto({
         almoxarifadoId: almoxarifado.id,
         tipoEpiId: tipoCapacete.id,
-        quantidade: 10,
-        justificativa: '',
+        novaQuantidade: 10,
+        motivo: '',
         usuarioId: usuario.id,
       })).rejects.toThrow(BusinessError);
     });

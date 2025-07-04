@@ -3,40 +3,14 @@ import { PrismaService } from '../../../infrastructure/database/prisma.service';
 import { FichaEPI } from '../../../domain/entities/ficha-epi.entity';
 import { StatusFichaEPI } from '../../../domain/enums';
 import { BusinessError, ConflictError, NotFoundError } from '../../../domain/exceptions/business.exception';
+// ✅ OTIMIZAÇÃO: Import tipos do Zod (Single Source of Truth)
+import { CriarFichaEpiInput, FichaEpiOutput, FichaFilters } from '../../../presentation/dto/schemas/ficha-epi.schemas';
+import { PaginationOptions, PaginatedResult, createPaginatedResult } from '../../../domain/interfaces/common/pagination.interface';
+// ✅ OTIMIZAÇÃO: Import mapper para reduzir código duplicado
+import { mapFichaEpiToOutput } from '../../../infrastructure/mapping/ficha-epi.mapper';
 
-export interface CriarFichaEpiInput {
-  colaboradorId: string;
-  tipoEpiId: string;
-  status?: StatusFichaEPI;
-}
-
-export interface FichaEpiOutput {
-  id: string;
-  colaboradorId: string;
-  tipoEpiId: string;
-  status: StatusFichaEPI;
-  createdAt: Date;
-  updatedAt: Date;
-  colaborador: {
-    nome: string;
-    cpf: string;
-    matricula?: string;
-  };
-  tipoEpi: {
-    nome: string;
-    codigo: string;
-    exigeAssinaturaEntrega: boolean;
-  };
-}
-
-export interface FichaFilters {
-  colaboradorId?: string;
-  tipoEpiId?: string;
-  status?: StatusFichaEPI;
-  colaboradorNome?: string;
-  tipoEpiNome?: string;
-  ativo?: boolean;
-}
+// ✅ OTIMIZAÇÃO: Interfaces removidas - usando tipos do Zod (Single Source of Truth)
+// CriarFichaEpiInput, FichaEpiOutput e FichaFilters agora vêm de ../../../presentation/dto/schemas/ficha-epi.schemas
 
 @Injectable()
 export class CriarFichaEpiUseCase {
@@ -57,15 +31,13 @@ export class CriarFichaEpiUseCase {
     // Criar entidade de domínio
     const fichaData = FichaEPI.create(
       input.colaboradorId,
-      input.tipoEpiId,
-      input.status || StatusFichaEPI.ATIVA,
+      (input.status || 'ATIVA') as StatusFichaEPI,
     );
 
     // Salvar no banco de dados
     const ficha = await this.prisma.fichaEPI.create({
       data: {
         colaboradorId: fichaData.colaboradorId,
-        tipoEpiId: fichaData.tipoEpiId,
         status: fichaData.status as any,
       },
       include: {
@@ -76,17 +48,10 @@ export class CriarFichaEpiUseCase {
             matricula: true,
           },
         },
-        tipoEpi: {
-          select: {
-            nome: true,
-            codigo: true,
-            exigeAssinaturaEntrega: true,
-          },
-        },
       },
     });
 
-    return this.mapToOutput(ficha);
+    return mapFichaEpiToOutput(ficha);
   }
 
   async obterFicha(id: string): Promise<FichaEpiOutput | null> {
@@ -100,29 +65,34 @@ export class CriarFichaEpiUseCase {
             matricula: true,
           },
         },
-        tipoEpi: {
-          select: {
-            nome: true,
-            codigo: true,
-            exigeAssinaturaEntrega: true,
+        entregas: {
+          where: { status: 'ASSINADA' },
+          include: {
+            itens: {
+              where: { status: 'COM_COLABORADOR' },
+              select: {
+                dataLimiteDevolucao: true,
+                status: true,
+              },
+            },
           },
         },
       },
     });
 
-    return ficha ? this.mapToOutput(ficha) : null;
+    return ficha ? this.mapFichaWithDevolucaoPendente(ficha) : null;
   }
 
-  async listarFichas(filtros: FichaFilters = {}): Promise<FichaEpiOutput[]> {
+  async listarFichas(
+    filtros: FichaFilters = {},
+    paginacao?: PaginationOptions,
+  ): Promise<FichaEpiOutput[] | PaginatedResult<FichaEpiOutput>> {
     const where: any = {};
 
     if (filtros.colaboradorId) {
       where.colaboradorId = filtros.colaboradorId;
     }
 
-    if (filtros.tipoEpiId) {
-      where.tipoEpiId = filtros.tipoEpiId;
-    }
 
     if (filtros.status) {
       where.status = filtros.status;
@@ -138,12 +108,72 @@ export class CriarFichaEpiUseCase {
       };
     }
 
-    if (filtros.tipoEpiNome) {
-      where.tipoEpi = {
-        nome: { contains: filtros.tipoEpiNome, mode: 'insensitive' },
+    // ✅ NOVO FILTRO: Devolução Pendente
+    if (filtros.devolucaoPendente === true) {
+      const hoje = new Date();
+      where.entregas = {
+        some: {
+          status: 'ASSINADA',
+          itens: {
+            some: {
+              status: 'COM_COLABORADOR',
+              dataLimiteDevolucao: {
+                lt: hoje,
+                not: null,
+              },
+            },
+          },
+        },
       };
     }
 
+
+    const orderBy = [
+      { status: 'asc' as const },
+      { colaborador: { nome: 'asc' as const } },
+    ];
+
+    // Se paginação foi solicitada, usar skip/take + count
+    if (paginacao) {
+      const { page = 1, limit = 50 } = paginacao;
+      const skip = (page - 1) * limit;
+      
+      const [fichas, total] = await Promise.all([
+        this.prisma.fichaEPI.findMany({
+          where,
+          include: {
+            colaborador: {
+              select: {
+                nome: true,
+                cpf: true,
+                matricula: true,
+              },
+            },
+            entregas: {
+              where: { status: 'ASSINADA' },
+              include: {
+                itens: {
+                  where: { status: 'COM_COLABORADOR' },
+                  select: {
+                    dataLimiteDevolucao: true,
+                    status: true,
+                  },
+                },
+              },
+            },
+          },
+          orderBy,
+          skip,
+          take: limit,
+        }),
+        this.prisma.fichaEPI.count({ where }),
+      ]);
+
+      const fichasOutput = fichas.map(ficha => this.mapFichaWithDevolucaoPendente(ficha));
+      return createPaginatedResult(fichasOutput, total, page, limit);
+    }
+
+    // Sem paginação, retornar array tradicional
     const fichas = await this.prisma.fichaEPI.findMany({
       where,
       include: {
@@ -154,22 +184,23 @@ export class CriarFichaEpiUseCase {
             matricula: true,
           },
         },
-        tipoEpi: {
-          select: {
-            nome: true,
-            codigo: true,
-            exigeAssinaturaEntrega: true,
+        entregas: {
+          where: { status: 'ASSINADA' },
+          include: {
+            itens: {
+              where: { status: 'COM_COLABORADOR' },
+              select: {
+                dataLimiteDevolucao: true,
+                status: true,
+              },
+            },
           },
         },
       },
-      orderBy: [
-        { status: 'asc' },
-        { colaborador: { nome: 'asc' } },
-        { tipoEpi: { nome: 'asc' } },
-      ],
+      orderBy,
     });
 
-    return fichas.map(this.mapToOutput);
+    return fichas.map(ficha => this.mapFichaWithDevolucaoPendente(ficha));
   }
 
   async ativarFicha(id: string): Promise<FichaEpiOutput> {
@@ -196,17 +227,10 @@ export class CriarFichaEpiUseCase {
             matricula: true,
           },
         },
-        tipoEpi: {
-          select: {
-            nome: true,
-            codigo: true,
-            exigeAssinaturaEntrega: true,
-          },
-        },
       },
     });
 
-    return this.mapToOutput(ficha);
+    return mapFichaEpiToOutput(ficha);
   }
 
   async inativarFicha(id: string): Promise<FichaEpiOutput> {
@@ -226,7 +250,7 @@ export class CriarFichaEpiUseCase {
     const entregasAtivas = await this.prisma.entrega.count({
       where: {
         fichaEpiId: id,
-        status: 'ATIVA',
+        status: 'ASSINADA',
       },
     });
 
@@ -247,17 +271,10 @@ export class CriarFichaEpiUseCase {
             matricula: true,
           },
         },
-        tipoEpi: {
-          select: {
-            nome: true,
-            codigo: true,
-            exigeAssinaturaEntrega: true,
-          },
-        },
       },
     });
 
-    return this.mapToOutput(ficha);
+    return mapFichaEpiToOutput(ficha);
   }
 
   async suspenderFicha(id: string, motivo?: string): Promise<FichaEpiOutput> {
@@ -269,26 +286,17 @@ export class CriarFichaEpiUseCase {
       throw new NotFoundError('Ficha de EPI', id);
     }
 
-    if (fichaExistente.status === StatusFichaEPI.SUSPENSA) {
-      throw new BusinessError('Ficha já está suspensa');
-    }
+    throw new BusinessError('Status SUSPENSA não é mais suportado no sistema');
 
     const ficha = await this.prisma.fichaEPI.update({
       where: { id },
-      data: { status: StatusFichaEPI.SUSPENSA as any },
+      data: { status: StatusFichaEPI.INATIVA as any },
       include: {
         colaborador: {
           select: {
             nome: true,
             cpf: true,
             matricula: true,
-          },
-        },
-        tipoEpi: {
-          select: {
-            nome: true,
-            codigo: true,
-            exigeAssinaturaEntrega: true,
           },
         },
       },
@@ -305,7 +313,7 @@ export class CriarFichaEpiUseCase {
       });
     }
 
-    return this.mapToOutput(ficha);
+    return mapFichaEpiToOutput(ficha);
   }
 
   async criarOuAtivar(input: CriarFichaEpiInput): Promise<{
@@ -314,12 +322,7 @@ export class CriarFichaEpiUseCase {
   }> {
     // Verificar se já existe
     const fichaExistente = await this.prisma.fichaEPI.findUnique({
-      where: {
-        colaboradorId_tipoEpiId: {
-          colaboradorId: input.colaboradorId,
-          tipoEpiId: input.tipoEpiId,
-        },
-      },
+      where: { colaboradorId: input.colaboradorId },
     });
 
     if (fichaExistente) {
@@ -352,12 +355,7 @@ export class CriarFichaEpiUseCase {
         by: ['status'],
         _count: { id: true },
       }),
-      this.prisma.fichaEPI.groupBy({
-        by: ['tipoEpiId'],
-        _count: { id: true },
-        orderBy: { _count: { id: 'desc' } },
-        take: 10,
-      }),
+Promise.resolve([]),
       this.prisma.fichaEPI.groupBy({
         by: ['colaboradorId'],
         _count: { id: true },
@@ -370,7 +368,7 @@ export class CriarFichaEpiUseCase {
     const tiposEpiIds = fichasPorTipo.map(f => f.tipoEpiId);
     const tiposEpi = await this.prisma.tipoEPI.findMany({
       where: { id: { in: tiposEpiIds } },
-      select: { id: true, nome: true },
+      select: { id: true, nomeEquipamento: true },
     });
 
     // Buscar nomes dos colaboradores
@@ -386,9 +384,9 @@ export class CriarFichaEpiUseCase {
       totalFichas,
       fichasAtivas: fichasPorStatus.find(f => f.status === 'ATIVA')?._count.id || 0,
       fichasInativas: fichasPorStatus.find(f => f.status === 'INATIVA')?._count.id || 0,
-      fichasSuspensas: fichasPorStatus.find(f => f.status === 'SUSPENSA')?._count.id || 0,
+      fichasSuspensas: 0,
       porTipoEpi: fichasPorTipo.map(f => ({
-        tipoEpiNome: tiposEpi.find(t => t.id === f.tipoEpiId)?.nome || 'Desconhecido',
+        tipoEpiNome: tiposEpi.find(t => t.id === f.tipoEpiId)?.nomeEquipamento || 'Desconhecido',
         quantidade: f._count.id,
       })),
       porColaborador: fichasPorColaborador.map(f => ({
@@ -398,24 +396,16 @@ export class CriarFichaEpiUseCase {
     };
   }
 
-  private async validarInput(input: CriarFichaEpiInput): Promise<void> {
-    if (!input.colaboradorId) {
-      throw new BusinessError('Colaborador é obrigatório');
-    }
-
-    if (!input.tipoEpiId) {
-      throw new BusinessError('Tipo de EPI é obrigatório');
-    }
+  private async validarInput(_input: CriarFichaEpiInput): Promise<void> {
+    // ✅ OTIMIZAÇÃO: Validações básicas removidas - já validadas pelo Zod schema
+    // colaboradorId obrigatório: validado por IdSchema
+    
+    // Apenas validações de negócio específicas que não podem ser feitas no Zod permanecem aqui
   }
 
   private async verificarFichaExistente(input: CriarFichaEpiInput): Promise<void> {
     const fichaExistente = await this.prisma.fichaEPI.findUnique({
-      where: {
-        colaboradorId_tipoEpiId: {
-          colaboradorId: input.colaboradorId,
-          tipoEpiId: input.tipoEpiId,
-        },
-      },
+      where: { colaboradorId: input.colaboradorId },
     });
 
     if (fichaExistente) {
@@ -439,38 +429,25 @@ export class CriarFichaEpiUseCase {
       throw new BusinessError('Colaborador está inativo');
     }
 
-    // Verificar tipo EPI
-    const tipoEpi = await this.prisma.tipoEPI.findUnique({
-      where: { id: input.tipoEpiId },
-    });
-
-    if (!tipoEpi) {
-      throw new NotFoundError('Tipo de EPI', input.tipoEpiId);
-    }
-
-    if (!tipoEpi.ativo) {
-      throw new BusinessError('Tipo de EPI está inativo');
-    }
   }
 
-  private mapToOutput(ficha: any): FichaEpiOutput {
+  // ✅ NOVO MÉTODO: Mapear ficha com flag de devolução pendente
+  private mapFichaWithDevolucaoPendente(ficha: any): FichaEpiOutput {
+    const baseOutput = mapFichaEpiToOutput(ficha);
+    
+    // Calcular se tem devolução pendente
+    const hoje = new Date();
+    const temDevolucaoPendente = ficha.entregas?.some((entrega: any) => 
+      entrega.itens?.some((item: any) => 
+        item.status === 'COM_COLABORADOR' && 
+        item.dataLimiteDevolucao && 
+        new Date(item.dataLimiteDevolucao) < hoje
+      )
+    ) || false;
+
     return {
-      id: ficha.id,
-      colaboradorId: ficha.colaboradorId,
-      tipoEpiId: ficha.tipoEpiId,
-      status: ficha.status as StatusFichaEPI,
-      createdAt: ficha.createdAt,
-      updatedAt: ficha.updatedAt,
-      colaborador: {
-        nome: ficha.colaborador.nome,
-        cpf: ficha.colaborador.cpf,
-        matricula: ficha.colaborador.matricula,
-      },
-      tipoEpi: {
-        nome: ficha.tipoEpi.nome,
-        codigo: ficha.tipoEpi.codigo,
-        exigeAssinaturaEntrega: ficha.tipoEpi.exigeAssinaturaEntrega,
-      },
+      ...baseOutput,
+      devolucaoPendente: temDevolucaoPendente,
     };
   }
 }

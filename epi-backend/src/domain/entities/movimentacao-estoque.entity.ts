@@ -16,8 +16,9 @@ export class MovimentacaoEstoque {
     public readonly quantidadeMovida: number,
     public readonly notaMovimentacaoId: string | null,
     public readonly responsavelId: string,
+    public readonly entregaId: string | null,
     public readonly movimentacaoOrigemId: string | null,
-    public readonly createdAt: Date,
+    public readonly dataMovimentacao: Date,
   ) {
     this.validate();
   }
@@ -138,13 +139,15 @@ export class MovimentacaoEstoque {
     quantidadeMovida: number,
     responsavelId: string,
     notaMovimentacaoId: string,
-  ): Omit<MovimentacaoEstoque, 'id' | 'createdAt'> {
+  ): Omit<MovimentacaoEstoque, 'id' | 'dataMovimentacao'> {
     return this.createMovimentacao(
       estoqueItemId,
       TipoMovimentacao.ENTRADA_NOTA,
       quantidadeMovida,
       responsavelId,
       notaMovimentacaoId,
+      null,
+      null,
     );
   }
 
@@ -152,12 +155,16 @@ export class MovimentacaoEstoque {
     estoqueItemId: string,
     quantidadeMovida: number,
     responsavelId: string,
-  ): Omit<MovimentacaoEstoque, 'id' | 'createdAt'> {
+    entregaId?: string,
+  ): Omit<MovimentacaoEstoque, 'id' | 'dataMovimentacao'> {
     return this.createMovimentacao(
       estoqueItemId,
       TipoMovimentacao.SAIDA_ENTREGA,
       quantidadeMovida,
       responsavelId,
+      null,
+      null,
+      entregaId,
     );
   }
 
@@ -165,12 +172,15 @@ export class MovimentacaoEstoque {
     estoqueItemId: string,
     quantidadeMovida: number,
     responsavelId: string,
-  ): Omit<MovimentacaoEstoque, 'id' | 'createdAt'> {
+  ): Omit<MovimentacaoEstoque, 'id' | 'dataMovimentacao'> {
     return this.createMovimentacao(
       estoqueItemId,
       TipoMovimentacao.AJUSTE_POSITIVO,
       quantidadeMovida,
       responsavelId,
+      null,
+      null,
+      null,
     );
   }
 
@@ -178,12 +188,15 @@ export class MovimentacaoEstoque {
     estoqueItemId: string,
     quantidadeMovida: number,
     responsavelId: string,
-  ): Omit<MovimentacaoEstoque, 'id' | 'createdAt'> {
+  ): Omit<MovimentacaoEstoque, 'id' | 'dataMovimentacao'> {
     return this.createMovimentacao(
       estoqueItemId,
       TipoMovimentacao.AJUSTE_NEGATIVO,
       quantidadeMovida,
       responsavelId,
+      null,
+      null,
+      null,
     );
   }
 
@@ -193,7 +206,7 @@ export class MovimentacaoEstoque {
     responsavelId: string,
     tipoEstorno: TipoMovimentacao,
     movimentacaoOrigemId: string,
-  ): Omit<MovimentacaoEstoque, 'id' | 'createdAt'> {
+  ): Omit<MovimentacaoEstoque, 'id' | 'dataMovimentacao'> {
     return this.createMovimentacao(
       estoqueItemId,
       tipoEstorno,
@@ -201,6 +214,7 @@ export class MovimentacaoEstoque {
       responsavelId,
       null,
       movimentacaoOrigemId,
+      null,
     );
   }
 
@@ -211,13 +225,15 @@ export class MovimentacaoEstoque {
     responsavelId: string,
     notaMovimentacaoId?: string | null,
     movimentacaoOrigemId?: string | null,
-  ): Omit<MovimentacaoEstoque, 'id' | 'createdAt'> {
+    entregaId?: string | null,
+  ): Omit<MovimentacaoEstoque, 'id' | 'dataMovimentacao'> {
     return {
       estoqueItemId,
       tipoMovimentacao,
       quantidadeMovida: Math.abs(quantidadeMovida),
       notaMovimentacaoId: notaMovimentacaoId || null,
       responsavelId,
+      entregaId: entregaId || null,
       movimentacaoOrigemId: movimentacaoOrigemId || null,
       isEntrada: MovimentacaoEstoque.prototype.isEntrada,
       isSaida: MovimentacaoEstoque.prototype.isSaida,

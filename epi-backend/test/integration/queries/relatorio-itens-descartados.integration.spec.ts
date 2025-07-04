@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { IntegrationTestSetup, setupIntegrationTestSuite } from '../setup/integration-test-setup';
+import { IntegrationTestSetup, setupIntegrationTestSuite } from '../../setup/integration-test-setup';
 import { PrismaService } from '@infrastructure/database/prisma.service';
 
 /**
@@ -123,7 +123,7 @@ describe('Relatório R-09: Itens Descartados - Integration Tests', () => {
             select: {
               numeroDocumento: true,
               tipoNota: true,
-              observacoes: true,
+              // observacoes: // REMOVED FROM SCHEMA true,
             },
           },
         },

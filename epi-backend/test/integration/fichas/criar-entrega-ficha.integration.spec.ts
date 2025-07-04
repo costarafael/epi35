@@ -1,27 +1,29 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { addDays, differenceInDays } from 'date-fns';
 import { CriarEntregaFichaUseCase } from '@application/use-cases/fichas/criar-entrega-ficha.use-case';
-import { StatusEntregaItem } from '@prisma/client';
+import { StatusEntregaEnum, StatusFichaEnum } from '@prisma/client';
+import { StatusEntregaItem } from '@domain/enums/entrega.enum';
 
 // Interface temporária para suportar o campo dataDevolucao até regenerar o Prisma Client
 interface EntregaItemDB {
   id: string;
-  tipoEpiId: string;
-  status: StatusEntregaItem;
+  status: StatusEntregaEnum;
   createdAt: Date;
   updatedAt: Date;
   entregaId: string;
   quantidadeEntregue: number;
-  numeroSerie: string | null;
-  lote: string | null;
   dataFabricacao: Date | null;
   dataDevolucao: Date | null; // Antigo nome do campo que está no banco
-  // dataLimiteDevolucao: Date | null; // Novo nome do campo que será usado após migration
+  dataLimiteDevolucao: Date | null; // Novo nome do campo que será usado após migration
   estoqueItemOrigemId: string | null;
   motivoDevolucao: string | null;
 }
 import { EstoqueRepository } from '@infrastructure/repositories/estoque.repository';
 import { MovimentacaoRepository } from '@infrastructure/repositories/movimentacao.repository';
+import { PrismaService } from '@infrastructure/database/prisma.service';
+import { ConfiguracaoService } from '@domain/services/configuracao.service';
+import { IEstoqueRepository } from '@domain/interfaces/repositories/estoque-repository.interface';
+import { IMovimentacaoRepository } from '@domain/interfaces/repositories/movimentacao-repository.interface';
 import { IntegrationTestSetup, setupIntegrationTestSuite } from '../../setup/integration-test-setup';
 
 describe('CriarEntregaFichaUseCase - Integration Tests', () => {
@@ -33,33 +35,56 @@ describe('CriarEntregaFichaUseCase - Integration Tests', () => {
   beforeEach(async () => {
     testSetup = await createTestSetup({
       providers: [
-        CriarEntregaFichaUseCase,
         {
           provide: 'IEstoqueRepository',
-          useClass: EstoqueRepository
+          useFactory: (prisma: PrismaService) => new EstoqueRepository(prisma),
+          inject: [PrismaService],
         },
         {
           provide: 'IMovimentacaoRepository',
-          useClass: MovimentacaoRepository
+          useFactory: (prisma: PrismaService) => new MovimentacaoRepository(prisma),
+          inject: [PrismaService],
+        },
+        {
+          provide: 'ConfigService',
+          useValue: {
+            get: (key: string) => {
+              const config = {
+                PERMITIR_ESTOQUE_NEGATIVO: 'false',
+                PERMITIR_AJUSTES_FORCADOS: 'false',
+              };
+              return config[key] || process.env[key];
+            },
+          },
+        },
+        {
+          provide: ConfiguracaoService,
+          useFactory: (configService: any, prisma: PrismaService) => new ConfiguracaoService(configService, prisma),
+          inject: ['ConfigService', PrismaService],
+        },
+        {
+          provide: CriarEntregaFichaUseCase,
+          useFactory: (
+            estoqueRepo: IEstoqueRepository,
+            movimentacaoRepo: IMovimentacaoRepository,
+            prisma: PrismaService,
+            configuracaoService: ConfiguracaoService
+          ) => new CriarEntregaFichaUseCase(estoqueRepo, movimentacaoRepo, prisma, configuracaoService),
+          inject: ['IEstoqueRepository', 'IMovimentacaoRepository', PrismaService, ConfiguracaoService],
         },
       ],
     });
 
     // Adicionar método auxiliar ao testSetup
-    testSetup.findEntregaByColaborador = async (colaboradorId: string, tipoEpiId: string) => {
+    testSetup.findEntregaByColaborador = async (colaboradorId: string) => {
       return testSetup.prismaService.entrega.findFirst({
         where: {
-          colaboradorId,
-          itens: {
-            some: {
-              tipoEpiId
-            }
-          }
+          fichaEpi: { colaboradorId }
         }
       });
     };
 
-    useCase = testSetup.moduleRef.get<CriarEntregaFichaUseCase>(CriarEntregaFichaUseCase);
+    useCase = testSetup.app.get<CriarEntregaFichaUseCase>(CriarEntregaFichaUseCase);
     // Inicializar o use case com as dependências necessárias
 
     // Reset do banco para cada teste
@@ -79,15 +104,13 @@ describe('CriarEntregaFichaUseCase - Integration Tests', () => {
       expect(tipoCapacete).toBeDefined();
       expect(almoxarifado).toBeDefined();
 
-      // Criar ficha de EPI com identificador único para evitar violação de restrição única
-      const fichaUniqueId = `test-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
-      const ficha = await testSetup.prismaService.fichaEPI.create({
-        data: {
-          id: fichaUniqueId,
+      // Criar ficha de EPI (uma por colaborador no schema v3.5)
+      const ficha = await testSetup.prismaService.fichaEPI.upsert({
+        where: { colaboradorId: colaborador.id },
+        update: { status: StatusFichaEnum.ATIVA },
+        create: {
           colaboradorId: colaborador.id,
-          tipoEpiId: tipoCapacete.id,
-          almoxarifadoId: almoxarifado.id,
-          status: 'ATIVA',
+          status: StatusFichaEnum.ATIVA,
         },
       });
 
@@ -106,9 +129,11 @@ describe('CriarEntregaFichaUseCase - Integration Tests', () => {
         itens: [
           {
             numeroSerie: '123456',
+            estoqueItemOrigemId: estoqueAntes.id,
           },
           {
             numeroSerie: '123457',
+            estoqueItemOrigemId: estoqueAntes.id,
           },
         ],
       };
@@ -124,52 +149,57 @@ describe('CriarEntregaFichaUseCase - Integration Tests', () => {
         itens: [
           {
             id: expect.any(String),
-            tipoEpiId: tipoCapacete.id,
             quantidadeEntregue: 1,
-            numeroSerie: null,
-            dataDevolucao: expect.any(Date), // Ainda usando dataDevolucao até atualização do client
-            status: 'COM_COLABORADOR', // Status atualizados diasAvisoVencimento do TipoEPI para calcular data de devolução sugerida
+            dataLimiteDevolucao: expect.any(Date), // Campo correto no schema v3.5
+            status: StatusEntregaItem.COM_COLABORADOR, // Status correto
+          },
+          {
+            id: expect.any(String),
+            quantidadeEntregue: 1,
+            dataLimiteDevolucao: expect.any(Date), // Campo correto no schema v3.5
+            status: StatusEntregaItem.COM_COLABORADOR, // Status correto
           },
         ],
       });
 
       // Verificar itens entregues (deve criar 2 registros unitários)
-      expect(result.itens).toHaveLength(1);
-      expect(result.itens[0].tipoEpiId).toBe(tipoCapacete.id);
-      expect(result.itens[0].status).toBe('ENTREGUE');
-
-      // Verificar movimentações criadas no banco
-      const movimentacoes = await testSetup.prismaService.movimentacaoEstoque.findMany({
-        where: { 
-          almoxarifadoId: almoxarifado.id,
-          tipoEpiId: tipoCapacete.id
-        }
-      });
-      expect(movimentacoes).toHaveLength(1);
-      expect(movimentacoes[0].tipoEpiId).toBe(tipoCapacete.id);
-      expect(movimentacoes[0].quantidade).toBe(2);
+      expect(result.itens).toHaveLength(2); // 2 registros unitários conforme implementação
+      expect(result.itens[0].status).toBe(StatusEntregaItem.COM_COLABORADOR); // Status correto
 
       // Verificar que a entrega foi criada corretamente no banco
       const entrega = await testSetup.findEntregaByColaborador(
-        colaborador.id,
-        tipoCapacete.id,
+        colaborador.id
       );
       expect(entrega).toBeDefined();
+
+      // Verificar movimentações criadas no banco (uma por item para rastreabilidade)
+      const movimentacoes = await testSetup.prismaService.movimentacaoEstoque.findMany({
+        where: { 
+          entregaId: entrega.id // Usar entregaId para filtrar
+        }
+      });
+      
+      expect(movimentacoes).toHaveLength(2); // Uma movimentação por item
+      expect(movimentacoes[0].quantidadeMovida).toBe(1); // Sempre 1 para rastreabilidade
+      expect(movimentacoes[1].quantidadeMovida).toBe(1); // Sempre 1 para rastreabilidade
+      expect(movimentacoes[0].tipoMovimentacao).toBe('SAIDA_ENTREGA'); // Enum correto
 
       // Verificar itens entregues (deve criar 2 registros unitários)
       const itens = await testSetup.prismaService.entregaItem.findMany({
         where: { entregaId: entrega.id },
       }) as unknown as EntregaItemDB[];
-      expect(itens).toHaveLength(1);
-      expect(itens[0].tipoEpiId).toBe(tipoCapacete.id);
-      expect(itens[0].status).toBe('COM_COLABORADOR');
+      expect(itens).toHaveLength(2); // 2 registros unitários conforme implementação
+      expect(itens[0].status).toBe(StatusEntregaItem.COM_COLABORADOR); // Status correto
+      expect(itens[1].status).toBe(StatusEntregaItem.COM_COLABORADOR); // Status correto
 
-      // Verificar cálculo da data de devolução baseada na validade (180 dias para capacete)
-      // Usando dataDevolucao temporariamente até que o Prisma Client seja atualizado
-      expect(itens[0].dataDevolucao).toBeDefined(); 
-      if (itens[0].dataDevolucao) {
-        const dataEsperada = addDays(new Date(), 180);
-        const diff = differenceInDays(itens[0].dataDevolucao, dataEsperada);
+      // Verificar cálculo da data de devolução baseada na vida útil
+      // Nota: Campo pode ter nome diferente dependendo da migração
+      const dataLimiteDevolucao = itens[0].dataLimiteDevolucao || itens[0].dataDevolucao;
+      expect(dataLimiteDevolucao).toBeDefined(); 
+      if (dataLimiteDevolucao) {
+        const tipoEpiFromDb = await testSetup.findTipoEpi('CA-12345');
+        const dataEsperada = addDays(new Date(), tipoEpiFromDb.vidaUtilDias || 180);
+        const diff = differenceInDays(dataLimiteDevolucao, dataEsperada);
         expect(Math.abs(diff)).toBeLessThanOrEqual(1); // Tolerância de 1 dia devido a arredondamentos
       }
 
@@ -186,12 +216,14 @@ describe('CriarEntregaFichaUseCase - Integration Tests', () => {
       });
 
       expect(entregaDb).toBeDefined();
-      expect(entregaDb.itens).toHaveLength(1);
+      expect(entregaDb.itens).toHaveLength(2); // 2 registros unitários
 
       const movimentacao = await testSetup.prismaService.movimentacaoEstoque.findFirst({
         where: { 
-          almoxarifadoId: almoxarifado.id,
-          tipoEpiId: tipoCapacete.id
+          estoqueItem: { 
+            almoxarifadoId: almoxarifado.id,
+            tipoEpiId: tipoCapacete.id
+          }
         },
       });
 
@@ -206,30 +238,28 @@ describe('CriarEntregaFichaUseCase - Integration Tests', () => {
       const tipoLuva = await testSetup.findTipoEpi('CA-67890');
       const almoxarifado = await testSetup.findAlmoxarifado('Almoxarifado Central');
 
-      // Criar ficha de EPI com identificador único para evitar violação de restrição única
-      const fichaUniqueId = `test-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
-      const ficha = await testSetup.prismaService.fichaEPI.create({
-        data: {
-          id: fichaUniqueId,
+      // Criar ficha de EPI (uma por colaborador no schema v3.5)
+      const ficha = await testSetup.prismaService.fichaEPI.upsert({
+        where: { colaboradorId: colaborador.id },
+        update: { status: StatusFichaEnum.ATIVA },
+        create: {
           colaboradorId: colaborador.id,
-          tipoEpiId: tipoLuva.id,
-          almoxarifadoId: almoxarifado.id,
-          status: 'ATIVA',
+          status: StatusFichaEnum.ATIVA,
         },
       });
 
       const estoque = await testSetup.getEstoqueDisponivel(almoxarifado.id, tipoLuva.id);
       
       // Tentar entregar mais do que disponível
+      const quantidadeExcessiva = estoque.quantidade + 1; // Sempre exceder o estoque disponível
       const entregaInput = {
         fichaEpiId: ficha.id,
-        quantidade: estoque.quantidade + 10, // Mais do que existe em estoque
+        quantidade: quantidadeExcessiva,
         usuarioId: usuario.id,
-        itens: [
-          {
-            numeroSerie: '123456',
-          },
-        ],
+        itens: Array.from({ length: quantidadeExcessiva }, (_, i) => ({
+          numeroSerie: `123${456 + i}`,
+          estoqueItemOrigemId: estoque.id,
+        })),
       };
 
       // Act & Assert
@@ -243,24 +273,22 @@ describe('CriarEntregaFichaUseCase - Integration Tests', () => {
     it('deve calcular data de vencimento baseada na vida útil do EPI', async () => {
       // Arrange
       const usuario = await testSetup.findUser('admin@test.com');
-      const colaborador = await testSetup.findColaborador('Pedro Santos Almeida');
+      const colaborador = await testSetup.findColaborador('Pedro Santos Silva');
       const tipoOculos = await testSetup.findTipoEpi('CA-11111'); // 270 dias de vida útil
       const almoxarifado = await testSetup.findAlmoxarifado('Almoxarifado Central');
 
-      // Criar ficha de EPI com identificador único para evitar violação de restrição única
-      const fichaUniqueId = `test-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
-      const ficha = await testSetup.prismaService.fichaEPI.create({
-        data: {
-          id: fichaUniqueId,
+      // Criar ficha de EPI (uma por colaborador no schema v3.5)
+      const ficha = await testSetup.prismaService.fichaEPI.upsert({
+        where: { colaboradorId: colaborador.id },
+        update: { status: StatusFichaEnum.ATIVA },
+        create: {
           colaboradorId: colaborador.id,
-          tipoEpiId: tipoOculos.id,
-          almoxarifadoId: almoxarifado.id,
-          status: 'ATIVA',
+          status: StatusFichaEnum.ATIVA,
         },
       });
 
       // Verificar que existe estoque disponível para entrega
-      await testSetup.getEstoqueDisponivel(almoxarifado.id, tipoOculos.id);
+      const estoque = await testSetup.getEstoqueDisponivel(almoxarifado.id, tipoOculos.id);
       const dataEntrega = new Date();
 
       // Act
@@ -271,6 +299,7 @@ describe('CriarEntregaFichaUseCase - Integration Tests', () => {
         itens: [
           {
             numeroSerie: '123456',
+            estoqueItemOrigemId: estoque.id,
             // Agora usamos diasAvisoVencimento do TipoEPI para calcular data de devolução sugerida
           },
         ],
@@ -279,19 +308,19 @@ describe('CriarEntregaFichaUseCase - Integration Tests', () => {
       const result = await useCase.execute(entregaInput);
 
       // Assert
-      // Fazemos o cast para EntregaItemDB para acessar o campo dataDevolucao até que o Prisma Client seja regenerado
-      const entregaItemDb = result.itens[0] as unknown as EntregaItemDB;
-      expect(entregaItemDb.dataDevolucao).toBeDefined();
+      // Verificar cálculo da data limite devolução
+      expect(result.itens[0].dataLimiteDevolucao).toBeDefined();
       
-      // Calcular data esperada (usando diasAvisoVencimento, 180 dias após entrega)
-      const dataEsperada = addDays(new Date(dataEntrega), 180); // 180 é o diasAvisoVencimento do capacete
-      
-      // Usar o valor de dataDevolucao
-      const dataCalculada = new Date(entregaItemDb.dataDevolucao as Date);
-      
-      // Permitir diferença de 1 dia devido ao tempo de execução
-      const diff = differenceInDays(dataCalculada, dataEsperada);
-      expect(Math.abs(diff)).toBeLessThanOrEqual(1);
+      if (result.itens[0].dataLimiteDevolucao) {
+        const tipoEpiFromDb = await testSetup.findTipoEpi('CA-11111');
+        const dataEsperada = addDays(new Date(dataEntrega), tipoEpiFromDb.vidaUtilDias || 270);
+        
+        const dataCalculada = new Date(result.itens[0].dataLimiteDevolucao);
+        
+        // Permitir diferença de 1 dia devido ao tempo de execução
+        const diff = differenceInDays(dataCalculada, dataEsperada);
+        expect(Math.abs(diff)).toBeLessThanOrEqual(1);
+      }
     });
   });
 
@@ -299,18 +328,16 @@ describe('CriarEntregaFichaUseCase - Integration Tests', () => {
     it('deve validar corretamente ficha ativa com estoque disponível', async () => {
       // Arrange
       const colaborador = await testSetup.findColaborador('Ana Paula Ferreira');
-      const tipoBota = await testSetup.findTipoEpi('CA-22222');
-      const almoxarifado = await testSetup.findAlmoxarifado('Almoxarifado Central');
+      // const _tipoBota = await testSetup.findTipoEpi('CA-22222');
+      // const _almoxarifado = await testSetup.findAlmoxarifado('Almoxarifado Central');
 
-      // Criar ficha de EPI com identificador único para evitar violação de restrição única
-      const fichaUniqueId = `test-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
-      const ficha = await testSetup.prismaService.fichaEPI.create({
-        data: {
-          id: fichaUniqueId,
+      // Criar ficha de EPI (uma por colaborador no schema v3.5)
+      const ficha = await testSetup.prismaService.fichaEPI.upsert({
+        where: { colaboradorId: colaborador.id },
+        update: { status: StatusFichaEnum.ATIVA },
+        create: {
           colaboradorId: colaborador.id,
-          tipoEpiId: tipoBota.id,
-          almoxarifadoId: almoxarifado.id,
-          status: 'ATIVA',
+          status: StatusFichaEnum.ATIVA,
         },
       });
 
@@ -327,18 +354,16 @@ describe('CriarEntregaFichaUseCase - Integration Tests', () => {
     it('deve rejeitar entrega para ficha inativa', async () => {
       // Arrange
       const colaborador = await testSetup.findColaborador('Carlos Eduardo Lima');
-      const tipoCapacete = await testSetup.findTipoEpi('CA-12345');
-      const almoxarifado = await testSetup.findAlmoxarifado('Almoxarifado Central');
+      // const _tipoCapacete = await testSetup.findTipoEpi('CA-12345');
+      // const _almoxarifado = await testSetup.findAlmoxarifado('Almoxarifado Central');
 
-      // Criar ficha de EPI com identificador único para evitar violação de restrição única
-      const fichaUniqueId = `test-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
-      const ficha = await testSetup.prismaService.fichaEPI.create({
-        data: {
-          id: fichaUniqueId,
+      // Criar ficha de EPI (uma por colaborador no schema v3.5)
+      const ficha = await testSetup.prismaService.fichaEPI.upsert({
+        where: { colaboradorId: colaborador.id },
+        update: { status: StatusFichaEnum.INATIVA },
+        create: {
           colaboradorId: colaborador.id,
-          tipoEpiId: tipoCapacete.id,
-          almoxarifadoId: almoxarifado.id,
-          status: 'INATIVA', // Ficha inativa
+          status: StatusFichaEnum.INATIVA, // Ficha inativa
         },
       });
 

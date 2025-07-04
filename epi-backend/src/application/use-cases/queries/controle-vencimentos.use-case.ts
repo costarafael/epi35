@@ -66,14 +66,14 @@ export class ControleVencimentosUseCase {
     }
 
     if (input.tipoEpiId) {
-      whereClause.estoqueItemOrigem = {
+      whereClause.estoqueItem = {
         tipoEpiId: input.tipoEpiId,
       };
     }
 
     if (input.almoxarifadoId) {
-      whereClause.estoqueItemOrigem = {
-        ...whereClause.estoqueItemOrigem,
+      whereClause.estoqueItem = {
+        ...whereClause.estoqueItem,
         almoxarifadoId: input.almoxarifadoId,
       };
     }
@@ -117,7 +117,7 @@ export class ControleVencimentosUseCase {
             },
           },
         },
-        estoqueItemOrigem: {
+        estoqueItem: {
           include: {
             tipoEpi: {
               select: {
@@ -179,8 +179,8 @@ export class ControleVencimentosUseCase {
       return {
         entregaItemId: item.id,
         colaborador: item.entrega.fichaEpi.colaborador,
-        tipoEpi: item.estoqueItemOrigem.tipoEpi,
-        almoxarifado: item.estoqueItemOrigem.almoxarifado,
+        tipoEpi: item.estoqueItem.tipoEpi,
+        almoxarifado: item.estoqueItem.almoxarifado,
         dataEntrega: item.entrega.dataEntrega,
         dataLimiteDevolucao,
         diasParaVencimento,

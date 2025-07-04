@@ -83,7 +83,7 @@ export class CancelarNotaMovimentacaoUseCase {
     input: CancelarNotaInput,
   ): Promise<ResultadoCancelamento> {
     // Executar dentro de transação para garantir atomicidade
-    return await this.prisma.$transaction(async (tx) => {
+    return await this.prisma.$transaction(async (_tx) => {
       // Buscar todas as movimentações da nota
       const movimentacoes = await this.movimentacaoRepository.findByNotaMovimentacao(
         input.notaId,
@@ -179,7 +179,8 @@ export class CancelarNotaMovimentacaoUseCase {
         );
         break;
 
-      case TipoNotaMovimentacao.AJUSTE:
+      case TipoNotaMovimentacao.ENTRADA_AJUSTE:
+      case TipoNotaMovimentacao.SAIDA_AJUSTE:
         // Estorno de ajuste: aplicar o ajuste inverso
         await this.estornarAjuste(movimentacaoOriginal);
         break;

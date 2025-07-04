@@ -21,7 +21,7 @@ export interface EntregaWithDetails extends Entrega {
     cpf: string;
     matricula?: string;
   };
-  fichaEpi: {
+  fichaEPI: {
     id: string;
     tipoEpiId: string;
     almoxarifadoId: string;

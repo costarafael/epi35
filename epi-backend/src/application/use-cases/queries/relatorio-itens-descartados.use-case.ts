@@ -138,8 +138,8 @@ export class RelatorioItensDescartadosUseCase {
       responsavel: descarte.responsavel,
       notaMovimentacao: descarte.notaMovimentacao || undefined,
       motivoDescarte: descarte.notaMovimentacao?.observacoes || undefined,
-      valorEstimadoPerdas: descarte.estoqueItem.valorUnitario 
-        ? descarte.quantidadeMovida * descarte.estoqueItem.valorUnitario 
+      valorEstimadoPerdas: descarte.estoqueItem.custoUnitario 
+        ? descarte.quantidadeMovida * Number(descarte.estoqueItem.custoUnitario) 
         : undefined,
     }));
   }

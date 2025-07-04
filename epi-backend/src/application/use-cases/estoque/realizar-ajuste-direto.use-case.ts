@@ -2,7 +2,7 @@ import { Injectable, Inject } from '@nestjs/common';
 import { PrismaService } from '../../../infrastructure/database/prisma.service';
 import { IMovimentacaoRepository } from '../../../domain/interfaces/repositories/movimentacao-repository.interface';
 import { IEstoqueRepository } from '../../../domain/interfaces/repositories/estoque-repository.interface';
-import { MovimentacaoEstoque } from '../../../domain/entities/movimentacao-estoque.entity';
+import { ConfiguracaoService } from '../../../domain/services/configuracao.service';
 import { StatusEstoqueItem, TipoMovimentacao } from '../../../domain/enums';
 import { BusinessError } from '../../../domain/exceptions/business.exception';
 
@@ -51,6 +51,7 @@ export class RealizarAjusteDirectoUseCase {
     @Inject('IEstoqueRepository')
     private readonly estoqueRepository: IEstoqueRepository,
     private readonly prisma: PrismaService,
+    private readonly configuracaoService: ConfiguracaoService,
   ) {}
 
   async executarAjusteDirecto(input: AjusteDirectoInput): Promise<ResultadoAjuste> {
@@ -69,7 +70,7 @@ export class RealizarAjusteDirectoUseCase {
     }
 
     // Executar dentro de transação
-    return await this.prisma.$transaction(async (tx) => {
+    return await this.prisma.$transaction(async (_tx) => {
       // Obter saldo atual
       const saldoAnterior = await this.movimentacaoRepository.obterUltimaSaldo(
         input.almoxarifadoId,
@@ -137,7 +138,7 @@ export class RealizarAjusteDirectoUseCase {
     await this.validarPermissaoAjuste(input.usuarioId);
 
     // Executar todos os ajustes em uma única transação
-    return await this.prisma.$transaction(async (tx) => {
+    return await this.prisma.$transaction(async (_tx) => {
       const ajustesRealizados: ResultadoAjuste[] = [];
       let totalAjustesPositivos = 0;
       let totalAjustesNegativos = 0;
@@ -422,20 +423,12 @@ export class RealizarAjusteDirectoUseCase {
   }
 
   private async validarPermissaoAjuste(usuarioId: string): Promise<void> {
-    // Aqui você pode implementar validação de permissões
-    // Por exemplo, verificar se o usuário tem papel de "AJUSTADOR_INVENTARIO"
-    // ou consultar uma tabela de configurações para ver se ajustes estão habilitados
-    
-    // Por enquanto, vamos apenas simular a validação
-    // Em uma implementação real, isso seria conectado ao sistema de autenticação/autorização
-    
     if (!usuarioId) {
       throw new BusinessError('Usuário é obrigatório para realizar ajustes');
     }
 
-    // Simulação: verificar se ajustes forçados estão habilitados no sistema
-    // Isso seria buscado da tabela de configurações
-    const ajustesForcadosHabilitados = true; // await configService.get('PERMITIR_AJUSTES_FORCADOS')
+    // Verificar se ajustes forçados estão habilitados no sistema
+    const ajustesForcadosHabilitados = await this.configuracaoService.permitirAjustesForcados();
     
     if (!ajustesForcadosHabilitados) {
       throw new BusinessError('Ajustes diretos de inventário estão desabilitados no sistema');

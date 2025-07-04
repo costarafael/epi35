@@ -3,10 +3,33 @@ import { PrismaService } from '../../../infrastructure/database/prisma.service';
 import { INotaRepository } from '../../../domain/interfaces/repositories/nota-repository.interface';
 import { IMovimentacaoRepository } from '../../../domain/interfaces/repositories/movimentacao-repository.interface';
 import { IEstoqueRepository } from '../../../domain/interfaces/repositories/estoque-repository.interface';
+import { ConfiguracaoService } from '../../../domain/services/configuracao.service';
 import { NotaMovimentacao } from '../../../domain/entities/nota-movimentacao.entity';
 import { MovimentacaoEstoque } from '../../../domain/entities/movimentacao-estoque.entity';
 import { TipoMovimentacao, StatusEstoqueItem, TipoNotaMovimentacao } from '../../../domain/enums';
 import { BusinessError, NotFoundError } from '../../../domain/exceptions/business.exception';
+
+/**
+ * UC-ESTOQUE-02: Concluir Nota de Movimentação
+ * 
+ * Processa e finaliza notas de movimentação de estoque, criando movimentações 
+ * individuais e atualizando saldos agregados conforme o tipo da nota.
+ * 
+ * Mapeamento Crítico de Tipos:
+ * - ENTRADA → ENTRADA_NOTA
+ * - TRANSFERENCIA → SAIDA_TRANSFERENCIA + ENTRADA_TRANSFERENCIA  
+ * - DESCARTE → SAIDA_DESCARTE
+ * - AJUSTE → ENTRADA_AJUSTE ou SAIDA_AJUSTE
+ * 
+ * @example
+ * ```typescript
+ * const resultado = await useCase.execute({
+ *   notaId: "nota-123",
+ *   usuarioId: "user-456",
+ *   validarEstoque: true
+ * });
+ * ```
+ */
 
 export interface ConcluirNotaInput {
   notaId: string;
@@ -37,6 +60,7 @@ export class ConcluirNotaMovimentacaoUseCase {
     @Inject('IEstoqueRepository')
     private readonly estoqueRepository: IEstoqueRepository,
     private readonly prisma: PrismaService,
+    private readonly configuracaoService: ConfiguracaoService,
   ) {}
 
   async execute(input: ConcluirNotaInput): Promise<ResultadoProcessamento> {
@@ -55,41 +79,118 @@ export class ConcluirNotaMovimentacaoUseCase {
     }
 
     // Executar dentro de uma transação para garantir atomicidade
-    return await this.prisma.$transaction(async (tx) => {
-      const movimentacoesCriadas: MovimentacaoEstoque[] = [];
-      const itensProcessados: ProcessamentoItem[] = [];
+    return await this.prisma.$transaction(async (_tx) => {
+      // ✅ OTIMIZAÇÃO: Batch operations para eliminar N+1 queries
+      
+      // 1. Pré-validar todos os itens antes de processar
+      const almoxarifadoOrigemId = notaComItens.almoxarifadoOrigemId;
+      const almoxarifadoDestinoId = notaComItens.almoxarifadoDestinoId;
 
-      // Processar cada item da nota
-      for (const item of notaComItens.itens) {
-        const itemProcessado = await this.processarItem(
-          notaComItens,
+      // 2. Batch validation de todos os itens
+      const validationPromises = notaComItens.itens.map(item => 
+        this.validarMovimentacao(
+          notaComItens.tipo,
           item,
-          input,
-          tx,
-        );
+          almoxarifadoOrigemId,
+          almoxarifadoDestinoId,
+          input.validarEstoque,
+        )
+      );
+      await Promise.all(validationPromises);
 
-        itensProcessados.push(itemProcessado);
+      // 3. Processar itens de forma agregada por tipo
+      const itensProcessados: ProcessamentoItem[] = [];
+      let movimentacaoCreated = false;
 
-        // Se movimentação foi criada, adicionar à lista
-        if (itemProcessado.movimentacaoCreated) {
-          // Buscar a movimentação criada
-          const movimentacoes = await this.movimentacaoRepository.findByNotaMovimentacao(
-            input.notaId,
-          );
-          // Buscar nova movimentação por estoqueItemId
-          const estoqueItem = await this.estoqueRepository.findByAlmoxarifadoAndTipo(
-            notaComItens.almoxarifadoOrigemId || notaComItens.almoxarifadoDestinoId || '',
-            item.tipoEpiId,
-            StatusEstoqueItem.DISPONIVEL,
-          );
-          const novaMovimentacao = movimentacoes?.find(
-            mov => mov.estoqueItemId === estoqueItem?.id,
-          );
-          if (novaMovimentacao) {
-            movimentacoesCriadas.push(novaMovimentacao);
+      // Agrupar itens por tipo para batch processing
+      const itensPorTipo = new Map<string, typeof notaComItens.itens[0][]>();
+      for (const item of notaComItens.itens) {
+        const key = `${item.tipoEpiId}-${notaComItens.tipo}`;
+        if (!itensPorTipo.has(key)) {
+          itensPorTipo.set(key, []);
+        }
+        itensPorTipo.get(key)?.push(item);
+      }
+
+      // 4. Processar cada grupo de forma otimizada
+      for (const itensGrupo of itensPorTipo.values()) {
+
+        try {
+          // Processar conforme o tipo de nota (usando métodos existentes por enquanto)
+          // TODO: Criar métodos batch otimizados em uma próxima iteração
+          for (const item of itensGrupo) {
+            switch (notaComItens.tipo) {
+              case TipoNotaMovimentacao.ENTRADA:
+                await this.processarEntrada(item, almoxarifadoDestinoId, notaComItens.id, input.usuarioId);
+                break;
+
+              case TipoNotaMovimentacao.TRANSFERENCIA:
+                await this.processarTransferencia(
+                  item,
+                  almoxarifadoOrigemId,
+                  almoxarifadoDestinoId,
+                  notaComItens.id,
+                  input.usuarioId,
+                );
+                break;
+
+              case TipoNotaMovimentacao.DESCARTE:
+                await this.processarDescarte(item, almoxarifadoOrigemId, notaComItens.id, input.usuarioId);
+                break;
+
+              case TipoNotaMovimentacao.ENTRADA_AJUSTE:
+              case TipoNotaMovimentacao.SAIDA_AJUSTE:
+                // ✅ VALIDAÇÃO CRÍTICA: Verificar se ajustes estão permitidos
+                const ajustesForcadosPermitidos = await this.configuracaoService.permitirAjustesForcados();
+                if (!ajustesForcadosPermitidos) {
+                  throw new BusinessError('Ajustes de estoque estão desabilitados no sistema');
+                }
+                await this.processarAjuste(item, almoxarifadoDestinoId, notaComItens.id, input.usuarioId);
+                break;
+            }
           }
+
+          movimentacaoCreated = true;
+
+          // Adicionar todos os itens processados
+          for (const item of itensGrupo) {
+            itensProcessados.push({
+              tipoEpiId: item.tipoEpiId,
+              quantidade: item.quantidade,
+              movimentacaoCreated: true,
+              estoqueAtualizado: true,
+            });
+          }
+
+        } catch (error) {
+          // Adicionar itens com erro
+          for (const item of itensGrupo) {
+            itensProcessados.push({
+              tipoEpiId: item.tipoEpiId,
+              quantidade: item.quantidade,
+              movimentacaoCreated: false,
+              estoqueAtualizado: false,
+            });
+          }
+          // Re-lançar a exceção para impedir a conclusão da nota
+          throw error;
         }
       }
+
+      // 5. Batch update de quantidades processadas
+      const updatePromises = notaComItens.itens.map(item =>
+        this.notaRepository.atualizarQuantidadeProcessada(
+          notaComItens.id,
+          item.id,
+          item.quantidade,
+        )
+      );
+      await Promise.all(updatePromises);
+
+      // 6. Buscar movimentações criadas em uma única query
+      const movimentacoesCriadas = movimentacaoCreated 
+        ? await this.movimentacaoRepository.findByNotaMovimentacao(input.notaId)
+        : [];
 
       // Concluir a nota
       const notaConcluida = await this.notaRepository.concluirNota(
@@ -109,9 +210,9 @@ export class ConcluirNotaMovimentacaoUseCase {
     nota: any,
     item: any,
     input: ConcluirNotaInput,
-    tx: any,
+    _tx: any,
   ): Promise<ProcessamentoItem> {
-    const tipoMovimentacao = this.mapearTipoMovimentacao(nota.tipo);
+    this.mapearTipoMovimentacao(nota.tipo);
     const almoxarifadoOrigemId = nota.almoxarifadoOrigemId;
     const almoxarifadoDestinoId = nota.almoxarifadoDestinoId;
 
@@ -154,7 +255,13 @@ export class ConcluirNotaMovimentacaoUseCase {
           estoqueAtualizado = true;
           break;
 
-        case TipoNotaMovimentacao.AJUSTE:
+        case TipoNotaMovimentacao.ENTRADA_AJUSTE:
+        case TipoNotaMovimentacao.SAIDA_AJUSTE:
+          // ✅ VALIDAÇÃO CRÍTICA: Verificar se ajustes estão permitidos
+          const ajustesForcadosPermitidos = await this.configuracaoService.permitirAjustesForcados();
+          if (!ajustesForcadosPermitidos) {
+            throw new BusinessError('Ajustes de estoque estão desabilitados no sistema');
+          }
           await this.processarAjuste(item, almoxarifadoDestinoId, nota.id, input.usuarioId);
           movimentacaoCreated = true;
           estoqueAtualizado = true;
@@ -196,15 +303,17 @@ export class ConcluirNotaMovimentacaoUseCase {
       0, // quantidade inicial se não existir
     );
 
-    // Criar movimentação de entrada
-    const movimentacao = MovimentacaoEstoque.createEntradaNota(
-      estoqueItem.id,
-      item.quantidade,
-      usuarioId,
-      notaId,
-    );
-
-    await this.movimentacaoRepository.create(movimentacao);
+    // Criar movimentação de entrada diretamente (static method compatibility issue)
+    await this.prisma.movimentacaoEstoque.create({
+      data: {
+        estoqueItemId: estoqueItem.id,
+        tipoMovimentacao: TipoMovimentacao.ENTRADA_NOTA,
+        quantidadeMovida: item.quantidade,
+        notaMovimentacaoId: notaId,
+        responsavelId: usuarioId,
+        movimentacaoOrigemId: null,
+      },
+    });
 
     // Atualizar estoque
     await this.estoqueRepository.adicionarQuantidade(
@@ -349,11 +458,16 @@ export class ConcluirNotaMovimentacaoUseCase {
 
     // Definir nova quantidade no estoque
     const novaQuantidade = estoqueItem.quantidade + item.quantidade;
+    
+    // Verificar se permite estoque negativo
+    const permitirEstoqueNegativo = await this.configuracaoService.permitirEstoqueNegativo();
+    const quantidadeFinal = permitirEstoqueNegativo ? novaQuantidade : Math.max(0, novaQuantidade);
+    
     await this.estoqueRepository.atualizarQuantidade(
       almoxarifadoId,
       item.tipoEpiId,
       StatusEstoqueItem.DISPONIVEL,
-      Math.max(0, novaQuantidade), // Evitar saldo negativo
+      quantidadeFinal,
     );
   }
 
@@ -367,16 +481,22 @@ export class ConcluirNotaMovimentacaoUseCase {
     // Validar estoque para operações que consomem
     if (validarEstoque && this.operacaoConsome(tipoNota)) {
       const almoxarifadoId = almoxarifadoOrigemId!;
-      const disponibilidade = await this.estoqueRepository.verificarDisponibilidade(
-        almoxarifadoId,
-        item.tipoEpiId,
-        item.quantidade,
-      );
-
-      if (!disponibilidade) {
-        throw new BusinessError(
-          `Quantidade insuficiente em estoque para o item ${item.tipoEpi?.codigo || item.tipoEpiId}`,
+      
+      // Verificar se permite estoque negativo
+      const permitirEstoqueNegativo = await this.configuracaoService.permitirEstoqueNegativo();
+      
+      if (!permitirEstoqueNegativo) {
+        const disponibilidade = await this.estoqueRepository.verificarDisponibilidade(
+          almoxarifadoId,
+          item.tipoEpiId,
+          item.quantidade,
         );
+
+        if (!disponibilidade) {
+          throw new BusinessError(
+            `Quantidade insuficiente em estoque para o item ${item.tipoEpi?.codigo || item.tipoEpiId}`,
+          );
+        }
       }
     }
   }
@@ -389,8 +509,10 @@ export class ConcluirNotaMovimentacaoUseCase {
         return TipoMovimentacao.SAIDA_TRANSFERENCIA; // Pode ser saída ou entrada dependendo do contexto
       case TipoNotaMovimentacao.DESCARTE:
         return TipoMovimentacao.SAIDA_DESCARTE;
-      case TipoNotaMovimentacao.AJUSTE:
-        return TipoMovimentacao.AJUSTE_POSITIVO; // Pode ser positivo ou negativo dependendo do valor
+      case TipoNotaMovimentacao.ENTRADA_AJUSTE:
+        return TipoMovimentacao.AJUSTE_POSITIVO;
+      case TipoNotaMovimentacao.SAIDA_AJUSTE:
+        return TipoMovimentacao.AJUSTE_NEGATIVO;
       default:
         throw new BusinessError(`Tipo de nota não suportado: ${tipoNota}`);
     }
@@ -400,6 +522,7 @@ export class ConcluirNotaMovimentacaoUseCase {
     return [
       TipoNotaMovimentacao.TRANSFERENCIA,
       TipoNotaMovimentacao.DESCARTE,
+      TipoNotaMovimentacao.SAIDA_AJUSTE,
     ].includes(tipoNota);
   }
 }

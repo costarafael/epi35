@@ -1,6 +1,9 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { RelatorioPosicaoEstoqueUseCase } from '@application/use-cases/queries/relatorio-posicao-estoque.use-case';
-import { PrismaEstoqueRepository } from '@infrastructure/repositories/estoque.repository';
+import { EstoqueRepository } from '@infrastructure/repositories/estoque.repository';
+import { PrismaService } from '@infrastructure/database/prisma.service';
+import { ConfiguracaoService } from '@domain/services/configuracao.service';
+import { ConfigService } from '@nestjs/config';
 import { IntegrationTestSetup, setupIntegrationTestSuite } from '../../setup/integration-test-setup';
 import { StatusEstoqueItem, TipoMovimentacao } from '@domain/enums';
 
@@ -8,18 +11,49 @@ describe('RelatorioPosicaoEstoqueUseCase - Integration Tests', () => {
   const { createTestSetup } = setupIntegrationTestSuite();
   let testSetup: IntegrationTestSetup;
   let useCase: RelatorioPosicaoEstoqueUseCase;
-  let estoqueRepository: PrismaEstoqueRepository;
+  // let _estoqueRepository: EstoqueRepository;
 
   beforeEach(async () => {
     testSetup = await createTestSetup({
       providers: [
-        RelatorioPosicaoEstoqueUseCase,
-        PrismaEstoqueRepository,
+        // Config Service
+        {
+          provide: ConfigService,
+          useValue: {
+            get: (key: string) => {
+              const config = {
+                PERMITIR_ESTOQUE_NEGATIVO: 'false',
+                PERMITIR_AJUSTES_FORCADOS: 'false',
+                ESTOQUE_MINIMO_EQUIPAMENTO: '10',
+              };
+              return config[key] || process.env[key];
+            },
+          },
+        },
+        // ConfiguracaoService
+        {
+          provide: ConfiguracaoService,
+          useFactory: (configService: ConfigService, prisma: PrismaService) => new ConfiguracaoService(configService, prisma),
+          inject: [ConfigService, PrismaService],
+        },
+        // EstoqueRepository
+        {
+          provide: 'IEstoqueRepository',
+          useFactory: (prismaService: PrismaService) => new EstoqueRepository(prismaService),
+          inject: [PrismaService],
+        },
+        // RelatorioPosicaoEstoqueUseCase
+        {
+          provide: RelatorioPosicaoEstoqueUseCase,
+          useFactory: (estoqueRepository: EstoqueRepository, prisma: PrismaService, configuracaoService: ConfiguracaoService) => 
+            new RelatorioPosicaoEstoqueUseCase(estoqueRepository, prisma, configuracaoService),
+          inject: ['IEstoqueRepository', PrismaService, ConfiguracaoService],
+        },
       ],
     });
 
     useCase = testSetup.app.get<RelatorioPosicaoEstoqueUseCase>(RelatorioPosicaoEstoqueUseCase);
-    estoqueRepository = testSetup.app.get<PrismaEstoqueRepository>(PrismaEstoqueRepository);
+    // _notaRepository = testSetup.app.get<EstoqueRepository>('IEstoqueRepository');
 
     // Reset do banco para cada teste
     await testSetup.resetTestData();
@@ -65,7 +99,7 @@ describe('RelatorioPosicaoEstoqueUseCase - Integration Tests', () => {
       expect(result.resumo.totalItens).toBe(result.itens.length);
       expect(result.resumo.valorTotalEstoque).toBeGreaterThanOrEqual(0);
       expect(result.resumo.itensSemEstoque).toBeGreaterThanOrEqual(0);
-      expect(result.resumo.itensEstoqueCritico).toBeGreaterThanOrEqual(0);
+      // expect(result.resumo.itensEstoqueCritico).toBeGreaterThanOrEqual(0); // Removido status CRÍTICO
       expect(result.resumo.itensBaixoEstoque).toBeGreaterThanOrEqual(0);
       expect(result.resumo.porAlmoxarifado).toBeDefined();
       expect(result.resumo.porTipoEpi).toBeDefined();
@@ -105,7 +139,7 @@ describe('RelatorioPosicaoEstoqueUseCase - Integration Tests', () => {
       // Todos os itens devem ser do tipo EPI específico
       result.itens.forEach(item => {
         expect(item.tipoEpiId).toBe(tipoCapacete.id);
-        expect(item.tipoEpiNome).toBe(tipoCapacete.nome);
+        expect(item.tipoEpiNome).toBe(tipoCapacete.nomeEquipamento);
       });
     });
 
@@ -132,9 +166,9 @@ describe('RelatorioPosicaoEstoqueUseCase - Integration Tests', () => {
 
       // Assert - Pode não haver itens abaixo do mínimo nos dados de seed
       if (result.itens.length > 0) {
-        // Se houver itens, devem estar com situação crítica
+        // Se houver itens, devem estar com situação baixa ou zero
         result.itens.forEach(item => {
-          expect(['BAIXO', 'CRITICO', 'ZERO']).toContain(item.situacao);
+          expect(['BAIXO', 'ZERO']).toContain(item.situacao);
         });
       }
     });
@@ -193,7 +227,7 @@ describe('RelatorioPosicaoEstoqueUseCase - Integration Tests', () => {
             status: StatusEstoqueItem.DISPONIVEL,
           },
         },
-        update: { quantidade: 3 }, // CRITICO (<=5)
+        update: { quantidade: 3 }, // BAIXO (<10)
         create: {
           almoxarifadoId: almoxarifado.id,
           tipoEpiId: tipoTeste2.id,
@@ -211,15 +245,15 @@ describe('RelatorioPosicaoEstoqueUseCase - Integration Tests', () => {
       const itemZero = result.itens.find(item => 
         item.tipoEpiId === tipoTeste1.id && item.saldoTotal === 0
       );
-      const itemCritico = result.itens.find(item => 
+      const itemBaixo = result.itens.find(item => 
         item.tipoEpiId === tipoTeste2.id && item.saldoTotal === 3
       );
 
       if (itemZero) {
         expect(itemZero.situacao).toBe('ZERO');
       }
-      if (itemCritico) {
-        expect(itemCritico.situacao).toBe('CRITICO');
+      if (itemBaixo) {
+        expect(itemBaixo.situacao).toBe('BAIXO');
       }
     });
   });
@@ -232,27 +266,24 @@ describe('RelatorioPosicaoEstoqueUseCase - Integration Tests', () => {
 
       // Criar algumas movimentações de teste
       const usuario = await testSetup.findUser('admin@test.com');
+      // Get or create estoque item for movimentações
+      const estoqueItem = await testSetup.getEstoqueDisponivel(almoxarifado.id, tipoCapacete.id);
+      
       await testSetup.prismaService.movimentacaoEstoque.createMany({
         data: [
           {
-            almoxarifadoId: almoxarifado.id,
-            tipoEpiId: tipoCapacete.id,
-            tipoMovimentacao: TipoMovimentacao.ENTRADA,
-            quantidade: 100,
-            saldoAnterior: 0,
-            saldoPosterior: 100,
-            usuarioId: usuario.id,
-            observacoes: 'Entrada inicial',
+            estoqueItemId: estoqueItem.id,
+            tipoMovimentacao: TipoMovimentacao.ENTRADA_NOTA,
+            quantidadeMovida: 100,
+            responsavelId: usuario.id,
+            // Note: saldoAnterior, saldoPosterior, observacoes removed from schema v3.5
           },
           {
-            almoxarifadoId: almoxarifado.id,
-            tipoEpiId: tipoCapacete.id,
-            tipoMovimentacao: TipoMovimentacao.SAIDA,
-            quantidade: 20,
-            saldoAnterior: 100,
-            saldoPosterior: 80,
-            usuarioId: usuario.id,
-            observacoes: 'Saída para entrega',
+            estoqueItemId: estoqueItem.id,
+            tipoMovimentacao: TipoMovimentacao.SAIDA_ENTREGA,
+            quantidadeMovida: 20,
+            responsavelId: usuario.id,
+            // Note: saldoAnterior, saldoPosterior, observacoes removed from schema v3.5
           },
         ],
       });
@@ -317,17 +348,16 @@ describe('RelatorioPosicaoEstoqueUseCase - Integration Tests', () => {
       const tipoOculos = await testSetup.findTipoEpi('CA-11111');
       const usuario = await testSetup.findUser('admin@test.com');
 
+      // Get or create estoque item first
+      const estoqueItem = await testSetup.getEstoqueDisponivel(almoxarifado.id, tipoOculos.id);
+      
       // Criar movimentação de ajuste
       await testSetup.prismaService.movimentacaoEstoque.create({
         data: {
-          almoxarifadoId: almoxarifado.id,
-          tipoEpiId: tipoOculos.id,
-          tipoMovimentacao: TipoMovimentacao.AJUSTE,
-          quantidade: 10,
-          saldoAnterior: 50,
-          saldoPosterior: 60, // Ajuste positivo
-          usuarioId: usuario.id,
-          observacoes: 'Ajuste de inventário',
+          estoqueItemId: estoqueItem.id,
+          tipoMovimentacao: TipoMovimentacao.AJUSTE_POSITIVO,
+          quantidadeMovida: 10,
+          responsavelId: usuario.id,
         },
       });
 
@@ -367,7 +397,7 @@ describe('RelatorioPosicaoEstoqueUseCase - Integration Tests', () => {
         const primeiraAnalise = result.analise[0];
         expect(primeiraAnalise).toHaveProperty('tipoEpiId');
         expect(primeiraAnalise).toHaveProperty('tipoEpiNome');
-        expect(primeiraAnalise).toHaveProperty('saldoMedio');
+        expect(primeiraAnalise).toHaveProperty('estoqueAtual');
         expect(primeiraAnalise).toHaveProperty('consumoMedio');
         expect(primeiraAnalise).toHaveProperty('giroEstoque');
         expect(primeiraAnalise).toHaveProperty('diasEstoque');
@@ -375,7 +405,7 @@ describe('RelatorioPosicaoEstoqueUseCase - Integration Tests', () => {
         expect(primeiraAnalise).toHaveProperty('recomendacao');
 
         // Verificar valores numéricos
-        expect(primeiraAnalise.saldoMedio).toBeGreaterThanOrEqual(0);
+        expect(primeiraAnalise.estoqueAtual).toBeGreaterThanOrEqual(0);
         expect(primeiraAnalise.consumoMedio).toBeGreaterThanOrEqual(0);
         expect(primeiraAnalise.giroEstoque).toBeGreaterThanOrEqual(0);
         expect(primeiraAnalise.diasEstoque).toBeGreaterThanOrEqual(0);
@@ -405,11 +435,10 @@ describe('RelatorioPosicaoEstoqueUseCase - Integration Tests', () => {
       // Arrange - Criar tipo EPI sem movimentações
       const novoTipoEpi = await testSetup.prismaService.tipoEPI.create({
         data: {
-          nome: 'EPI Sem Movimento',
-          codigo: 'SEM001',
-          numeroCa: 'CA-99999',
-          validadeMeses: 12,
-          ativo: true,
+          nomeEquipamento: 'EPI Sem Movimento',
+          numeroCa: `CA-99999-${Date.now()}`, // CA único para evitar conflitos
+          vidaUtilDias: 365, // 12 months * 30 days
+          status: 'ATIVO',
         },
       });
 
@@ -474,7 +503,7 @@ describe('RelatorioPosicaoEstoqueUseCase - Integration Tests', () => {
       // Modificar dados para incluir valores null
       await testSetup.prismaService.tipoEPI.update({
         where: { id: tipoEpi.id },
-        data: { codigo: null }, // Código null
+        data: { descricao: null }, // Descrição null
       });
 
       // Act
@@ -485,12 +514,12 @@ describe('RelatorioPosicaoEstoqueUseCase - Integration Tests', () => {
       // Assert - Deve lidar graciosamente com valores null
       expect(result).toBeDefined();
       
-      const itemComCodigoNull = result.itens.find(item => 
+      const itemComDescricaoNull = result.itens.find(item => 
         item.tipoEpiId === tipoEpi.id
       );
 
-      if (itemComCodigoNull) {
-        expect(itemComCodigoNull.tipoEpiCodigo).toBeNull();
+      if (itemComDescricaoNull) {
+        expect(itemComDescricaoNull.tipoEpiNome).toBeDefined();
       }
     });
   });

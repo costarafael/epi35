@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '@infrastructure/database/prisma.service';
+import { ConfiguracaoService } from '@domain/services/configuracao.service';
 
 export interface RelatorioSaldoEstoqueInput {
   almoxarifadoId?: string;
@@ -26,14 +27,17 @@ export interface RelatorioSaldoEstoqueOutput {
   };
   quantidade: number;
   status: string;
-  valorUnitario?: number;
+  custoUnitario?: number;
   valorTotal?: number;
   ultimaMovimentacao?: Date;
 }
 
 @Injectable()
 export class RelatorioSaldoEstoqueUseCase {
-  constructor(private readonly prismaService: PrismaService) {}
+  constructor(
+    private readonly prismaService: PrismaService,
+    private readonly configuracaoService: ConfiguracaoService,
+  ) {}
 
   async execute(input: RelatorioSaldoEstoqueInput = {}): Promise<RelatorioSaldoEstoqueOutput[]> {
     const whereClause: any = {};
@@ -54,6 +58,16 @@ export class RelatorioSaldoEstoqueUseCase {
       whereClause.quantidade = {
         gt: 0,
       };
+    } else {
+      // When including zeros, check if negative stock should also be included
+      const permitirEstoqueNegativo = await this.configuracaoService.permitirEstoqueNegativo();
+      if (!permitirEstoqueNegativo) {
+        // Only include zero and positive values
+        whereClause.quantidade = {
+          gte: 0,
+        };
+      }
+      // If negative stock is allowed and incluirZerados is true, include all values (no filter)
     }
 
     const estoqueItens = await this.prismaService.estoqueItem.findMany({
@@ -101,8 +115,8 @@ export class RelatorioSaldoEstoqueUseCase {
       tipoEpi: item.tipoEpi,
       quantidade: item.quantidade,
       status: item.status,
-      valorUnitario: item.valorUnitario || undefined,
-      valorTotal: item.valorUnitario ? item.quantidade * item.valorUnitario : undefined,
+      custoUnitario: item.custoUnitario ? Number(item.custoUnitario) : undefined,
+      valorTotal: item.custoUnitario ? item.quantidade * Number(item.custoUnitario) : undefined,
       ultimaMovimentacao: item.movimentacoes[0]?.dataMovimentacao || undefined,
     }));
   }
@@ -129,6 +143,23 @@ export class RelatorioSaldoEstoqueUseCase {
       whereClause.status = input.status;
     }
 
+    // Apply same negative stock logic as execute method
+    if (!input.incluirZerados) {
+      whereClause.quantidade = {
+        gt: 0,
+      };
+    } else {
+      // When including zeros, check if negative stock should also be included
+      const permitirEstoqueNegativo = await this.configuracaoService.permitirEstoqueNegativo();
+      if (!permitirEstoqueNegativo) {
+        // Only include zero and positive values
+        whereClause.quantidade = {
+          gte: 0,
+        };
+      }
+      // If negative stock is allowed and incluirZerados is true, include all values (no filter)
+    }
+
     const [totais, estatisticasPorStatus] = await Promise.all([
       this.prismaService.estoqueItem.aggregate({
         where: whereClause,
@@ -137,7 +168,7 @@ export class RelatorioSaldoEstoqueUseCase {
         },
         _sum: {
           quantidade: true,
-          valorUnitario: true,
+          custoUnitario: true,
         },
       }),
       this.prismaService.estoqueItem.groupBy({
@@ -166,7 +197,7 @@ export class RelatorioSaldoEstoqueUseCase {
     return {
       totalItens: totais._count.id || 0,
       totalQuantidade: totais._sum.quantidade || 0,
-      valorTotalEstoque: totais._sum.valorUnitario || undefined,
+      valorTotalEstoque: totais._sum.custoUnitario ? Number(totais._sum.custoUnitario) : undefined,
       itensPorStatus: estatisticasPorStatus.map(stat => ({
         status: stat.status,
         quantidade: stat._sum.quantidade || 0,

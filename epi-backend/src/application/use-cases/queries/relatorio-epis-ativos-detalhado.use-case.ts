@@ -59,14 +59,14 @@ export class RelatorioEpisAtivosDetalhadoUseCase {
     }
 
     if (input.tipoEpiId) {
-      whereClause.estoqueItemOrigem = {
+      whereClause.estoqueItem = {
         tipoEpiId: input.tipoEpiId,
       };
     }
 
     if (input.almoxarifadoId) {
-      whereClause.estoqueItemOrigem = {
-        ...whereClause.estoqueItemOrigem,
+      whereClause.estoqueItem = {
+        ...whereClause.estoqueItem,
         almoxarifadoId: input.almoxarifadoId,
       };
     }
@@ -94,7 +94,7 @@ export class RelatorioEpisAtivosDetalhadoUseCase {
             },
           },
         },
-        estoqueItemOrigem: {
+        estoqueItem: {
           include: {
             tipoEpi: {
               select: {
@@ -115,7 +115,7 @@ export class RelatorioEpisAtivosDetalhadoUseCase {
       },
       orderBy: [
         { entrega: { fichaEpi: { colaborador: { nome: 'asc' } } } },
-        { estoqueItemOrigem: { tipoEpi: { nomeEquipamento: 'asc' } } },
+        { estoqueItem: { tipoEpi: { nomeEquipamento: 'asc' } } },
       ],
       take: input.limit || undefined,
       skip: input.offset || undefined,
@@ -132,8 +132,8 @@ export class RelatorioEpisAtivosDetalhadoUseCase {
       return {
         entregaItemId: item.id,
         colaborador: item.entrega.fichaEpi.colaborador,
-        tipoEpi: item.estoqueItemOrigem.tipoEpi,
-        almoxarifado: item.estoqueItemOrigem.almoxarifado,
+        tipoEpi: item.estoqueItem.tipoEpi,
+        almoxarifado: item.estoqueItem.almoxarifado,
         dataEntrega: item.entrega.dataEntrega,
         dataLimiteDevolucao: dataLimiteDevolucao || undefined,
         status: item.status,

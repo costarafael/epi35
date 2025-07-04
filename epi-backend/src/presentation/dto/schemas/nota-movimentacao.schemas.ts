@@ -4,8 +4,6 @@ import {
   TipoNotaMovimentacaoSchema,
   StatusNotaMovimentacaoSchema,
   ObservacoesSchema,
-  PaginationSchema,
-  DateRangeSchema,
 } from './common.schemas';
 
 // Request schemas

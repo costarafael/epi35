@@ -1,7 +1,7 @@
-import { INestApplication } from '@nestjs/common';
+// import { INestApplication } from '@nestjs/common';
 import { PrismaService } from '@infrastructure/database/prisma.service';
 import { execSync } from 'child_process';
-import * as path from 'path';
+// import * as path from 'path';
 
 export class TestDatabaseService {
   private static instance: TestDatabaseService;
@@ -34,32 +34,37 @@ export class TestDatabaseService {
 
   async setupDatabase(): Promise<void> {
     try {
-      // Reset e aplicar migração completa no banco de teste
-      console.log('🔄 Resetando e aplicando schema no banco de teste...');
+      // SEMPRE resetar o banco de teste no início dos testes
+      console.log('🔄 Resetando banco de teste (automático para desenvolvimento)...');
       try {
-        execSync('npx prisma migrate reset --force', { 
+        execSync('npm run prisma:test:reset', { 
           cwd: process.cwd(),
-          stdio: 'inherit',
+          stdio: 'pipe', // Usar pipe para evitar poluição visual
           env: { 
             ...process.env, 
             DATABASE_URL: "postgresql://postgres:postgres@localhost:5436/epi_test_db_v35?schema=public"
           }
         });
+        console.log('✅ Reset automático do banco de teste concluído');
       } catch (migrationError) {
-        console.log('⚠️ Migrate reset falhou, tentando db push --force-reset...');
+        console.log('⚠️ Reset automático falhou, limpando e aplicando schema...');
+        
+        // Limpar banco e aplicar schema via SQL direto
+        await this.cleanDatabase();
+        
         execSync('npx prisma db push --force-reset', { 
           cwd: process.cwd(),
-          stdio: 'inherit',
+          stdio: 'pipe',
           env: { 
             ...process.env, 
             DATABASE_URL: "postgresql://postgres:postgres@localhost:5436/epi_test_db_v35?schema=public"
           }
         });
+        
+        // Se db push funcionou, executar seed manualmente
+        console.log('🌱 Executando seed no banco de teste...');
+        await this.seedDatabase();
       }
-
-      // Seed database
-      console.log('🌱 Executando seed no banco de teste...');
-      await this.seedDatabase();
 
       console.log('✅ Banco de teste configurado com sucesso');
     } catch (error) {
@@ -72,22 +77,21 @@ export class TestDatabaseService {
     try {
       console.log('🧹 Limpando banco de teste...');
       
-      // Limpar dados em ordem específica para respeitar FKs (novo schema)
-      await this.prismaService.$transaction([
-        this.prismaService.historicoFicha.deleteMany(),
-        this.prismaService.movimentacaoEstoque.deleteMany(),
-        this.prismaService.entregaItem.deleteMany(),
-        this.prismaService.entrega.deleteMany(),
-        this.prismaService.fichaEPI.deleteMany(),
-        this.prismaService.estoqueItem.deleteMany(),
-        this.prismaService.notaMovimentacaoItem.deleteMany(),
-        this.prismaService.notaMovimentacao.deleteMany(),
-        this.prismaService.tipoEPI.deleteMany(),
-        this.prismaService.colaborador.deleteMany(),
-        this.prismaService.almoxarifado.deleteMany(),
-        this.prismaService.unidadeNegocio.deleteMany(),
-        this.prismaService.usuario.deleteMany(),
-      ]);
+      // Limpar dados em ordem específica para respeitar FKs (schema v3.5)
+      // Usar $executeRaw para limpar directamente nas tabelas com nomes corretos
+      await this.prismaService.$executeRaw`TRUNCATE TABLE "movimentacoes_estoque" CASCADE`;
+      await this.prismaService.$executeRaw`TRUNCATE TABLE "entrega_itens" CASCADE`;
+      await this.prismaService.$executeRaw`TRUNCATE TABLE "entregas" CASCADE`;
+      await this.prismaService.$executeRaw`TRUNCATE TABLE "fichas_epi" CASCADE`;
+      await this.prismaService.$executeRaw`TRUNCATE TABLE "estoque_itens" CASCADE`;
+      await this.prismaService.$executeRaw`TRUNCATE TABLE "nota_movimentacao_itens" CASCADE`;
+      await this.prismaService.$executeRaw`TRUNCATE TABLE "notas_movimentacao" CASCADE`;
+      await this.prismaService.$executeRaw`TRUNCATE TABLE "tipos_epi" CASCADE`;
+      await this.prismaService.$executeRaw`TRUNCATE TABLE "colaboradores" CASCADE`;
+      await this.prismaService.$executeRaw`TRUNCATE TABLE "almoxarifados" CASCADE`;
+      await this.prismaService.$executeRaw`TRUNCATE TABLE "unidades_negocio" CASCADE`;
+      await this.prismaService.$executeRaw`TRUNCATE TABLE "usuarios" CASCADE`;
+      await this.prismaService.$executeRaw`TRUNCATE TABLE "configuracoes" CASCADE`;
 
       console.log('✅ Banco de teste limpo');
     } catch (error) {
@@ -103,7 +107,7 @@ export class TestDatabaseService {
 
   private async seedDatabase(): Promise<void> {
     // Executar seed específico para testes
-    const seedPath = path.join(__dirname, '../seeds/test-seed.ts');
+    // const _seedPath = path.join(__dirname, '../seeds/test-seed.ts');
     
     try {
       const { seedTestData } = await import('../seeds/test-seed');
@@ -144,17 +148,17 @@ export class TestDatabaseService {
     }
 
     // Criar almoxarifado
-    let almoxarifado = await this.prismaService.almoxarifado.findUnique({
-      where: { codigo: 'ALM-TEST' },
+    let almoxarifado = await this.prismaService.almoxarifado.findFirst({
+      where: { nome: 'Almoxarifado Central' },
     });
     
     if (!almoxarifado) {
       almoxarifado = await this.prismaService.almoxarifado.create({
         data: {
           nome: 'Almoxarifado Central',
-          codigo: 'ALM-TEST',
+          // codigo: 'ALM-TEST', // Field removed from schema v3.5
           unidadeNegocioId: unidade.id,
-          ativo: true,
+          // ativo: true, // Field removed from schema v3.5
         },
       });
     }

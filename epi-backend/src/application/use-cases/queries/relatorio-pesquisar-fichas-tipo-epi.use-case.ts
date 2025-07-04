@@ -85,7 +85,7 @@ export class RelatoriopesquisarFichasTipoEpiUseCase {
     }
 
     if (input.almoxarifadoId) {
-      whereClauseItens.estoqueItemOrigem.almoxarifadoId = input.almoxarifadoId;
+      whereClauseItens.estoqueItem = { almoxarifadoId: input.almoxarifadoId };
     }
 
     if (input.dataInicioEntrega || input.dataFimEntrega) {
@@ -127,7 +127,7 @@ export class RelatoriopesquisarFichasTipoEpiUseCase {
             itens: {
               where: whereClauseItens,
               include: {
-                estoqueItemOrigem: {
+                estoqueItem: {
                   include: {
                     tipoEpi: {
                       select: {
@@ -174,11 +174,11 @@ export class RelatoriopesquisarFichasTipoEpiUseCase {
 
       for (const entrega of ficha.entregas) {
         for (const item of entrega.itens) {
-          const tipoEpiId = item.estoqueItemOrigem.tipoEpi.id;
+          const tipoEpiId = item.estoqueItem.tipoEpi.id;
           
           if (!tiposEpiMap.has(tipoEpiId)) {
             tiposEpiMap.set(tipoEpiId, {
-              tipoEpi: item.estoqueItemOrigem.tipoEpi,
+              tipoEpi: item.estoqueItem.tipoEpi,
               itens: [],
               ultimaEntrega: entrega.dataEntrega,
             });
@@ -334,12 +334,14 @@ export class RelatoriopesquisarFichasTipoEpiUseCase {
     // Buscar colaboradores com fichas ativas
     const colaboradoresComFichas = await this.prismaService.colaborador.findMany({
       where: {
-        fichaEpi: {
-          status: 'ATIVA',
+        fichasEPI: {
+          some: {
+            status: 'ATIVA',
+          },
         },
       },
       include: {
-        fichaEpi: {
+        fichasEPI: {
           select: {
             id: true,
             status: true,
@@ -347,7 +349,7 @@ export class RelatoriopesquisarFichasTipoEpiUseCase {
               select: {
                 itens: {
                   select: {
-                    estoqueItemOrigem: {
+                    estoqueItem: {
                       select: {
                         tipoEpiId: true,
                       },
@@ -363,12 +365,14 @@ export class RelatoriopesquisarFichasTipoEpiUseCase {
 
     // Filtrar colaboradores que NÃO têm o tipo de EPI específico
     const colaboradoresSemEpi = colaboradoresComFichas.filter(colaborador => {
-      if (!colaborador.fichaEpi) return true;
+      if (!colaborador.fichasEPI || colaborador.fichasEPI.length === 0) return true;
 
       const tiposEpiDoColaborador = new Set<string>();
-      for (const entrega of colaborador.fichaEpi.entregas) {
-        for (const item of entrega.itens) {
-          tiposEpiDoColaborador.add(item.estoqueItemOrigem.tipoEpiId);
+      for (const ficha of colaborador.fichasEPI) {
+        for (const entrega of ficha.entregas) {
+          for (const item of entrega.itens) {
+            tiposEpiDoColaborador.add(item.estoqueItem.tipoEpiId);
+          }
         }
       }
 
@@ -382,9 +386,9 @@ export class RelatoriopesquisarFichasTipoEpiUseCase {
         matricula: colaborador.matricula,
         setor: colaborador.setor,
       },
-      fichaStatus: colaborador.fichaEpi?.status || 'SEM_FICHA',
-      possuiOutrosEpis: colaborador.fichaEpi ? 
-        colaborador.fichaEpi.entregas.some(e => e.itens.length > 0) : false,
+      fichaStatus: colaborador.fichasEPI?.[0]?.status || 'SEM_FICHA',
+      possuiOutrosEpis: colaborador.fichasEPI ? 
+        colaborador.fichasEPI.some(f => f.entregas.some(e => e.itens.length > 0)) : false,
     }));
   }
 
@@ -402,7 +406,7 @@ export class RelatoriopesquisarFichasTipoEpiUseCase {
   }>> {
     const historico = await this.prismaService.entregaItem.findMany({
       where: {
-        estoqueItemOrigem: {
+        estoqueItem: {
           tipoEpiId: tipoEpiId,
         },
       },
@@ -421,7 +425,7 @@ export class RelatoriopesquisarFichasTipoEpiUseCase {
             },
           },
         },
-        estoqueItemOrigem: {
+        estoqueItem: {
           include: {
             almoxarifado: {
               select: {
@@ -450,7 +454,7 @@ export class RelatoriopesquisarFichasTipoEpiUseCase {
         dataEntrega: item.entrega.dataEntrega,
         quantidadeEntregue: 1, // Cada registro é uma unidade
         status: item.status,
-        almoxarifadoOrigem: item.estoqueItemOrigem.almoxarifado.nome,
+        almoxarifadoOrigem: item.estoqueItem.almoxarifado.nome,
         dataLimiteDevolucao: item.dataLimiteDevolucao || undefined,
         diasPosse,
       };

@@ -9,6 +9,7 @@ export class Colaborador {
     public readonly cargo: string | null,
     public readonly setor: string | null,
     public readonly unidadeNegocioId: string,
+    public readonly contratadaId: string | null,
     public readonly ativo: boolean,
     public readonly createdAt: Date,
     public readonly updatedAt: Date,
@@ -100,6 +101,7 @@ export class Colaborador {
     matricula?: string,
     cargo?: string,
     setor?: string,
+    contratadaId?: string,
     ativo: boolean = true,
   ): Omit<Colaborador, 'id' | 'createdAt' | 'updatedAt'> {
     return {
@@ -109,6 +111,7 @@ export class Colaborador {
       cargo: cargo?.trim() || null,
       setor: setor?.trim() || null,
       unidadeNegocioId,
+      contratadaId: contratadaId || null,
       ativo,
       validate: Colaborador.prototype.validate,
       getFormattedCPF: Colaborador.prototype.getFormattedCPF,

@@ -51,7 +51,7 @@ export class EstoqueItem {
   }
 
   public isReservado(): boolean {
-    return this.status === StatusEstoqueItem.RESERVADO;
+    return this.status === StatusEstoqueItem.QUARENTENA;
   }
 
   public static create(

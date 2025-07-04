@@ -1,0 +1,52 @@
+{
+  "mcpServers": {
+    "notion": {
+      "command": "npx",
+      "args": ["-y", "@notionhq/notion-mcp-server"],
+      "env": {
+        "OPENAPI_MCP_HEADERS": "{\"Authorization\": \"Bearer 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\", \"Notion-Version\": \"2022-06-28\"}"
+      }
+    },
+    "obsidian": {
+      "command": "/Users/rafaelaredes/Documents/Obsidian Vault/.obsidian/plugins/mcp-tools/bin/mcp-server",
+      "env": {
+        "OBSIDIAN_API_KEY": "e0404a8958980a311917f7ee805a7ba5865933f184010b8696dceb3c99ef09e7",
+        "OBSIDIAN_API_URL": "http://127.0.0.1:27123"
+      }
+    },
+    "filesystem": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "./docs-obsidian"]
+    }
+  },
+  "permissions": {
+    "allow": [
+      "Bash(mkdir:*)",
+      "Bash(ls:*)",
+      "Bash(git clone:*)",
+      "Bash(npm install)",
+      "Bash(cp:*)",
+      "Bash(npm run build:*)",
+      "Bash(claude mcp:*)",
+      "WebFetch(domain:github.com)",
+      "Bash(node:*)",
+      "Bash(npm --version)",
+      "WebFetch(domain:forum.obsidian.md)",
+      "Bash(find:*)",
+      "Bash(npx:*)",
+      "mcp__notion__API-get-self",
+      "Bash(curl:*)",
+      "Bash(npm install:*)",
+      "Bash(mcp-remote:*)",
+      "Bash(curl:*)",
+      "mcp__obsidian__get_server_info",
+      "mcp__obsidian__list_vault_files",
+      "mcp__obsidian__create_note",
+      "mcp__obsidian__get_note",
+      "mcp__obsidian__update_note",
+      "mcp__obsidian__delete_note",
+      "mcp__obsidian__search_notes"
+    ],
+    "deny": []
+  }
+}

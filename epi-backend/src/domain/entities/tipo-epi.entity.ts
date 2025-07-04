@@ -1,4 +1,5 @@
 import { BusinessError } from '../exceptions/business.exception';
+import { CategoriaEPI } from '../enums/categoria-epi.enum';
 
 /**
  * Tipo de status para TipoEPI conforme novo schema
@@ -9,6 +10,7 @@ export type StatusTipoEpi = 'ATIVO' | 'DESCONTINUADO';
  * Entidade TipoEPI reformulada conforme nova estrutura:
  * - nomeEquipamento (antes: nome)
  * - numeroCa (antes: ca) 
+ * - categoria (novo campo obrigatório)
  * - vidaUtilDias (antes: validadeMeses)
  * - status enum (antes: ativo boolean)
  * - Removidos: codigo, diasAvisoVencimento, exigeAssinaturaEntrega
@@ -19,6 +21,7 @@ export class TipoEPI {
     public readonly nomeEquipamento: string,
     public readonly numeroCa: string,
     public readonly descricao: string | null,
+    public readonly categoria: CategoriaEPI,
     public readonly vidaUtilDias: number | null,
     public readonly status: StatusTipoEpi,
     public readonly createdAt: Date,
@@ -117,6 +120,7 @@ export class TipoEPI {
   public static create(
     nomeEquipamento: string,
     numeroCa: string,
+    categoria: CategoriaEPI,
     descricao: string | null = null,
     vidaUtilDias: number | null = null,
     status: StatusTipoEpi = 'ATIVO',
@@ -124,6 +128,7 @@ export class TipoEPI {
     return {
       nomeEquipamento: nomeEquipamento.trim(),
       numeroCa: numeroCa.trim().toUpperCase(),
+      categoria,
       descricao: descricao?.trim() || null,
       vidaUtilDias,
       status,

@@ -1,0 +1,118 @@
+services:
+  # =================================
+  # 🚀 EPI Backend Web Service
+  # =================================
+  - type: web
+    name: epi-backend
+    runtime: node
+    plan: free  # Change to starter/standard for production
+    region: oregon  # or ohio/frankfurt depending on your location
+    buildCommand: npm ci && npm run build && npx prisma generate
+    startCommand: npm run start:prod
+    healthCheckPath: /health
+    
+    # =================================
+    # 🌐 Network Configuration
+    # =================================
+    domains:
+      - epi-backend.onrender.com
+    
+    # =================================
+    # 🏗️ Build Configuration
+    # =================================
+    buildFilter:
+      paths:
+      - src/**
+      - prisma/**
+      - package*.json
+      - tsconfig*.json
+      - nest-cli.json
+      - .env.example
+      ignoredPaths:
+      - docs/**
+      - test/**
+      - "*.md"
+      - .git/**
+    
+    # =================================
+    # 🔧 Runtime Configuration
+    # =================================
+    runtime: node
+    rootDir: .
+    
+    # Auto-deploy when pushing to main
+    autoDeploy: true
+    branch: main
+    
+    # =================================
+    # 📊 Environment Variables
+    # =================================
+    envVars:
+      # Application
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3000
+      
+      # Database (Render PostgreSQL)
+      - key: DATABASE_URL
+        fromDatabase:
+          name: epi-database
+          property: connectionString
+      
+      # Security
+      - key: JWT_SECRET
+        generateValue: true  # Render will auto-generate
+      - key: JWT_EXPIRES_IN
+        value: "24h"
+      
+      # Business Configuration
+      - key: PERMITIR_ESTOQUE_NEGATIVO
+        value: "false"
+      - key: PERMITIR_AJUSTES_FORCADOS
+        value: "false"
+      - key: ESTOQUE_MINIMO_EQUIPAMENTO
+        value: "10"
+      
+      # Monitoring
+      - key: LOG_LEVEL
+        value: "info"
+      - key: ENABLE_PERFORMANCE_MONITORING
+        value: "true"
+      
+      # CORS
+      - key: CORS_ORIGINS
+        value: "https://epi-frontend.onrender.com,https://yourdomain.com"
+      
+      # Redis (from Redis service)
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: epi-redis
+          property: connectionString
+      
+      # Feature Flags
+      - key: ENABLE_SWAGGER_IN_PRODUCTION
+        value: "false"
+      - key: ENABLE_DEBUG_LOGS
+        value: "false"
+
+  # =================================
+  # 🗄️ PostgreSQL Database Service
+  # =================================
+databases:
+  - name: epi-database
+    databaseName: epi_production
+    user: epi_user
+    plan: free  # 1GB storage, 90 days retention
+    region: oregon
+    
+    # Database Version
+    ipAllowList: []  # Empty = allow all connections
+    
+# =================================
+# 🔄 Redis Service (Optional)
+# =================================
+# Note: Render doesn't have managed Redis on free tier
+# You'll need to use external Redis (Upstash recommended)
+# or upgrade to paid plan for managed Redis

@@ -1,7 +1,9 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { IntegrationTestSetup, setupIntegrationTestSuite } from '../setup/integration-test-setup';
+import { IntegrationTestSetup, setupIntegrationTestSuite } from '../../setup/integration-test-setup';
 import { PrismaService } from '@infrastructure/database/prisma.service';
 import { RelatorioSaldoEstoqueUseCase } from '@application/use-cases/queries/relatorio-saldo-estoque.use-case';
+import { ConfiguracaoService } from '@domain/services/configuracao.service';
+import { ConfigService } from '@nestjs/config';
 
 /**
  * R-01: Saldo de Estoque
@@ -16,9 +18,40 @@ describe('Relatório R-01: Saldo de Estoque - Integration Tests', () => {
   let relatorioUseCase: RelatorioSaldoEstoqueUseCase;
 
   beforeEach(async () => {
-    testSetup = await createTestSetup();
+    testSetup = await createTestSetup({
+      providers: [
+        // Config Service
+        {
+          provide: 'ConfigService',
+          useValue: {
+            get: (key: string) => {
+              const config = {
+                PERMITIR_ESTOQUE_NEGATIVO: 'false',
+                PERMITIR_AJUSTES_FORCADOS: 'false',
+                ESTOQUE_MINIMO_EQUIPAMENTO: '10',
+              };
+              return config[key] || process.env[key];
+            },
+          },
+        },
+        // ConfiguracaoService
+        {
+          provide: ConfiguracaoService,
+          useFactory: (configService: any, prisma: PrismaService) => new ConfiguracaoService(configService, prisma),
+          inject: ['ConfigService', PrismaService],
+        },
+        // RelatorioSaldoEstoqueUseCase
+        {
+          provide: RelatorioSaldoEstoqueUseCase,
+          useFactory: (prisma: PrismaService, configuracaoService: ConfiguracaoService) => 
+            new RelatorioSaldoEstoqueUseCase(prisma, configuracaoService),
+          inject: [PrismaService, ConfiguracaoService],
+        },
+      ],
+    });
+    
     prismaService = testSetup.prismaService;
-    relatorioUseCase = new RelatorioSaldoEstoqueUseCase(prismaService);
+    relatorioUseCase = testSetup.app.get<RelatorioSaldoEstoqueUseCase>(RelatorioSaldoEstoqueUseCase);
     await testSetup.resetTestData();
   });
 
@@ -90,6 +123,113 @@ describe('Relatório R-01: Saldo de Estoque - Integration Tests', () => {
       expect(saldos).toBeDefined();
       saldos.forEach(item => {
         expect(item.tipoEpi.numeroCa).toBe('CA-12345');
+      });
+    });
+
+    it('deve incluir estoque negativo quando PERMITIR_ESTOQUE_NEGATIVO = true e incluirZerados = true', async () => {
+      // Arrange - Configure to allow negative stock
+      await testSetup.prismaService.configuracao.upsert({
+        where: { chave: 'PERMITIR_ESTOQUE_NEGATIVO' },
+        update: { valor: 'true' },
+        create: {
+          chave: 'PERMITIR_ESTOQUE_NEGATIVO',
+          valor: 'true',
+          descricao: 'Permitir estoque negativo para teste'
+        }
+      });
+
+      const almoxarifado = await testSetup.findAlmoxarifado('Almoxarifado Central');
+      const tipoEpi = await testSetup.findTipoEpi('CA-12345');
+
+      // Create an item with negative stock
+      await testSetup.prismaService.estoqueItem.upsert({
+        where: {
+          almoxarifadoId_tipoEpiId_status: {
+            almoxarifadoId: almoxarifado.id,
+            tipoEpiId: tipoEpi.id,
+            status: 'DISPONIVEL',
+          },
+        },
+        update: { quantidade: -5 }, // Negative stock
+        create: {
+          almoxarifadoId: almoxarifado.id,
+          tipoEpiId: tipoEpi.id,
+          quantidade: -5,
+          status: 'DISPONIVEL',
+        },
+      });
+
+      // Act - Get report including zeros (which should include negatives when allowed)
+      const saldosComNegativo = await relatorioUseCase.execute({
+        incluirZerados: true,
+        almoxarifadoId: almoxarifado.id,
+        tipoEpiId: tipoEpi.id,
+      });
+
+      // Act - Get report without including zeros (should exclude negatives)
+      const saldosSemZero = await relatorioUseCase.execute({
+        incluirZerados: false,
+        almoxarifadoId: almoxarifado.id,
+        tipoEpiId: tipoEpi.id,
+      });
+
+      // Assert
+      const itemNegativo = saldosComNegativo.find(item => item.quantidade < 0);
+      expect(itemNegativo).toBeDefined();
+      expect(itemNegativo!.quantidade).toBe(-5);
+
+      // When not including zeros, negative items should be excluded
+      const itemNegativoExcluido = saldosSemZero.find(item => item.quantidade < 0);
+      expect(itemNegativoExcluido).toBeUndefined();
+    });
+
+    it('deve excluir estoque negativo quando PERMITIR_ESTOQUE_NEGATIVO = false mesmo com incluirZerados = true', async () => {
+      // Arrange - Configure to NOT allow negative stock
+      await testSetup.prismaService.configuracao.upsert({
+        where: { chave: 'PERMITIR_ESTOQUE_NEGATIVO' },
+        update: { valor: 'false' },
+        create: {
+          chave: 'PERMITIR_ESTOQUE_NEGATIVO',
+          valor: 'false',
+          descricao: 'Não permitir estoque negativo para teste'
+        }
+      });
+
+      const almoxarifado = await testSetup.findAlmoxarifado('Almoxarifado Central');
+      const tipoEpi = await testSetup.findTipoEpi('CA-67890');
+
+      // Create an item with negative stock
+      await testSetup.prismaService.estoqueItem.upsert({
+        where: {
+          almoxarifadoId_tipoEpiId_status: {
+            almoxarifadoId: almoxarifado.id,
+            tipoEpiId: tipoEpi.id,
+            status: 'DISPONIVEL',
+          },
+        },
+        update: { quantidade: -3 }, // Negative stock
+        create: {
+          almoxarifadoId: almoxarifado.id,
+          tipoEpiId: tipoEpi.id,
+          quantidade: -3,
+          status: 'DISPONIVEL',
+        },
+      });
+
+      // Act - Even with incluirZerados = true, negatives should be excluded when not allowed
+      const saldos = await relatorioUseCase.execute({
+        incluirZerados: true,
+        almoxarifadoId: almoxarifado.id,
+        tipoEpiId: tipoEpi.id,
+      });
+
+      // Assert - Negative items should be excluded
+      const itemNegativo = saldos.find(item => item.quantidade < 0);
+      expect(itemNegativo).toBeUndefined();
+
+      // Should only include zero and positive items
+      saldos.forEach(item => {
+        expect(item.quantidade).toBeGreaterThanOrEqual(0);
       });
     });
   });
@@ -281,60 +421,56 @@ describe('Relatório R-01: Saldo de Estoque - Integration Tests', () => {
     });
 
     it('deve calcular totais por almoxarifado', async () => {
-      // Act - Agrupar saldos por almoxarifado
-      const totaisPorAlmoxarifado = await prismaService.estoqueItem.groupBy({
-        by: ['almoxarifadoId'],
-        _sum: {
-          quantidade: true,
-        },
-        _count: {
-          id: true,
-        },
-        where: {
-          status: 'DISPONIVEL',
-        },
-      });
+      // Act - Agrupar saldos por almoxarifado usando raw SQL
+      const totaisPorAlmoxarifado = await prismaService.$queryRaw`
+        SELECT 
+          almoxarifado_id as "almoxarifadoId",
+          SUM(quantidade)::int as "_sum_quantidade",
+          COUNT(id)::int as "_count_id"
+        FROM estoque_itens 
+        WHERE status = 'DISPONIVEL'
+        GROUP BY almoxarifado_id
+        ORDER BY "_sum_quantidade" DESC;
+      `;
 
       // Assert
       expect(totaisPorAlmoxarifado).toBeDefined();
       expect(Array.isArray(totaisPorAlmoxarifado)).toBe(true);
       
       // Verificar estrutura dos totais
-      totaisPorAlmoxarifado.forEach(total => {
+      (totaisPorAlmoxarifado as any[]).forEach(total => {
         expect(total).toHaveProperty('almoxarifadoId');
-        expect(total).toHaveProperty('_sum');
-        expect(total).toHaveProperty('_count');
-        expect(typeof total._sum.quantidade).toBe('number');
-        expect(typeof total._count.id).toBe('number');
+        expect(total).toHaveProperty('_sum_quantidade');
+        expect(total).toHaveProperty('_count_id');
+        expect(typeof total._sum_quantidade).toBe('number');
+        expect(typeof total._count_id).toBe('number');
       });
     });
 
     it('deve calcular totais por tipo de EPI', async () => {
-      // Act - Agrupar saldos por tipo de EPI
-      const totaisPorTipo = await prismaService.estoqueItem.groupBy({
-        by: ['tipoEpiId'],
-        _sum: {
-          quantidade: true,
-        },
-        _count: {
-          id: true,
-        },
-        where: {
-          status: 'DISPONIVEL',
-        },
-      });
+      // Act - Agrupar saldos por tipo de EPI usando raw SQL
+      const totaisPorTipo = await prismaService.$queryRaw`
+        SELECT 
+          tipo_epi_id as "tipoEpiId",
+          SUM(quantidade)::int as "_sum_quantidade",
+          COUNT(id)::int as "_count_id"
+        FROM estoque_itens 
+        WHERE status = 'DISPONIVEL'
+        GROUP BY tipo_epi_id
+        ORDER BY "_sum_quantidade" DESC;
+      `;
 
       // Assert
       expect(totaisPorTipo).toBeDefined();
       expect(Array.isArray(totaisPorTipo)).toBe(true);
       
       // Verificar estrutura dos totais
-      totaisPorTipo.forEach(total => {
+      (totaisPorTipo as any[]).forEach(total => {
         expect(total).toHaveProperty('tipoEpiId');
-        expect(total).toHaveProperty('_sum');
-        expect(total).toHaveProperty('_count');
-        expect(typeof total._sum.quantidade).toBe('number');
-        expect(typeof total._count.id).toBe('number');
+        expect(total).toHaveProperty('_sum_quantidade');
+        expect(total).toHaveProperty('_count_id');
+        expect(typeof total._sum_quantidade).toBe('number');
+        expect(typeof total._count_id).toBe('number');
       });
     });
   });

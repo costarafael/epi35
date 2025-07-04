@@ -74,7 +74,8 @@ export class NotaMovimentacao {
         
         break;
 
-      case TipoNotaMovimentacao.AJUSTE:
+      case TipoNotaMovimentacao.ENTRADA_AJUSTE:
+      case TipoNotaMovimentacao.SAIDA_AJUSTE:
         if (!this.almoxarifadoDestinoId) {
           throw new BusinessError('Almoxarifado de destino é obrigatório para ajuste');
         }

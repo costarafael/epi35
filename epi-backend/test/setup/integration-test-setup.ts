@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
-import { ConfigModule, ConfigService } from '@nestjs/config';
+import { ConfigModule } from '@nestjs/config';
 import { PrismaService } from '@infrastructure/database/prisma.service';
 import { TestDatabaseService } from '../database/test-database.service';
 import { beforeAll, afterAll } from 'vitest';

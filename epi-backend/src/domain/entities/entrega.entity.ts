@@ -62,20 +62,25 @@ export class Entrega {
   }
 
   public isAtiva(): boolean {
-    return this._status === StatusEntrega.ATIVA;
+    return this._status === StatusEntrega.ASSINADA;
   }
 
   public isDevolvida(): boolean {
-    return this._status === StatusEntrega.DEVOLVIDA_TOTAL || 
-           this._status === StatusEntrega.DEVOLVIDA_PARCIAL;
+    // In new schema, delivery status doesn't track return status
+    // This is now tracked at item level
+    return false;
   }
 
   public isDevolvadaParcial(): boolean {
-    return this._status === StatusEntrega.DEVOLVIDA_PARCIAL;
+    // In new schema, partial returns are tracked at item level
+    const itensComColaborador = this._itens.filter(item => item.status === StatusEntregaItem.COM_COLABORADOR).length;
+    const itensDevolvidos = this._itens.filter(item => item.status === StatusEntregaItem.DEVOLVIDO).length;
+    return itensComColaborador > 0 && itensDevolvidos > 0;
   }
 
   public isDevolvadaTotal(): boolean {
-    return this._status === StatusEntrega.DEVOLVIDA_TOTAL;
+    // In new schema, total returns are tracked at item level
+    return this._itens.length > 0 && this._itens.every(item => item.status === StatusEntregaItem.DEVOLVIDO);
   }
 
   public isCancelada(): boolean {
@@ -110,7 +115,7 @@ export class Entrega {
   }
 
   public temItensEntregues(): boolean {
-    return this._itens.some(item => item.status === StatusEntregaItem.ENTREGUE);
+    return this._itens.some(item => item.status === StatusEntregaItem.COM_COLABORADOR);
   }
 
   public temItensDevolvidos(): boolean {
@@ -123,7 +128,7 @@ export class Entrega {
 
   public getQuantidadeEntregue(): number {
     return this._itens
-      .filter(item => item.status === StatusEntregaItem.ENTREGUE)
+      .filter(item => item.status === StatusEntregaItem.COM_COLABORADOR)
       .reduce((total, item) => total + item.quantidadeEntregue, 0);
   }
 
@@ -140,7 +145,7 @@ export class Entrega {
 
     const novoItem: EntregaItemData = {
       ...itemData,
-      status: StatusEntregaItem.ENTREGUE,
+      status: StatusEntregaItem.COM_COLABORADOR,
     };
 
     this._itens.push(novoItem);
@@ -156,7 +161,7 @@ export class Entrega {
       throw new BusinessError('Item não encontrado na entrega');
     }
 
-    if (item.status !== StatusEntregaItem.ENTREGUE) {
+    if (item.status !== StatusEntregaItem.COM_COLABORADOR) {
       throw new BusinessError('Item não está em status de entregue');
     }
 
@@ -173,11 +178,11 @@ export class Entrega {
       throw new BusinessError('Item não encontrado na entrega');
     }
 
-    if (item.status !== StatusEntregaItem.ENTREGUE) {
+    if (item.status !== StatusEntregaItem.COM_COLABORADOR) {
       throw new BusinessError('Item não está em status de entregue');
     }
 
-    item.status = StatusEntregaItem.PERDIDO;
+    item.status = StatusEntregaItem.DEVOLVIDO;
     item.motivoDevolucao = motivo || 'Item perdido';
 
     this.atualizarStatusEntrega();
@@ -189,29 +194,21 @@ export class Entrega {
       throw new BusinessError('Item não encontrado na entrega');
     }
 
-    if (item.status !== StatusEntregaItem.ENTREGUE) {
+    if (item.status !== StatusEntregaItem.COM_COLABORADOR) {
       throw new BusinessError('Item não está em status de entregue');
     }
 
-    item.status = StatusEntregaItem.DANIFICADO;
+    item.status = StatusEntregaItem.DEVOLVIDO;
     item.motivoDevolucao = motivo || 'Item danificado';
 
     this.atualizarStatusEntrega();
   }
 
   private atualizarStatusEntrega(): void {
-    const itensEntregues = this._itens.filter(item => item.status === StatusEntregaItem.ENTREGUE);
-    const itensDevolvidos = this._itens.filter(item => 
-      [StatusEntregaItem.DEVOLVIDO, StatusEntregaItem.PERDIDO, StatusEntregaItem.DANIFICADO].includes(item.status)
-    );
-
-    if (itensDevolvidos.length === 0) {
-      this._status = StatusEntrega.ATIVA;
-    } else if (itensEntregues.length === 0) {
-      this._status = StatusEntrega.DEVOLVIDA_TOTAL;
-    } else {
-      this._status = StatusEntrega.DEVOLVIDA_PARCIAL;
-    }
+    // In new schema, delivery status is independent of item returns
+    // Delivery status only tracks signature status (PENDENTE_ASSINATURA, ASSINADA, CANCELADA)
+    // Item return status is tracked separately at item level
+    // This method is kept for backwards compatibility but doesn't change delivery status
   }
 
   public cancelar(): void {
@@ -254,7 +251,7 @@ export class Entrega {
       dataVencimento: dataVencimento || null,
       assinaturaColaborador: assinaturaColaborador || null,
       observacoes: observacoes || null,
-      status: StatusEntrega.ATIVA,
+      status: StatusEntrega.PENDENTE_ASSINATURA,
       itens: [],
       isAtiva: Entrega.prototype.isAtiva,
       isDevolvida: Entrega.prototype.isDevolvida,

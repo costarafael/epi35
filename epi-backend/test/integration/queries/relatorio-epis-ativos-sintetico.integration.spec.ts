@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { IntegrationTestSetup, setupIntegrationTestSuite } from '../setup/integration-test-setup';
+import { IntegrationTestSetup, setupIntegrationTestSuite } from '../../setup/integration-test-setup';
 import { PrismaService } from '@infrastructure/database/prisma.service';
 
 /**
@@ -242,7 +242,7 @@ describe('Relatório R-03: EPIs Ativos com Colaboradores (Sintético) - Integrat
           status: 'COM_COLABORADOR',
         },
         select: {
-          estoqueItemOrigem: {
+          estoqueItem: {
             select: {
               tipoEpiId: true,
             },
@@ -251,7 +251,7 @@ describe('Relatório R-03: EPIs Ativos com Colaboradores (Sintético) - Integrat
       });
 
       const tipoIdsComItens = [...new Set(
-        tiposComItens.map(item => item.estoqueItemOrigem.tipoEpiId)
+        tiposComItens.map(item => item.estoqueItem.tipoEpiId)
       )];
 
       const tiposSemItensAtivos = await prismaService.tipoEPI.findMany({

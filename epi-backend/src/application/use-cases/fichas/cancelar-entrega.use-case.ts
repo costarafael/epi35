@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../infrastructure/database/prisma.service';
-import { StatusEntrega } from '../../../domain/enums';
+import { StatusEntrega, StatusEntregaItem } from '../../../domain/enums';
 import { BusinessError, NotFoundError } from '../../../domain/exceptions/business.exception';
 
 export interface CancelarEntregaInput {
@@ -15,9 +15,7 @@ export interface CancelamentoOutput {
   motivoCancelamento: string;
   itensAfetados: {
     itemId: string;
-    tipoEpiId: string;
-    numeroSerie?: string;
-    lote?: string;
+    estoqueItemOrigemId: string;
   }[];
   movimentacoesEstorno: {
     id: string;
@@ -59,12 +57,10 @@ export class CancelarEntregaUseCase {
       await tx.entregaItem.updateMany({
         where: {
           entregaId: input.entregaId,
-          status: 'ENTREGUE',
+          status: StatusEntregaItem.COM_COLABORADOR,
         },
         data: {
-          status: 'DEVOLVIDO',
-          dataDevolucao: new Date(),
-          motivoDevolucao: `CANCELAMENTO: ${input.motivo}`,
+          status: StatusEntregaItem.DEVOLVIDO,
         },
       });
 
@@ -73,8 +69,7 @@ export class CancelarEntregaUseCase {
       await tx.entrega.update({
         where: { id: input.entregaId },
         data: {
-          status: 'CANCELADA',
-          observacoes: `${entregaCompleta.observacoes || ''}\nCANCELADO: ${input.motivo}`,
+          status: StatusEntrega.CANCELADA,
         },
       });
 
@@ -83,12 +78,10 @@ export class CancelarEntregaUseCase {
         statusAnterior,
         motivoCancelamento: input.motivo,
         itensAfetados: entregaCompleta.itens
-          .filter((item: any) => item.status === 'ENTREGUE')
+          .filter((item: any) => item.status === StatusEntregaItem.COM_COLABORADOR)
           .map((item: any) => ({
             itemId: item.id,
-            tipoEpiId: item.tipoEpiId,
-            numeroSerie: item.numeroSerie,
-            lote: item.lote,
+            estoqueItemOrigemId: item.estoqueItemOrigemId,
           })),
         movimentacoesEstorno,
         dataCancelamento: new Date(),
@@ -105,12 +98,12 @@ export class CancelarEntregaUseCase {
   }> {
     const entrega = await this.obterEntregaComDetalhes(entregaId);
 
-    const itensEntregues = entrega.itens.filter((i: any) => i.status === 'ENTREGUE').length;
+    const itensEntregues = entrega.itens.filter((i: any) => i.status === StatusEntregaItem.COM_COLABORADOR).length;
     const itensDevolvidos = entrega.itens.filter((i: any) => 
-      ['DEVOLVIDO', 'PERDIDO', 'DANIFICADO'].includes(i.status)
+      i.status === StatusEntregaItem.DEVOLVIDO
     ).length;
 
-    if (entrega.status === 'CANCELADA') {
+    if (entrega.status === StatusEntrega.CANCELADA) {
       return {
         podeSerCancelada: false,
         motivo: 'Entrega já está cancelada',
@@ -185,50 +178,43 @@ export class CancelarEntregaUseCase {
     }
 
     if (almoxarifadoId) {
-      where.fichaEpi = { almoxarifadoId };
+      where.almoxarifadoId = almoxarifadoId;
     }
 
     if (dataInicio || dataFim) {
-      where.updatedAt = {};
-      if (dataInicio) where.updatedAt.gte = dataInicio;
-      if (dataFim) where.updatedAt.lte = dataFim;
+      where.dataEntrega = {};
+      if (dataInicio) where.dataEntrega.gte = dataInicio;
+      if (dataFim) where.dataEntrega.lte = dataFim;
     }
 
     const entregas = await this.prisma.entrega.findMany({
       where,
       include: {
-        colaborador: {
+        responsavel: {
           select: { nome: true },
         },
-        fichaEpi: {
-          include: {
-            tipoEpi: {
-              select: { nome: true },
-            },
-          },
+        almoxarifado: {
+          select: { nome: true },
         },
         itens: {
-          select: { id: true, motivoDevolucao: true },
+          select: { id: true },
         },
       },
-      orderBy: { updatedAt: 'desc' },
+      orderBy: { dataEntrega: 'desc' },
     });
 
     const cancelamentos = entregas.map(entrega => {
       const tempoAtesCancelamento = Math.floor(
-        (entrega.updatedAt.getTime() - entrega.dataEntrega.getTime()) / (1000 * 60 * 60),
+        (entrega.dataEntrega.getTime() - entrega.dataEntrega.getTime()) / (1000 * 60 * 60),
       );
-
-      // Extrair motivo do cancelamento das observações
-      const motivoCancelamento = this.extrairMotivoCancelamento(entrega.observacoes);
 
       return {
         entregaId: entrega.id,
-        colaboradorNome: entrega.colaborador.nome,
-        tipoEpiNome: entrega.fichaEpi.tipoEpi.nome,
+        colaboradorNome: entrega.responsavel.nome,
+        tipoEpiNome: entrega.almoxarifado.nome, // Aproximação - sem acesso direto ao tipo EPI
         dataEntrega: entrega.dataEntrega,
-        dataCancelamento: entrega.updatedAt,
-        motivoCancelamento,
+        dataCancelamento: entrega.dataEntrega, // Aproximação
+        motivoCancelamento: 'Cancelado',
         quantidadeItens: entrega.itens.length,
         tempoAtesCancelamento,
       };
@@ -259,18 +245,11 @@ export class CancelarEntregaUseCase {
       where: { id: entregaId },
       include: {
         itens: true,
-        colaborador: {
+        responsavel: {
           select: { nome: true },
         },
-        fichaEpi: {
-          include: {
-            tipoEpi: {
-              select: { nome: true },
-            },
-            almoxarifado: {
-              select: { id: true, nome: true },
-            },
-          },
+        almoxarifado: {
+          select: { id: true, nome: true },
         },
       },
     });
@@ -283,13 +262,13 @@ export class CancelarEntregaUseCase {
   }
 
   private validarPodeCancelar(entrega: any): void {
-    if (entrega.status === 'CANCELADA') {
+    if (entrega.status === StatusEntrega.CANCELADA) {
       throw new BusinessError('Entrega já está cancelada');
     }
 
     // Verificar se há itens já devolvidos
     const itensDevolvidos = entrega.itens.filter((item: any) => 
-      ['DEVOLVIDO', 'PERDIDO', 'DANIFICADO'].includes(item.status)
+      item.status === StatusEntregaItem.DEVOLVIDO
     );
 
     if (itensDevolvidos.length > 0) {
@@ -338,7 +317,7 @@ export class CancelarEntregaUseCase {
     // Buscar movimentações relacionadas à entrega
     const movimentacoes = await tx.movimentacaoEstoque.findMany({
       where: {
-        almoxarifadoId: entrega.fichaEpi.almoxarifadoId,
+        almoxarifadoId: entrega.fichaEPI.almoxarifadoId,
         observacoes: { contains: entrega.colaborador.nome },
         tipoMovimentacao: 'SAIDA',
         createdAt: {

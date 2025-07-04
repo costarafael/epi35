@@ -198,8 +198,8 @@ export class RelatorioEpisDevolvidosDescartadosUseCase {
             },
             diasEntreDevolucaoDescarte: diasEntre,
             statusAtual: 'DESCARTADO',
-            valorEstimadoPerdas: devolucao.estoqueItem.valorUnitario 
-              ? descarte.quantidadeMovida * devolucao.estoqueItem.valorUnitario 
+            valorEstimadoPerdas: devolucao.estoqueItem.custoUnitario 
+              ? descarte.quantidadeMovida * Number(devolucao.estoqueItem.custoUnitario) 
               : undefined,
           });
         }

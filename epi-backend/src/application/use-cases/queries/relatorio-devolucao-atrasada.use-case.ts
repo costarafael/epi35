@@ -55,14 +55,14 @@ export class RelatorioDevolucaoAtrasadaUseCase {
     };
 
     if (input.tipoEpiId) {
-      whereClauseItens.estoqueItemOrigem = {
+      whereClauseItens.estoqueItem = {
         tipoEpiId: input.tipoEpiId,
       };
     }
 
     if (input.almoxarifadoId) {
-      whereClauseItens.estoqueItemOrigem = {
-        ...whereClauseItens.estoqueItemOrigem,
+      whereClauseItens.estoqueItem = {
+        ...whereClauseItens.estoqueItem,
         almoxarifadoId: input.almoxarifadoId,
       };
     }
@@ -88,7 +88,7 @@ export class RelatorioDevolucaoAtrasadaUseCase {
             },
           },
         },
-        estoqueItemOrigem: {
+        estoqueItem: {
           include: {
             tipoEpi: {
               select: {
@@ -140,8 +140,8 @@ export class RelatorioDevolucaoAtrasadaUseCase {
       const ficha = fichasMap.get(fichaId);
       ficha.itensAtrasados.push({
         entregaItemId: item.id,
-        tipoEpi: item.estoqueItemOrigem.tipoEpi,
-        almoxarifado: item.estoqueItemOrigem.almoxarifado,
+        tipoEpi: item.estoqueItem.tipoEpi,
+        almoxarifado: item.estoqueItem.almoxarifado,
         dataLimiteDevolucao: item.dataLimiteDevolucao!,
         diasAtraso,
         dataEntrega: item.entrega.dataEntrega,
@@ -193,14 +193,14 @@ export class RelatorioDevolucaoAtrasadaUseCase {
     };
 
     if (input.tipoEpiId) {
-      whereClause.estoqueItemOrigem = {
+      whereClause.estoqueItem = {
         tipoEpiId: input.tipoEpiId,
       };
     }
 
     if (input.almoxarifadoId) {
-      whereClause.estoqueItemOrigem = {
-        ...whereClause.estoqueItemOrigem,
+      whereClause.estoqueItem = {
+        ...whereClause.estoqueItem,
         almoxarifadoId: input.almoxarifadoId,
       };
     }
@@ -217,7 +217,7 @@ export class RelatorioDevolucaoAtrasadaUseCase {
             },
           },
         },
-        estoqueItemOrigem: {
+        estoqueItem: {
           select: {
             tipoEpiId: true,
           },
@@ -249,7 +249,7 @@ export class RelatorioDevolucaoAtrasadaUseCase {
 
     for (const item of itensAtrasados) {
       colaboradoresUnicos.add(item.entrega.fichaEpi.colaboradorId);
-      tiposEpiUnicos.add(item.estoqueItemOrigem.tipoEpiId);
+      tiposEpiUnicos.add(item.estoqueItem.tipoEpiId);
       
       const dias = Math.floor((hoje.getTime() - item.dataLimiteDevolucao!.getTime()) / (1000 * 60 * 60 * 24));
       diasAtraso.push(dias);

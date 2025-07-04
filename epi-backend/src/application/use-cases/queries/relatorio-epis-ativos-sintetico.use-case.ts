@@ -62,7 +62,7 @@ export class RelatorioEpisAtivosSinteticoUseCase {
     const itensAtivos = await this.prismaService.entregaItem.findMany({
       where: whereClauseItens,
       include: {
-        estoqueItemOrigem: {
+        estoqueItem: {
           include: {
             tipoEpi: {
               select: {
@@ -91,12 +91,12 @@ export class RelatorioEpisAtivosSinteticoUseCase {
     }>();
 
     for (const item of itensAtivos) {
-      const tipoEpiId = item.estoqueItemOrigem.tipoEpi.id;
-      const almoxarifadoId = item.estoqueItemOrigem.almoxarifado.id;
+      const tipoEpiId = item.estoqueItem.tipoEpi.id;
+      const almoxarifadoId = item.estoqueItem.almoxarifado.id;
 
       if (!agrupamentosPorTipo.has(tipoEpiId)) {
         agrupamentosPorTipo.set(tipoEpiId, {
-          tipoEpi: item.estoqueItemOrigem.tipoEpi,
+          tipoEpi: item.estoqueItem.tipoEpi,
           quantidade: 0,
           almoxarifados: new Map(),
         });
@@ -107,7 +107,7 @@ export class RelatorioEpisAtivosSinteticoUseCase {
 
       if (!agrupamento.almoxarifados.has(almoxarifadoId)) {
         agrupamento.almoxarifados.set(almoxarifadoId, {
-          info: item.estoqueItemOrigem.almoxarifado,
+          info: item.estoqueItem.almoxarifado,
           quantidade: 0,
         });
       }

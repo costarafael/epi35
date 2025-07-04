@@ -45,7 +45,7 @@ export class FichaEPI {
   }
 
   public isSuspensa(): boolean {
-    return this._status === StatusFichaEPI.SUSPENSA;
+    return false; // SUSPENSA não existe mais no novo schema
   }
 
   public podeReceberEntrega(): boolean {
@@ -67,10 +67,7 @@ export class FichaEPI {
   }
 
   public suspender(): void {
-    if (this.isSuspensa()) {
-      throw new BusinessError('Ficha já está suspensa');
-    }
-    this._status = StatusFichaEPI.SUSPENSA;
+    throw new BusinessError('Status SUSPENSA não é mais suportado no sistema');
   }
 
   /**

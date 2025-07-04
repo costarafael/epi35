@@ -59,10 +59,11 @@ describe('CancelarNotaMovimentacaoUseCase - Integration Tests', () => {
       // Criar nota em rascunho
       const notaRascunho = await testSetup.prismaService.notaMovimentacao.create({
         data: {
-          numero: 'CANCEL-001',
-          tipo: TipoNotaMovimentacao.ENTRADA,
-          almoxarifadoDestinoId: almoxarifado.id,
-          usuarioId: usuario.id,
+          numeroDocumento: 'CANCEL-001',
+          tipoNota: TipoNotaMovimentacao.ENTRADA,
+          almoxarifadoOrigem: { connect: { id: almoxarifado.id } },
+          almoxarifadoDestino: { connect: { id: almoxarifado.id } },
+          responsavel: { connect: { id: usuario.id } },
           status: StatusNotaMovimentacao.RASCUNHO,
           observacoes: 'Nota para cancelamento',
         },
@@ -99,10 +100,11 @@ describe('CancelarNotaMovimentacaoUseCase - Integration Tests', () => {
       // Criar nota pendente
       const notaPendente = await testSetup.prismaService.notaMovimentacao.create({
         data: {
-          numero: 'CANCEL-002',
-          tipo: TipoNotaMovimentacao.ENTRADA,
-          almoxarifadoDestinoId: almoxarifado.id,
-          usuarioId: usuario.id,
+          numeroDocumento: 'CANCEL-002',
+          tipoNota: TipoNotaMovimentacao.ENTRADA,
+          almoxarifadoOrigem: { connect: { id: almoxarifado.id } },
+          almoxarifadoDestino: { connect: { id: almoxarifado.id } },
+          responsavel: { connect: { id: usuario.id } },
           status: StatusNotaMovimentacao.RASCUNHO,
           observacoes: 'Nota pendente para cancelamento',
         },
@@ -130,13 +132,14 @@ describe('CancelarNotaMovimentacaoUseCase - Integration Tests', () => {
       // Criar nota concluída
       const notaConcluida = await testSetup.prismaService.notaMovimentacao.create({
         data: {
-          numero: 'CANCEL-003',
-          tipo: TipoNotaMovimentacao.ENTRADA,
-          almoxarifadoDestinoId: almoxarifado.id,
-          usuarioId: usuario.id,
+          numeroDocumento: 'CANCEL-003',
+          tipoNota: TipoNotaMovimentacao.ENTRADA,
+          almoxarifadoOrigem: { connect: { id: almoxarifado.id } },
+          almoxarifadoDestino: { connect: { id: almoxarifado.id } },
+          responsavel: { connect: { id: usuario.id } },
           status: StatusNotaMovimentacao.CONCLUIDA,
           observacoes: 'Nota concluída',
-          dataConclusao: new Date(),
+          // dataConclusao: new Date(), // Field removed from schema v3.5
         },
       });
 
@@ -169,10 +172,11 @@ describe('CancelarNotaMovimentacaoUseCase - Integration Tests', () => {
       // Criar nota em rascunho
       const nota = await testSetup.prismaService.notaMovimentacao.create({
         data: {
-          numero: 'CANCEL-004',
-          tipo: TipoNotaMovimentacao.ENTRADA,
-          almoxarifadoDestinoId: almoxarifado.id,
-          usuarioId: usuario.id,
+          numeroDocumento: 'CANCEL-004',
+          tipoNota: TipoNotaMovimentacao.ENTRADA,
+          almoxarifadoOrigem: { connect: { id: almoxarifado.id } },
+          almoxarifadoDestino: { connect: { id: almoxarifado.id } },
+          responsavel: { connect: { id: usuario.id } },
           status: StatusNotaMovimentacao.RASCUNHO,
           observacoes: 'Nota para cancelamento sem motivo',
         },

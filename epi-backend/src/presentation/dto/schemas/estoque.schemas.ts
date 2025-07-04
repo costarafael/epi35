@@ -1,8 +1,6 @@
 import { z } from 'zod';
 import {
   IdSchema,
-  PaginationSchema,
-  DateRangeSchema,
   ObservacoesSchema,
 } from './common.schemas';
 
@@ -92,7 +90,7 @@ export const ItemPosicaoEstoqueResponseSchema = z.object({
   valorUnitario: z.number().optional(),
   valorTotal: z.number().optional(),
   estoqueMinimo: z.number().optional(),
-  situacao: z.enum(['NORMAL', 'BAIXO', 'CRITICO', 'ZERO']),
+  situacao: z.enum(['NORMAL', 'BAIXO', 'ZERO']),
   diasEstoque: z.number().optional(),
   ultimaMovimentacao: z.date().optional(),
 });

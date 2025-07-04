@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { IntegrationTestSetup, setupIntegrationTestSuite } from '../setup/integration-test-setup';
+import { IntegrationTestSetup, setupIntegrationTestSuite } from '../../setup/integration-test-setup';
 import { PrismaService } from '@infrastructure/database/prisma.service';
 
 /**
@@ -102,7 +102,7 @@ describe('Relatório R-04: EPIs Ativos com Colaboradores (Detalhado) - Integrati
               },
             },
           },
-          estoqueItemOrigem: {
+          estoqueItem: {
             include: {
               tipoEpi: {
                 select: {
@@ -130,11 +130,7 @@ describe('Relatório R-04: EPIs Ativos com Colaboradores (Detalhado) - Integrati
             },
           },
           {
-            estoqueItemOrigem: {
-              tipoEpi: {
-                nomeEquipamento: 'asc',
-              },
-            },
+            estoqueItemOrigemId: 'asc',
           },
         ],
       });
@@ -147,7 +143,7 @@ describe('Relatório R-04: EPIs Ativos com Colaboradores (Detalhado) - Integrati
       episAtivosDetalhado.forEach(item => {
         expect(item.status).toBe('COM_COLABORADOR');
         expect(item.entrega.fichaEpi.colaborador).toHaveProperty('nome');
-        expect(item.estoqueItemOrigem.tipoEpi).toHaveProperty('nomeEquipamento');
+        expect(item.estoqueItem.tipoEpi).toHaveProperty('nomeEquipamento');
 
         // Calcular se está atrasado
         const hoje = new Date();
@@ -233,12 +229,14 @@ describe('Relatório R-04: EPIs Ativos com Colaboradores (Detalhado) - Integrati
       // Arrange - Buscar um colaborador que tenha EPIs
       const colaboradorComEpis = await prismaService.colaborador.findFirst({
         where: {
-          fichaEpi: {
-            entregas: {
-              some: {
-                itens: {
-                  some: {
-                    status: 'COM_COLABORADOR',
+          fichasEPI: {
+            some: {
+              entregas: {
+                some: {
+                  itens: {
+                    some: {
+                      status: 'COM_COLABORADOR',
+                    },
                   },
                 },
               },
@@ -246,7 +244,7 @@ describe('Relatório R-04: EPIs Ativos com Colaboradores (Detalhado) - Integrati
           },
         },
         include: {
-          fichaEpi: true,
+          fichasEPI: true,
         },
       });
 
@@ -272,7 +270,7 @@ describe('Relatório R-04: EPIs Ativos com Colaboradores (Detalhado) - Integrati
               status: true,
             },
           },
-          estoqueItemOrigem: {
+          estoqueItem: {
             include: {
               tipoEpi: {
                 select: {
@@ -298,7 +296,7 @@ describe('Relatório R-04: EPIs Ativos com Colaboradores (Detalhado) - Integrati
       // Todos os itens devem ser do colaborador específico
       episDoColaborador.forEach(item => {
         expect(item.status).toBe('COM_COLABORADOR');
-        expect(item.estoqueItemOrigem.tipoEpi).toHaveProperty('nomeEquipamento');
+        expect(item.estoqueItem.tipoEpi).toHaveProperty('nomeEquipamento');
       });
     });
 

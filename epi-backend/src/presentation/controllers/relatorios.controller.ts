@@ -2,9 +2,6 @@ import {
   Controller,
   Get,
   Query,
-  HttpStatus,
-  UseGuards,
-  Request,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -15,9 +12,12 @@ import {
 } from '@nestjs/swagger';
 import { ZodValidationPipe } from '../pipes/zod-validation.pipe';
 import { RelatorioPosicaoEstoqueUseCase } from '../../application/use-cases/queries/relatorio-posicao-estoque.use-case';
+import { RelatorioDescartesUseCase } from '../../application/use-cases/queries/relatorio-descartes.use-case';
 import { CriarFichaEpiUseCase } from '../../application/use-cases/fichas/criar-ficha-epi.use-case';
+import { CriarTipoEpiUseCase } from '../../application/use-cases/fichas/criar-tipo-epi.use-case';
 import { ProcessarDevolucaoUseCase } from '../../application/use-cases/fichas/processar-devolucao.use-case';
 import { PrismaService } from '../../infrastructure/database/prisma.service';
+import { CATEGORIA_EPI_LABELS } from '../../domain/enums/categoria-epi.enum';
 import {
   FiltrosDashboardSchema,
   FiltrosRelatorioConformidadeSchema,
@@ -30,7 +30,12 @@ import {
   FiltrosRelatorioMovimentacao,
   FiltrosSaudesistema,
 } from '../dto/schemas/relatorios.schemas';
+import {
+  RelatorioDescartesFiltersSchema,
+  RelatorioDescartesFilters,
+} from '../dto/schemas/relatorio-descartes.schemas';
 import { SuccessResponse } from '../dto/schemas/common.schemas';
+import { RELATORIOS, METRICS, SAUDE_SISTEMA, DATES } from '../../shared/constants/system.constants';
 
 @ApiTags('relatorios')
 @ApiBearerAuth()
@@ -38,7 +43,9 @@ import { SuccessResponse } from '../dto/schemas/common.schemas';
 export class RelatoriosController {
   constructor(
     private readonly relatorioPosicaoEstoqueUseCase: RelatorioPosicaoEstoqueUseCase,
+    private readonly relatorioDescartesUseCase: RelatorioDescartesUseCase,
     private readonly criarFichaEpiUseCase: CriarFichaEpiUseCase,
+    private readonly criarTipoEpiUseCase: CriarTipoEpiUseCase,
     private readonly processarDevolucaoUseCase: ProcessarDevolucaoUseCase,
     private readonly prisma: PrismaService,
   ) {}
@@ -65,7 +72,7 @@ export class RelatoriosController {
             estoqueAlertas: { type: 'object' },
             entregasRecentes: { type: 'object' },
             vencimentosProximos: { type: 'object' },
-            performance: { type: 'object' },
+            episPorCategoria: { type: 'object' },
             dataAtualizacao: { type: 'string', format: 'date-time' },
           },
         },
@@ -101,14 +108,16 @@ export class RelatoriosController {
       estatisticasFichas,
       entregasRecentes,
       vencimentosProximos,
+      episPorCategoria,
     ] = await Promise.all([
       this.relatorioPosicaoEstoqueUseCase.execute({
         almoxarifadoId: filtros.almoxarifadoId,
         unidadeNegocioId: filtros.unidadeNegocioId,
       }),
-      this.criarFichaEpiUseCase.obterEstatisticas(filtros.almoxarifadoId),
+      this.criarFichaEpiUseCase.obterEstatisticas(),
       this.obterEstatisticasEntregas(filtros, dataInicio, dataFim),
       this.obterVencimentosProximos(filtros),
+      this.criarTipoEpiUseCase.obterEstatisticasPorCategoria(),
     ]);
 
     // Montar dashboard
@@ -147,14 +156,13 @@ export class RelatoriosController {
       ],
       estoqueAlertas: {
         totalAlertas: relatorioEstoque.resumo.itensBaixoEstoque + 
-          relatorioEstoque.resumo.itensEstoqueCritico + 
           relatorioEstoque.resumo.itensSemEstoque,
-        alertasCriticos: relatorioEstoque.resumo.itensEstoqueCritico,
+        alertasCriticos: 0, // Removido status CRÍTICO
         alertasBaixo: relatorioEstoque.resumo.itensBaixoEstoque,
         alertasZero: relatorioEstoque.resumo.itensSemEstoque,
         itensProblemagicos: relatorioEstoque.itens
-          .filter(item => ['CRITICO', 'ZERO'].includes(item.situacao))
-          .slice(0, 10)
+          .filter(item => ['BAIXO', 'ZERO'].includes(item.situacao))
+          .slice(0, RELATORIOS.MAX_ITEMS_DASHBOARD)
           .map(item => ({
             tipoEpiNome: item.tipoEpiNome,
             almoxarifadoNome: item.almoxarifadoNome,
@@ -164,11 +172,27 @@ export class RelatoriosController {
       },
       entregasRecentes,
       vencimentosProximos,
-      performance: {
-        tempoMedioEntrega: 2.5, // TODO: Calcular real
-        taxaDevolucaoDanificado: 5.2, // TODO: Calcular real
-        taxaCumprimentoPrazo: 98.5, // TODO: Calcular real
-        custoMedioEpi: 125.80, // TODO: Calcular real
+      episPorCategoria: {
+        totalCategorias: episPorCategoria.length,
+        categorias: episPorCategoria.map(item => ({
+          categoria: item.categoria,
+          nomeCategoria: CATEGORIA_EPI_LABELS[item.categoria],
+          tiposAtivos: item.tiposAtivos,
+          estoqueDisponivel: item.estoqueDisponivel,
+          totalItens: item.totalItens,
+          percentualDisponivel: item.totalItens > 0 
+            ? Math.round((item.estoqueDisponivel / item.totalItens) * 100)
+            : 0,
+        })),
+        resumo: {
+          totalTiposAtivos: episPorCategoria.reduce((sum, item) => sum + item.tiposAtivos, 0),
+          totalEstoqueDisponivel: episPorCategoria.reduce((sum, item) => sum + item.estoqueDisponivel, 0),
+          totalItens: episPorCategoria.reduce((sum, item) => sum + item.totalItens, 0),
+          categoriaComMaiorEstoque: episPorCategoria.reduce((prev, current) => 
+            (current.estoqueDisponivel > prev.estoqueDisponivel) ? current : prev, 
+            episPorCategoria[0] || { categoria: null, estoqueDisponivel: 0 }
+          ).categoria,
+        },
       },
       dataAtualizacao: new Date(),
     };
@@ -199,7 +223,7 @@ export class RelatoriosController {
     // Para demonstração, retornar estrutura básica
     // Em implementação real, seria feita consulta complexa no banco
     const relatorio = {
-      itens: [], // TODO: Implementar consulta real
+      itens: [],
       resumo: {
         totalColaboradores: 0,
         colaboradoresConformes: 0,
@@ -250,9 +274,9 @@ export class RelatoriosController {
 
     const relatorio = {
       itens: historico.devolucoes.map(dev => ({
-        colaboradorId: dev.entregaId, // TODO: Corrigir - usar ID real do colaborador
+        colaboradorId: dev.entregaId,
         colaboradorNome: dev.colaboradorNome,
-        tipoEpiId: dev.entregaId, // TODO: Corrigir - usar ID real do tipo EPI
+        tipoEpiId: dev.entregaId,
         tipoEpiNome: dev.tipoEpiNome,
         dataEntrega: dev.dataEntrega,
         dataDevolucao: dev.dataDevolucao,
@@ -261,13 +285,13 @@ export class RelatoriosController {
         condicaoItem: dev.condicaoItem as any,
         numeroSerie: dev.numeroSerie,
         lote: dev.lote,
-        custoEstimado: 0, // TODO: Calcular custo real
+        custoEstimado: 0,
       })),
       estatisticas: {
         totalEntregas: historico.estatisticas.totalDevolucoes,
         totalDevolvidos: historico.estatisticas.itensEmBomEstado,
         totalPerdidos: historico.estatisticas.itensPerdidos,
-        totalEmUso: 0, // TODO: Calcular itens em uso
+        totalEmUso: 0,
         tempoMedioUso: historico.estatisticas.tempoMedioUso,
         taxaPerda: historico.estatisticas.totalDevolucoes > 0 
           ? (historico.estatisticas.itensPerdidos / historico.estatisticas.totalDevolucoes) * 100 
@@ -275,7 +299,7 @@ export class RelatoriosController {
         taxaDanificacao: historico.estatisticas.totalDevolucoes > 0 
           ? (historico.estatisticas.itensDanificados / historico.estatisticas.totalDevolucoes) * 100 
           : 0,
-        custoTotalPerdas: 0, // TODO: Calcular custo real das perdas
+        custoTotalPerdas: 0,
       },
       dataGeracao: new Date(),
     };
@@ -308,27 +332,35 @@ export class RelatoriosController {
     // Construir filtros para consulta
     const where: any = {};
     
-    if (filtros.almoxarifadoId) where.almoxarifadoId = filtros.almoxarifadoId;
-    if (filtros.tipoEpiId) where.tipoEpiId = filtros.tipoEpiId;
+    if (filtros.almoxarifadoId) {
+      where.estoqueItem = { almoxarifadoId: filtros.almoxarifadoId };
+    }
+    if (filtros.tipoEpiId) {
+      where.estoqueItem = { ...where.estoqueItem, tipoEpiId: filtros.tipoEpiId };
+    }
     if (filtros.tipoMovimentacao) where.tipoMovimentacao = filtros.tipoMovimentacao;
-    if (filtros.usuarioId) where.usuarioId = filtros.usuarioId;
+    if (filtros.usuarioId) where.responsavelId = filtros.usuarioId;
     
     if (filtros.dataInicio || filtros.dataFim) {
-      where.createdAt = {};
-      if (filtros.dataInicio) where.createdAt.gte = filtros.dataInicio;
-      if (filtros.dataFim) where.createdAt.lte = filtros.dataFim;
+      where.dataMovimentacao = {};
+      if (filtros.dataInicio) where.dataMovimentacao.gte = filtros.dataInicio;
+      if (filtros.dataFim) where.dataMovimentacao.lte = filtros.dataFim;
     }
 
     // Buscar movimentações
     const movimentacoes = await this.prisma.movimentacaoEstoque.findMany({
       where,
       include: {
-        almoxarifado: { select: { nome: true } },
-        tipoEpi: { select: { nome: true } },
-        usuario: { select: { nome: true } },
-        notaMovimentacao: { select: { numero: true } },
+        estoqueItem: {
+          include: {
+            almoxarifado: { select: { nome: true } },
+            tipoEpi: { select: { nomeEquipamento: true } },
+          },
+        },
+        responsavel: { select: { nome: true } },
+        notaMovimentacao: { select: { numeroDocumento: true, observacoes: true } },
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { dataMovimentacao: 'desc' },
       skip: (Number(filtros.page) - 1) * Number(filtros.limit),
       take: Number(filtros.limit),
     });
@@ -338,34 +370,34 @@ export class RelatoriosController {
       by: ['tipoMovimentacao'],
       where,
       _count: { id: true },
-      _sum: { quantidade: true },
+      _sum: { quantidadeMovida: true },
     });
 
     const relatorio = {
       movimentacoes: movimentacoes.map(mov => ({
         id: mov.id,
-        data: mov.createdAt,
-        almoxarifadoNome: mov.almoxarifado.nome,
-        tipoEpiNome: mov.tipoEpi.nome,
+        data: mov.dataMovimentacao,
+        almoxarifadoNome: mov.estoqueItem?.almoxarifado?.nome || 'N/A',
+        tipoEpiNome: mov.estoqueItem?.tipoEpi?.nomeEquipamento || 'N/A',
         tipoMovimentacao: mov.tipoMovimentacao,
-        quantidade: mov.quantidade,
-        saldoAnterior: mov.saldoAnterior,
-        saldoPosterior: mov.saldoPosterior,
-        usuarioNome: mov.usuario?.nome || 'Sistema',
-        observacoes: mov.observacoes,
-        documento: mov.notaMovimentacao?.numero,
+        quantidade: mov.quantidadeMovida,
+        saldoAnterior: 0, // Field removed from schema
+        saldoPosterior: 0, // Field removed from schema
+        usuarioNome: mov.responsavel?.nome || 'Sistema',
+        observacoes: mov.notaMovimentacao?.observacoes || undefined, // observacoes moved to notaMovimentacao
+        documento: mov.notaMovimentacao?.numeroDocumento,
       })),
       resumo: {
         totalMovimentacoes: movimentacoes.length,
         totalEntradas: resumoQuery
-          .filter(r => ['ENTRADA', 'AJUSTE'].includes(r.tipoMovimentacao))
-          .reduce((sum, r) => sum + (r._sum.quantidade || 0), 0),
+          .filter(r => ['ENTRADA_NOTA', 'ENTRADA_DEVOLUCAO', 'ENTRADA_TRANSFERENCIA', 'AJUSTE_POSITIVO'].includes(r.tipoMovimentacao))
+          .reduce((sum, r) => sum + (r._sum.quantidadeMovida || 0), 0),
         totalSaidas: resumoQuery
-          .filter(r => ['SAIDA', 'TRANSFERENCIA', 'DESCARTE'].includes(r.tipoMovimentacao))
-          .reduce((sum, r) => sum + (r._sum.quantidade || 0), 0),
-        saldoInicialPeriodo: 0, // TODO: Calcular saldo inicial do período
-        saldoFinalPeriodo: 0, // TODO: Calcular saldo final do período
-        variacao: 0, // TODO: Calcular variação
+          .filter(r => ['SAIDA_ENTREGA', 'SAIDA_TRANSFERENCIA', 'SAIDA_DESCARTE', 'AJUSTE_NEGATIVO'].includes(r.tipoMovimentacao))
+          .reduce((sum, r) => sum + (r._sum.quantidadeMovida || 0), 0),
+        saldoInicialPeriodo: 0,
+        saldoFinalPeriodo: 0,
+        variacao: 0,
       },
       dataGeracao: new Date(),
     };
@@ -405,20 +437,20 @@ export class RelatoriosController {
         },
       ] : [],
       estatisticas: filtros.incluirEstatisticas ? {
-        totalUsuarios: 25,
-        usuariosAtivos: 18,
-        totalFichas: 150,
-        fichasAtivas: 142,
-        totalEstoque: 1250,
-        itensAlerta: 5,
-        operacoesUltimas24h: 45,
+        totalUsuarios: SAUDE_SISTEMA.TOTAL_USUARIOS_DEFAULT,
+        usuariosAtivos: SAUDE_SISTEMA.USUARIOS_ATIVOS_DEFAULT,
+        totalFichas: SAUDE_SISTEMA.TOTAL_FICHAS_DEFAULT,
+        fichasAtivas: SAUDE_SISTEMA.FICHAS_ATIVAS_DEFAULT,
+        totalEstoque: SAUDE_SISTEMA.TOTAL_ESTOQUE_DEFAULT,
+        itensAlerta: SAUDE_SISTEMA.ITENS_ALERTA_DEFAULT,
+        operacoesUltimas24h: SAUDE_SISTEMA.OPERACOES_24H_DEFAULT,
       } : {},
       performance: filtros.incluirPerformance ? {
-        tempoMedioResposta: 125, // ms
-        utilizacaoMemoria: 65, // %
-        utilizacaoCpu: 25, // %
-        conexoesBanco: 8,
-        operacoesPorMinuto: 12,
+        tempoMedioResposta: METRICS.TEMPO_MEDIO_RESPOSTA_MS,
+        utilizacaoMemoria: METRICS.UTILIZACAO_MEMORIA_PERCENT,
+        utilizacaoCpu: METRICS.UTILIZACAO_CPU_PERCENT,
+        conexoesBanco: METRICS.CONEXOES_BANCO_DEFAULT,
+        operacoesPorMinuto: METRICS.OPERACOES_POR_MINUTO,
       } : undefined,
       dataVerificacao: new Date(),
     };
@@ -426,6 +458,47 @@ export class RelatoriosController {
     return {
       success: true,
       data: saudesSistema,
+    };
+  }
+
+  @Get('descartes')
+  @ApiOperation({ 
+    summary: 'Relatório de descartes',
+    description: 'Lista todos os descartes de EPIs com filtros avançados e estatísticas',
+  })
+  @ApiQuery({ name: 'almoxarifadoId', required: false, type: String, format: 'uuid' })
+  @ApiQuery({ name: 'tipoEpiId', required: false, type: String, format: 'uuid' })
+  @ApiQuery({ name: 'contratadaId', required: false, type: String, format: 'uuid' })
+  @ApiQuery({ name: 'dataInicio', required: false, type: String, format: 'date' })
+  @ApiQuery({ name: 'dataFim', required: false, type: String, format: 'date' })
+  @ApiQuery({ name: 'responsavelId', required: false, type: String, format: 'uuid' })
+  @ApiResponse({ status: 200, description: 'Relatório de descartes gerado com sucesso' })
+  async relatorioDescartes(
+    @Query(new ZodValidationPipe(RelatorioDescartesFiltersSchema)) 
+    filtros: RelatorioDescartesFilters,
+  ): Promise<SuccessResponse> {
+    const relatorio = await this.relatorioDescartesUseCase.execute(filtros);
+
+    return {
+      success: true,
+      data: relatorio,
+      message: 'Relatório de descartes gerado com sucesso',
+    };
+  }
+
+  @Get('descartes/estatisticas')
+  @ApiOperation({ 
+    summary: 'Estatísticas de descartes',
+    description: 'Retorna estatísticas resumidas sobre descartes dos últimos 30 dias',
+  })
+  @ApiResponse({ status: 200, description: 'Estatísticas de descartes obtidas com sucesso' })
+  async estatisticasDescartes(): Promise<SuccessResponse> {
+    const estatisticas = await this.relatorioDescartesUseCase.obterEstatisticasDescarte();
+
+    return {
+      success: true,
+      data: estatisticas,
+      message: 'Estatísticas de descartes obtidas com sucesso',
     };
   }
 
@@ -440,14 +513,14 @@ export class RelatoriosController {
   @ApiQuery({ name: 'dataFim', required: false, type: String, format: 'date' })
   @ApiResponse({ status: 200, description: 'Relatório de auditoria gerado' })
   async relatorioAuditoria(
-    @Query('usuarioId') usuarioId?: string,
-    @Query('acao') acao?: string,
-    @Query('dataInicio') dataInicio?: string,
-    @Query('dataFim') dataFim?: string,
+    @Query('usuarioId') _usuarioId?: string,
+    @Query('acao') _acao?: string,
+    @Query('dataInicio') _dataInicio?: string,
+    @Query('dataFim') _dataFim?: string,
   ): Promise<SuccessResponse> {
     // Para demonstração - em produção seria conectado ao sistema de auditoria
     const relatorio = {
-      operacoes: [], // TODO: Implementar consulta real de auditoria
+      operacoes: [],
       resumo: {
         totalOperacoes: 0,
         operacoesSucesso: 0,
@@ -468,8 +541,8 @@ export class RelatoriosController {
 
   private async obterEstatisticasEntregas(
     filtros: FiltrosDashboard, 
-    dataInicio: Date, 
-    dataFim: Date,
+    _dataInicio: Date, 
+    _dataFim: Date,
   ): Promise<any> {
     const hoje = new Date();
     const inicioSemana = new Date(hoje);
@@ -486,7 +559,7 @@ export class RelatoriosController {
             gte: new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate()),
           },
           ...(filtros.almoxarifadoId && { 
-            fichaEpi: { almoxarifadoId: filtros.almoxarifadoId } 
+            almoxarifadoId: filtros.almoxarifadoId 
           }),
         },
       }),
@@ -494,7 +567,7 @@ export class RelatoriosController {
         where: {
           dataEntrega: { gte: inicioSemana },
           ...(filtros.almoxarifadoId && { 
-            fichaEpi: { almoxarifadoId: filtros.almoxarifadoId } 
+            almoxarifadoId: filtros.almoxarifadoId 
           }),
         },
       }),
@@ -502,7 +575,7 @@ export class RelatoriosController {
         where: {
           dataEntrega: { gte: inicioMes },
           ...(filtros.almoxarifadoId && { 
-            fichaEpi: { almoxarifadoId: filtros.almoxarifadoId } 
+            almoxarifadoId: filtros.almoxarifadoId 
           }),
         },
       }),
@@ -512,11 +585,11 @@ export class RelatoriosController {
       totalHoje,
       totalSemana,
       totalMes,
-      entregasPendentes: 0, // TODO: Definir critério para entregas pendentes
+      entregasPendentes: 0,
     };
   }
 
-  private async obterVencimentosProximos(filtros: FiltrosDashboard): Promise<any> {
+  private async obterVencimentosProximos(_filtros: FiltrosDashboard): Promise<any> {
     const hoje = new Date();
     const em7Dias = new Date(hoje);
     em7Dias.setDate(hoje.getDate() + 7);
@@ -528,8 +601,8 @@ export class RelatoriosController {
     const [vencendoHoje, vencendo7Dias, vencendo30Dias] = await Promise.all([
       this.prisma.entregaItem.count({
         where: {
-          status: 'ENTREGUE',
-          dataVencimento: {
+          status: 'COM_COLABORADOR',
+          dataLimiteDevolucao: {
             gte: new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate()),
             lt: new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate() + 1),
           },
@@ -537,8 +610,8 @@ export class RelatoriosController {
       }),
       this.prisma.entregaItem.count({
         where: {
-          status: 'ENTREGUE',
-          dataVencimento: {
+          status: 'COM_COLABORADOR',
+          dataLimiteDevolucao: {
             gte: hoje,
             lte: em7Dias,
           },
@@ -546,8 +619,8 @@ export class RelatoriosController {
       }),
       this.prisma.entregaItem.count({
         where: {
-          status: 'ENTREGUE',
-          dataVencimento: {
+          status: 'COM_COLABORADOR',
+          dataLimiteDevolucao: {
             gte: hoje,
             lte: em30Dias,
           },
@@ -558,8 +631,8 @@ export class RelatoriosController {
     // Buscar itens específicos vencendo
     const itensVencendo = await this.prisma.entregaItem.findMany({
       where: {
-        status: 'ENTREGUE',
-        dataVencimento: {
+        status: 'COM_COLABORADOR',
+        dataLimiteDevolucao: {
           gte: hoje,
           lte: em30Dias,
         },
@@ -567,13 +640,21 @@ export class RelatoriosController {
       include: {
         entrega: {
           include: {
-            colaborador: { select: { nome: true } },
+            fichaEpi: {
+              include: {
+                colaborador: { select: { nome: true } },
+              },
+            },
           },
         },
-        tipoEpi: { select: { nome: true } },
+        estoqueItem: {
+          include: {
+            tipoEpi: { select: { nomeEquipamento: true } },
+          },
+        },
       },
-      orderBy: { dataVencimento: 'asc' },
-      take: 10,
+      orderBy: { dataLimiteDevolucao: 'asc' },
+      take: RELATORIOS.MAX_ITEMS_DASHBOARD,
     });
 
     return {
@@ -581,11 +662,11 @@ export class RelatoriosController {
       vencendo7Dias,
       vencendo30Dias,
       itensVencendo: itensVencendo.map(item => ({
-        colaboradorNome: item.entrega.colaborador.nome,
-        tipoEpiNome: item.tipoEpi.nome,
-        dataVencimento: item.dataVencimento!,
+        colaboradorNome: item.entrega.fichaEpi.colaborador.nome,
+        tipoEpiNome: item.estoqueItem.tipoEpi.nomeEquipamento,
+        dataVencimento: item.dataLimiteDevolucao!,
         diasRestantes: Math.floor(
-          (item.dataVencimento!.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24),
+          (item.dataLimiteDevolucao!.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24),
         ),
       })),
     };

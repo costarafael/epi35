@@ -3,12 +3,9 @@ import {
   Get,
   Post,
   Put,
-  Delete,
   Body,
   Param,
   Query,
-  HttpStatus,
-  UseGuards,
   Request,
 } from '@nestjs/common';
 import {
@@ -30,26 +27,24 @@ import {
   CriarFichaEpiSchema,
   AtualizarStatusFichaSchema,
   FiltrosFichaEpiSchema,
-  CriarEntregaSchema,
   ItemEntregaSchema,
-  FiltrosEntregasSchema,
   ValidarEntregaSchema,
   ProcessarDevolucaoSchema,
   CancelarDevolucaoSchema,
-  FiltrosHistoricoDevolucaoSchema,
   FiltrosPosseAtualSchema,
   CriarFichaEpiRequest,
   AtualizarStatusFichaRequest,
   FiltrosFichaEpi,
   CriarEntregaRequest,
-  FiltrosEntregas,
   ValidarEntregaRequest,
   ProcessarDevolucaoRequest,
   CancelarDevolucaoRequest,
-  FiltrosHistoricoDevolucao,
   FiltrosPosseAtual,
 } from '../dto/schemas/ficha-epi.schemas';
 import { IdSchema, SuccessResponse, PaginatedResponse, ObservacoesSchema } from '../dto/schemas/common.schemas';
+// ✅ OTIMIZAÇÃO: Import mappers para reduzir código duplicado
+import { mapFichaEpiToOutput } from '../../infrastructure/mapping/ficha-epi.mapper';
+import { mapEntregaToOutput } from '../../infrastructure/mapping/entrega.mapper';
 
 @ApiTags('fichas-epi')
 @ApiBearerAuth()
@@ -95,8 +90,8 @@ export class FichasEpiController {
   ): Promise<SuccessResponse> {
     const ficha = await this.criarFichaEpiUseCase.execute({
       colaboradorId: criarFichaDto.colaboradorId,
-      tipoEpiId: criarFichaDto.tipoEpiId,
-      almoxarifadoId: criarFichaDto.almoxarifadoId,
+      // tipoEpiId: criarFichaDto.tipoEpiId, // Removed - FichaEPI v3.5 one per collaborador
+      // almoxarifadoId: criarFichaDto.almoxarifadoId, // Removed - FichaEPI v3.5 one per collaborador
       status: criarFichaDto.status as StatusFichaEPI,
     });
 
@@ -119,8 +114,8 @@ export class FichasEpiController {
   ): Promise<SuccessResponse> {
     const resultado = await this.criarFichaEpiUseCase.criarOuAtivar({
       colaboradorId: criarFichaDto.colaboradorId,
-      tipoEpiId: criarFichaDto.tipoEpiId,
-      almoxarifadoId: criarFichaDto.almoxarifadoId,
+      // tipoEpiId: criarFichaDto.tipoEpiId, // Removed - FichaEPI v3.5 one per colaborador
+      // almoxarifadoId: criarFichaDto.almoxarifadoId, // Removed - FichaEPI v3.5 one per colaborador
       status: criarFichaDto.status as StatusFichaEPI,
     });
 
@@ -145,34 +140,59 @@ export class FichasEpiController {
   @ApiQuery({ name: 'colaboradorNome', required: false, type: String })
   @ApiQuery({ name: 'tipoEpiNome', required: false, type: String })
   @ApiQuery({ name: 'ativo', required: false, type: Boolean })
+  @ApiQuery({ name: 'devolucaoPendente', required: false, type: Boolean, description: 'Filtrar fichas com devolução em atraso' })
   @ApiResponse({ status: 200, description: 'Lista de fichas recuperada com sucesso' })
   async listarFichas(
     @Query(new ZodValidationPipe(FiltrosFichaEpiSchema)) 
     filtros: FiltrosFichaEpi,
   ): Promise<PaginatedResponse> {
-    const fichas = await this.criarFichaEpiUseCase.listarFichas({
-      colaboradorId: filtros.colaboradorId,
-      tipoEpiId: filtros.tipoEpiId,
-      almoxarifadoId: filtros.almoxarifadoId,
-      status: filtros.status as any,
-      colaboradorNome: filtros.colaboradorNome,
-      tipoEpiNome: filtros.tipoEpiNome,
-      ativo: filtros.ativo,
-    });
-    
-    // TODO: Implementar paginação real
-    return {
-      success: true,
-      data: fichas,
-      pagination: {
+    const resultado = await this.criarFichaEpiUseCase.listarFichas(
+      {
+        colaboradorId: filtros.colaboradorId,
+        // tipoEpiId: filtros.tipoEpiId, // Removed - FichaEPI v3.5 one per colaborador
+        // almoxarifadoId: filtros.almoxarifadoId, // Removed - FichaEPI v3.5 one per colaborador
+        status: filtros.status as any,
+        colaboradorNome: filtros.colaboradorNome,
+        // tipoEpiNome: filtros.tipoEpiNome, // Removed - FichaEPI v3.5 one per colaborador
+        ativo: filtros.ativo,
+        devolucaoPendente: filtros.devolucaoPendente, // ✅ NOVO FILTRO
+      },
+      {
         page: filtros.page,
         limit: filtros.limit,
-        total: fichas.length,
-        totalPages: Math.ceil(fichas.length / filtros.limit),
-        hasNext: false,
-        hasPrev: false,
       },
-    };
+    );
+    
+    // ✅ Implementação real de paginação
+    if ('items' in resultado) {
+      // Resultado paginado
+      return {
+        success: true,
+        data: resultado.items,
+        pagination: {
+          page: resultado.page,
+          limit: filtros.limit,
+          total: resultado.total,
+          totalPages: resultado.totalPages,
+          hasNext: resultado.hasNext,
+          hasPrev: resultado.hasPrev,
+        },
+      };
+    } else {
+      // Fallback para resultado não paginado (compatibilidade)
+      return {
+        success: true,
+        data: resultado,
+        pagination: {
+          page: filtros.page,
+          limit: filtros.limit,
+          total: resultado.length,
+          totalPages: Math.ceil(resultado.length / filtros.limit),
+          hasNext: false,
+          hasPrev: false,
+        },
+      };
+    }
   }
 
   @Get('estatisticas')
@@ -183,9 +203,9 @@ export class FichasEpiController {
   @ApiQuery({ name: 'almoxarifadoId', required: false, type: String, format: 'uuid' })
   @ApiResponse({ status: 200, description: 'Estatísticas obtidas com sucesso' })
   async obterEstatisticas(
-    @Query('almoxarifadoId') almoxarifadoId?: string,
+    @Query('almoxarifadoId') _almoxarifadoId?: string,
   ): Promise<SuccessResponse> {
-    const estatisticas = await this.criarFichaEpiUseCase.obterEstatisticas(almoxarifadoId);
+    const estatisticas = await this.criarFichaEpiUseCase.obterEstatisticas();
 
     return {
       success: true,
@@ -317,7 +337,10 @@ export class FichasEpiController {
     const entrega = await this.criarEntregaFichaUseCase.execute({
       fichaEpiId,
       quantidade: entregaDto.quantidade,
-      itens: entregaDto.itens,
+      itens: entregaDto.itens.map(item => ({
+        numeroSerie: item.numeroSerie,
+        estoqueItemOrigemId: item.estoqueItemOrigemId!, // Assert not null since schema validates it
+      })),
       assinaturaColaborador: entregaDto.assinaturaColaborador,
       observacoes: entregaDto.observacoes,
       usuarioId,

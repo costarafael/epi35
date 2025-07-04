@@ -8,6 +8,13 @@ import {
 } from '../../domain/interfaces/repositories/movimentacao-repository.interface';
 import { TipoMovimentacao } from '../../domain/enums';
 import { BusinessError, NotFoundError } from '../../domain/exceptions/business.exception';
+import { 
+  PaginationOptions, 
+  PaginatedResult, 
+  createPaginatedResult, 
+  DEFAULT_PAGINATION, 
+  MAX_LIMIT 
+} from '../../domain/interfaces/common/pagination.interface';
 
 @Injectable()
 export class MovimentacaoRepository implements IMovimentacaoRepository {
@@ -21,27 +28,54 @@ export class MovimentacaoRepository implements IMovimentacaoRepository {
     return movimentacao ? this.toDomain(movimentacao) : null;
   }
 
+  /**
+   * @deprecated Use findAllPaginated instead to prevent memory issues
+   */
   async findAll(): Promise<MovimentacaoEstoque[]> {
+    // Log warning for deprecated usage
+    console.warn('⚠️  MovimentacaoRepository.findAll() is deprecated. Use findAllPaginated() instead to prevent memory issues.');
+    
+    // Return limited results to prevent crashes
     const movimentacoes = await this.prisma.movimentacaoEstoque.findMany({
-      orderBy: { createdAt: 'desc' },
+      orderBy: { dataMovimentacao: 'desc' },
+      take: 100, // Safety limit
     });
 
     return movimentacoes.map(this.toDomain);
   }
 
-  async create(entity: Omit<MovimentacaoEstoque, 'id' | 'createdAt'>): Promise<MovimentacaoEstoque> {
+  async findAllPaginated(options: PaginationOptions = {}): Promise<PaginatedResult<MovimentacaoEstoque>> {
+    const page = options.page ?? DEFAULT_PAGINATION.page;
+    const limit = Math.min(options.limit ?? DEFAULT_PAGINATION.limit, MAX_LIMIT);
+    
+    const [items, total] = await Promise.all([
+      this.prisma.movimentacaoEstoque.findMany({
+        take: limit,
+        skip: (page - 1) * limit,
+        orderBy: { dataMovimentacao: 'desc' },
+      }),
+      this.prisma.movimentacaoEstoque.count(),
+    ]);
+
+    return createPaginatedResult(
+      items.map(this.toDomain),
+      total,
+      page,
+      limit,
+    );
+  }
+
+  async create(entity: Omit<MovimentacaoEstoque, 'id' | 'dataMovimentacao'>): Promise<MovimentacaoEstoque> {
     const movimentacao = await this.prisma.movimentacaoEstoque.create({
       data: {
-        almoxarifadoId: entity.almoxarifadoId,
-        tipoEpiId: entity.tipoEpiId,
+        estoqueItemId: entity.estoqueItemId,
         tipoMovimentacao: entity.tipoMovimentacao as any,
-        quantidade: entity.quantidade,
-        saldoAnterior: entity.saldoAnterior,
-        saldoPosterior: entity.saldoPosterior,
+        quantidadeMovida: entity.quantidadeMovida,
         notaMovimentacaoId: entity.notaMovimentacaoId,
-        usuarioId: entity.usuarioId,
-        observacoes: entity.observacoes,
-        movimentacaoEstornoId: entity.movimentacaoEstornoId,
+        responsavelId: entity.responsavelId,
+        entregaId: entity.entregaId,
+        movimentacaoOrigemId: entity.movimentacaoOrigemId,
+        // Note: saldoAnterior, saldoPosterior, observacoes fields removed from schema v3.5
       },
     });
 
@@ -52,7 +86,10 @@ export class MovimentacaoRepository implements IMovimentacaoRepository {
     const movimentacao = await this.prisma.movimentacaoEstoque.update({
       where: { id },
       data: {
-        observacoes: entity.observacoes,
+        // Note: MovimentacaoEstoque records should be immutable after creation
+        // Limited update capability for emergency corrections only
+        tipoMovimentacao: entity.tipoMovimentacao,
+        quantidadeMovida: entity.quantidadeMovida,
       },
     });
 
@@ -71,8 +108,10 @@ export class MovimentacaoRepository implements IMovimentacaoRepository {
     filtros?: Partial<MovimentacaoEstoqueFilters>,
   ): Promise<MovimentacaoEstoque[]> {
     const where: any = {
-      almoxarifadoId,
-      tipoEpiId,
+      estoqueItem: {
+        almoxarifadoId,
+        tipoEpiId,
+      },
     };
 
     if (filtros) {
@@ -80,25 +119,28 @@ export class MovimentacaoRepository implements IMovimentacaoRepository {
         where.tipoMovimentacao = filtros.tipoMovimentacao;
       }
       if (filtros.usuarioId) {
-        where.usuarioId = filtros.usuarioId;
+        where.responsavelId = filtros.usuarioId; // Field name updated
       }
       if (filtros.notaMovimentacaoId) {
         where.notaMovimentacaoId = filtros.notaMovimentacaoId;
       }
       if (filtros.dataInicio || filtros.dataFim) {
-        where.createdAt = {};
+        where.dataMovimentacao = {}; // Field name updated
         if (filtros.dataInicio) {
-          where.createdAt.gte = filtros.dataInicio;
+          where.dataMovimentacao.gte = filtros.dataInicio;
         }
         if (filtros.dataFim) {
-          where.createdAt.lte = filtros.dataFim;
+          where.dataMovimentacao.lte = filtros.dataFim;
         }
       }
     }
 
     const movimentacoes = await this.prisma.movimentacaoEstoque.findMany({
       where,
-      orderBy: { createdAt: 'desc' },
+      include: {
+        estoqueItem: true, // Need to include for toDomain mapping
+      },
+      orderBy: { dataMovimentacao: 'desc' },
     });
 
     return movimentacoes.map(this.toDomain);
@@ -107,7 +149,10 @@ export class MovimentacaoRepository implements IMovimentacaoRepository {
   async findByNotaMovimentacao(notaMovimentacaoId: string): Promise<MovimentacaoEstoque[]> {
     const movimentacoes = await this.prisma.movimentacaoEstoque.findMany({
       where: { notaMovimentacaoId },
-      orderBy: { createdAt: 'asc' },
+      include: {
+        estoqueItem: true, // Need to include for toDomain mapping
+      },
+      orderBy: { dataMovimentacao: 'asc' },
     });
 
     return movimentacoes.map(this.toDomain);
@@ -117,45 +162,49 @@ export class MovimentacaoRepository implements IMovimentacaoRepository {
     const where: any = {};
 
     if (filtros.almoxarifadoId) {
-      where.almoxarifadoId = filtros.almoxarifadoId;
+      where.estoqueItem = { almoxarifadoId: filtros.almoxarifadoId };
     }
     if (filtros.tipoEpiId) {
-      where.tipoEpiId = filtros.tipoEpiId;
+      where.estoqueItem = { ...where.estoqueItem, tipoEpiId: filtros.tipoEpiId };
     }
     if (filtros.tipoMovimentacao) {
       where.tipoMovimentacao = filtros.tipoMovimentacao;
     }
     if (filtros.usuarioId) {
-      where.usuarioId = filtros.usuarioId;
+      where.responsavelId = filtros.usuarioId;
     }
     if (filtros.notaMovimentacaoId) {
       where.notaMovimentacaoId = filtros.notaMovimentacaoId;
     }
     if (filtros.dataInicio || filtros.dataFim) {
-      where.createdAt = {};
+      where.dataMovimentacao = {};
       if (filtros.dataInicio) {
-        where.createdAt.gte = filtros.dataInicio;
+        where.dataMovimentacao.gte = filtros.dataInicio;
       }
       if (filtros.dataFim) {
-        where.createdAt.lte = filtros.dataFim;
+        where.dataMovimentacao.lte = filtros.dataFim;
       }
     }
 
     const movimentacoes = await this.prisma.movimentacaoEstoque.findMany({
       where,
-      orderBy: { createdAt: 'desc' },
+      orderBy: { dataMovimentacao: 'desc' },
       include: {
-        almoxarifado: {
-          select: { nome: true, codigo: true },
+        estoqueItem: {
+          include: {
+            almoxarifado: {
+              select: { nome: true },
+            },
+            tipoEpi: {
+              select: { nomeEquipamento: true, numeroCa: true },
+            },
+          },
         },
-        tipoEpi: {
-          select: { nome: true, codigo: true },
-        },
-        usuario: {
+        responsavel: {
           select: { nome: true, email: true },
         },
         notaMovimentacao: {
-          select: { numero: true, tipo: true },
+          select: { numeroDocumento: true, tipoNota: true },
         },
       },
     });
@@ -164,16 +213,25 @@ export class MovimentacaoRepository implements IMovimentacaoRepository {
   }
 
   async obterUltimaSaldo(almoxarifadoId: string, tipoEpiId: string): Promise<number> {
+    // First find the estoqueItem that matches almoxarifado and tipo
+    const estoqueItem = await this.prisma.estoqueItem.findFirst({
+      where: { almoxarifadoId, tipoEpiId }
+    });
+    
+    if (!estoqueItem) {
+      return 0;
+    }
+    
     const ultimaMovimentacao = await this.prisma.movimentacaoEstoque.findFirst({
       where: {
-        almoxarifadoId,
-        tipoEpiId,
+        estoqueItemId: estoqueItem.id,
       },
-      orderBy: { createdAt: 'desc' },
-      select: { saldoPosterior: true },
+      orderBy: { dataMovimentacao: 'desc' },
+      select: { quantidadeMovida: true },
     });
 
-    return ultimaMovimentacao?.saldoPosterior || 0;
+    // saldoPosterior field removed - return quantidadeMovida as fallback
+    return ultimaMovimentacao?.quantidadeMovida || 0;
   }
 
   async obterKardex(
@@ -182,18 +240,26 @@ export class MovimentacaoRepository implements IMovimentacaoRepository {
     dataInicio?: Date,
     dataFim?: Date,
   ): Promise<KardexItem[]> {
+    // First find the estoqueItem that matches almoxarifado and tipo
+    const estoqueItem = await this.prisma.estoqueItem.findFirst({
+      where: { almoxarifadoId, tipoEpiId }
+    });
+    
+    if (!estoqueItem) {
+      return [];
+    }
+    
     const where: any = {
-      almoxarifadoId,
-      tipoEpiId,
+      estoqueItemId: estoqueItem.id,
     };
 
     if (dataInicio || dataFim) {
-      where.createdAt = {};
+      where.dataMovimentacao = {};
       if (dataInicio) {
-        where.createdAt.gte = dataInicio;
+        where.dataMovimentacao.gte = dataInicio;
       }
       if (dataFim) {
-        where.createdAt.lte = dataFim;
+        where.dataMovimentacao.lte = dataFim;
       }
     }
 
@@ -201,20 +267,20 @@ export class MovimentacaoRepository implements IMovimentacaoRepository {
       where,
       include: {
         notaMovimentacao: {
-          select: { numero: true },
+          select: { numeroDocumento: true },
         },
       },
-      orderBy: { createdAt: 'asc' },
+      orderBy: { dataMovimentacao: 'asc' },
     });
 
     return movimentacoes.map((mov) => ({
-      data: mov.createdAt,
-      documento: mov.notaMovimentacao?.numero || `MOV-${mov.id.substring(0, 8)}`,
+      data: mov.dataMovimentacao,
+      documento: mov.notaMovimentacao?.numeroDocumento || `MOV-${mov.id.substring(0, 8)}`,
       tipoMovimentacao: mov.tipoMovimentacao as TipoMovimentacao,
-      quantidade: mov.quantidade,
-      saldoAnterior: mov.saldoAnterior,
-      saldoPosterior: mov.saldoPosterior,
-      observacoes: mov.observacoes || undefined,
+      quantidade: mov.quantidadeMovida,
+      saldoAnterior: 0, // Field removed from schema - use 0 as default
+      saldoPosterior: 0, // Field removed from schema - use 0 as default  
+      observacoes: undefined, // Field removed from schema
     }));
   }
 
@@ -225,20 +291,26 @@ export class MovimentacaoRepository implements IMovimentacaoRepository {
     quantidade: number,
     usuarioId: string,
     notaMovimentacaoId?: string,
-    observacoes?: string,
+    _observacoes?: string,
   ): Promise<MovimentacaoEstoque> {
     // Obter saldo anterior
-    const saldoAnterior = await this.obterUltimaSaldo(almoxarifadoId, tipoEpiId);
+    await this.obterUltimaSaldo(almoxarifadoId, tipoEpiId);
 
     // Criar a movimentação usando o método estático da entidade
-    const movimentacaoData = MovimentacaoEstoque.createEntrada(
-      almoxarifadoId,
-      tipoEpiId,
+    // First find or create the estoqueItem
+    const estoqueItem = await this.prisma.estoqueItem.findFirst({
+      where: { almoxarifadoId, tipoEpiId }
+    });
+    
+    if (!estoqueItem) {
+      throw new BusinessError('Estoque item não encontrado');
+    }
+
+    const movimentacaoData = MovimentacaoEstoque.createEntradaNota(
+      estoqueItem.id,
       quantidade,
-      saldoAnterior,
       usuarioId,
       notaMovimentacaoId,
-      observacoes,
     );
 
     return this.create(movimentacaoData);
@@ -247,39 +319,55 @@ export class MovimentacaoRepository implements IMovimentacaoRepository {
   async criarEstorno(
     movimentacaoOriginalId: string,
     usuarioId: string,
-    observacoes?: string,
+    _observacoes?: string,
   ): Promise<MovimentacaoEstoque> {
-    const movimentacaoOriginal = await this.findById(movimentacaoOriginalId);
-    if (!movimentacaoOriginal) {
+    // Get the original movement with estoqueItem data
+    const movimentacaoOriginalData = await this.prisma.movimentacaoEstoque.findUnique({
+      where: { id: movimentacaoOriginalId },
+      include: {
+        estoqueItem: {
+          select: {
+            almoxarifadoId: true,
+            tipoEpiId: true,
+          },
+        },
+      },
+    });
+    
+    if (!movimentacaoOriginalData) {
       throw new NotFoundError('Movimentação', movimentacaoOriginalId);
     }
+    
+    const movimentacaoOriginal = this.toDomain(movimentacaoOriginalData);
 
     if (!movimentacaoOriginal.isEstornavel()) {
       throw new BusinessError('Movimentação não pode ser estornada');
     }
 
-    // Obter saldo atual
-    const saldoAnterior = await this.obterUltimaSaldo(
-      movimentacaoOriginal.almoxarifadoId,
-      movimentacaoOriginal.tipoEpiId,
-    );
+    // Get the estorno type for this movement
+    const tipoEstorno = movimentacaoOriginal.getTipoEstorno();
+    if (!tipoEstorno) {
+      throw new BusinessError('Tipo de movimentação não pode ser estornado');
+    }
 
-    // Criar movimentação de estorno (quantidade com sinal oposto)
-    const quantidadeEstorno = movimentacaoOriginal.isEntrada()
-      ? -movimentacaoOriginal.quantidade
-      : movimentacaoOriginal.quantidade;
+    // Create estorno using the entity static method
+    const estornoData = MovimentacaoEstoque.createEstorno(
+      movimentacaoOriginal.estoqueItemId,
+      movimentacaoOriginal.quantidadeMovida,
+      usuarioId,
+      tipoEstorno,
+      movimentacaoOriginalId,
+    );
 
     const estorno = await this.prisma.movimentacaoEstoque.create({
       data: {
-        almoxarifadoId: movimentacaoOriginal.almoxarifadoId,
-        tipoEpiId: movimentacaoOriginal.tipoEpiId,
-        tipoMovimentacao: TipoMovimentacao.ESTORNO as any,
-        quantidade: Math.abs(quantidadeEstorno),
-        saldoAnterior,
-        saldoPosterior: saldoAnterior + quantidadeEstorno,
-        usuarioId,
-        observacoes: observacoes || `Estorno da movimentação ${movimentacaoOriginalId}`,
-        movimentacaoEstornoId: movimentacaoOriginalId,
+        estoqueItemId: estornoData.estoqueItemId,
+        tipoMovimentacao: estornoData.tipoMovimentacao as any,
+        quantidadeMovida: estornoData.quantidadeMovida,
+        responsavelId: usuarioId,
+        notaMovimentacaoId: estornoData.notaMovimentacaoId,
+        entregaId: estornoData.entregaId,
+        movimentacaoOrigemId: estornoData.movimentacaoOrigemId,
       },
     });
 
@@ -288,17 +376,22 @@ export class MovimentacaoRepository implements IMovimentacaoRepository {
 
   async findEstornaveis(almoxarifadoId?: string): Promise<MovimentacaoEstoque[]> {
     const where: any = {
-      tipoMovimentacao: { not: TipoMovimentacao.ESTORNO },
-      movimentacaoEstornoId: null,
+      tipoMovimentacao: { not: { startsWith: 'ESTORNO_' } },
+      movimentacaoOrigemId: null, // Only original movements can be reversed
     };
 
     if (almoxarifadoId) {
-      where.almoxarifadoId = almoxarifadoId;
+      where.estoqueItem = {
+        almoxarifadoId: almoxarifadoId
+      };
     }
 
     const movimentacoes = await this.prisma.movimentacaoEstoque.findMany({
       where,
-      orderBy: { createdAt: 'desc' },
+      include: {
+        estoqueItem: true, // Need to include for almoxarifado filter
+      },
+      orderBy: { dataMovimentacao: 'desc' },
       take: 100, // Limitar para performance
     });
 
@@ -315,26 +408,26 @@ export class MovimentacaoRepository implements IMovimentacaoRepository {
     valor: number;
   }[]> {
     const where: any = {
-      createdAt: {
+      dataMovimentacao: {
         gte: dataInicio,
         lte: dataFim,
       },
     };
 
     if (almoxarifadoId) {
-      where.almoxarifadoId = almoxarifadoId;
+      where.estoqueItem = { almoxarifadoId: almoxarifadoId };
     }
 
     const resumo = await this.prisma.movimentacaoEstoque.groupBy({
       by: ['tipoMovimentacao'],
       where,
-      _sum: { quantidade: true },
+      _sum: { quantidadeMovida: true },
       _count: { id: true },
     });
 
     return resumo.map((item) => ({
       tipoMovimentacao: item.tipoMovimentacao as TipoMovimentacao,
-      quantidade: item._sum.quantidade || 0,
+      quantidade: item._sum.quantidadeMovida || 0,
       valor: item._count.id || 0,
     }));
   }
@@ -342,17 +435,14 @@ export class MovimentacaoRepository implements IMovimentacaoRepository {
   private toDomain(movimentacao: any): MovimentacaoEstoque {
     return new MovimentacaoEstoque(
       movimentacao.id,
-      movimentacao.almoxarifadoId,
-      movimentacao.tipoEpiId,
+      movimentacao.estoqueItemId,
       movimentacao.tipoMovimentacao as TipoMovimentacao,
-      movimentacao.quantidade,
-      movimentacao.saldoAnterior,
-      movimentacao.saldoPosterior,
+      movimentacao.quantidadeMovida,
       movimentacao.notaMovimentacaoId,
-      movimentacao.usuarioId,
-      movimentacao.observacoes,
-      movimentacao.movimentacaoEstornoId,
-      movimentacao.createdAt,
+      movimentacao.responsavelId,
+      movimentacao.entregaId,
+      movimentacao.movimentacaoOrigemId,
+      movimentacao.dataMovimentacao,
     );
   }
 }

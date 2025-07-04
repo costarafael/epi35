@@ -77,13 +77,13 @@ export class CancelarDevolucaoUseCase {
           itemId: item.id,
           tipoEpiId: item.tipoEpiId,
           statusAnterior,
-          novoStatus: StatusEntregaItem.ENTREGUE,
+          novoStatus: StatusEntregaItem.COM_COLABORADOR,
           numeroSerie: item.numeroSerie,
           lote: item.lote,
         });
 
         // Estornar movimentação de entrada (se houve)
-        if (statusAnterior !== StatusEntregaItem.PERDIDO) {
+        if (statusAnterior !== StatusEntregaItem.DEVOLVIDO) {
           const estorno = await this.estornarMovimentacaoEntrada(
             entregaCompleta,
             item,
@@ -100,7 +100,7 @@ export class CancelarDevolucaoUseCase {
 
             // Remover do estoque
             await this.removerDoEstoque(
-              entregaCompleta.fichaEpi.almoxarifadoId,
+              entregaCompleta.fichaEPI.almoxarifadoId,
               item.tipoEpiId,
               statusAnterior,
               tx,
@@ -243,7 +243,7 @@ export class CancelarDevolucaoUseCase {
             colaborador: {
               select: { nome: true },
             },
-            // tipoEpi não existe mais em fichaEpi
+            // tipoEpi não existe mais em fichaEPI
           },
         },
       },
@@ -253,7 +253,7 @@ export class CancelarDevolucaoUseCase {
     const cancelamentos = historicos
       .filter(h => {
         if (colaboradorId && h.fichaEpiId !== colaboradorId) return false;
-        // tipoEpiId filter removido pois fichaEpi não tem mais tipoEpiId
+        // tipoEpiId filter removido pois fichaEPI não tem mais tipoEpiId
         return true;
       })
       .map(historico => {
@@ -428,7 +428,7 @@ export class CancelarDevolucaoUseCase {
     tx: any,
   ): Promise<void> {
     // Determinar status do estoque baseado no status anterior do item
-    const statusEstoque = statusAnterior === StatusEntregaItem.DANIFICADO 
+    const statusEstoque = statusAnterior === StatusEntregaItem.DEVOLVIDO 
       ? 'AGUARDANDO_INSPECAO' 
       : 'DISPONIVEL';
 

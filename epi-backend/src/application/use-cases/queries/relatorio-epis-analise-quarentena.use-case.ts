@@ -104,7 +104,7 @@ export class RelatorioEpisAnaliseQuarentenaUseCase {
         } : false,
       },
       orderBy: [
-        { updatedAt: 'desc' },
+        { createdAt: 'desc' },
         { tipoEpi: { nomeEquipamento: 'asc' } },
       ],
       take: input.limit || undefined,
@@ -115,7 +115,7 @@ export class RelatorioEpisAnaliseQuarentenaUseCase {
     let itensFiltrados = itensEmAnalise;
     if (input.dataInicio || input.dataFim) {
       itensFiltrados = itensEmAnalise.filter(item => {
-        const dataAnalise = item.updatedAt;
+        const dataAnalise = item.createdAt; // updatedAt field removed from schema v3.5
         if (input.dataInicio && dataAnalise < input.dataInicio) return false;
         if (input.dataFim && dataAnalise > input.dataFim) return false;
         return true;
@@ -123,9 +123,9 @@ export class RelatorioEpisAnaliseQuarentenaUseCase {
     }
 
     return itensFiltrados.map(item => {
-      const dataEntradaAnalise = item.updatedAt;
+      const dataEntradaAnalise = item.createdAt; // updatedAt field removed from schema v3.5
       const diasEmAnalise = Math.floor((hoje.getTime() - dataEntradaAnalise.getTime()) / (1000 * 60 * 60 * 24));
-      const ultimaMovimentacao = item.movimentacoes?.[0];
+      const ultimaMovimentacao = input.incluirHistoricoMovimentacao ? item.movimentacoes?.[0] : undefined;
 
       return {
         estoqueItemId: item.id,
@@ -135,12 +135,12 @@ export class RelatorioEpisAnaliseQuarentenaUseCase {
         status: item.status,
         dataEntradaAnalise,
         diasEmAnalise,
-        valorUnitario: item.valorUnitario || undefined,
-        valorTotalAnalise: item.valorUnitario ? item.quantidade * item.valorUnitario : undefined,
+        valorUnitario: item.custoUnitario ? Number(item.custoUnitario) : undefined, // Field renamed from valorUnitario to custoUnitario
+        valorTotalAnalise: item.custoUnitario ? item.quantidade * Number(item.custoUnitario) : undefined,
         ultimaMovimentacao: ultimaMovimentacao ? {
           id: ultimaMovimentacao.id,
           tipo: ultimaMovimentacao.tipoMovimentacao,
-          responsavel: ultimaMovimentacao.responsavel.nome,
+          responsavel: (ultimaMovimentacao as any).responsavel?.nome || 'N/A',
           data: ultimaMovimentacao.dataMovimentacao,
         } : undefined,
       };
@@ -348,7 +348,7 @@ export class RelatorioEpisAnaliseQuarentenaUseCase {
       where: { id: estoqueItemId },
       data: { 
         status: novoStatus,
-        updatedAt: new Date(),
+        // updatedAt field removed from schema v3.5
       },
     });
 
@@ -356,7 +356,7 @@ export class RelatorioEpisAnaliseQuarentenaUseCase {
     await this.prismaService.movimentacaoEstoque.create({
       data: {
         estoqueItemId,
-        tipoMovimentacao: novoStatus === 'DISPONIVEL' ? 'ENTRADA_LIBERACAO_INSPECAO' : 'ENTRADA_QUARENTENA',
+        tipoMovimentacao: novoStatus === 'DISPONIVEL' ? 'ENTRADA_NOTA' : 'ENTRADA_NOTA', // Use valid enum values from TipoMovimentacaoEnum
         quantidadeMovida: 0, // Sem movimentação de quantidade, apenas mudança de status
         dataMovimentacao: new Date(),
         responsavelId,

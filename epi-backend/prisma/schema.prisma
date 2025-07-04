@@ -22,6 +22,20 @@ enum StatusTipoEpiEnum {
   @@map("status_tipo_epi_enum")
 }
 
+// Categoria de EPI conforme normas brasileiras
+enum CategoriaEpiEnum {
+  PROTECAO_CABECA
+  PROTECAO_OLHOS_ROSTO
+  PROTECAO_OUVIDOS
+  PROTECAO_MAOS_BRACCOS
+  PROTECAO_PES
+  PROTECAO_RESPIRATORIA
+  PROTECAO_CLIMATICA
+  ROUPA_APROXIMACAO
+
+  @@map("categoria_epi_enum")
+}
+
 // Status de um item no estoque físico
 enum StatusEstoqueItemEnum {
   DISPONIVEL
@@ -153,6 +167,7 @@ model TipoEPI {
   nomeEquipamento String              @map("nome_equipamento") @db.VarChar(255)
   numeroCa        String              @unique @map("numero_ca") @db.VarChar(50)
   descricao       String?             @db.Text
+  categoria       CategoriaEpiEnum    @default(PROTECAO_CABECA)
   vidaUtilDias    Int?                @map("vida_util_dias")
   status          StatusTipoEpiEnum   @default(ATIVO)
   createdAt       DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
@@ -250,6 +265,18 @@ model MovimentacaoEstoque {
   @@map("movimentacoes_estoque")
 }
 
+model Contratada {
+  id        String   @id @default(uuid())
+  nome      String   @db.VarChar(255)
+  cnpj      String   @unique @db.VarChar(14)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  // Relacionamentos
+  colaboradores Colaborador[]
+
+  @@map("contratadas")
+}
+
 model Colaborador {
   id               String   @id @default(uuid())
   nome             String   @db.VarChar(255)
@@ -258,11 +285,13 @@ model Colaborador {
   cargo            String?  @db.VarChar(100)
   setor            String?  @db.VarChar(100)
   unidadeNegocioId String   @map("unidade_negocio_id")
+  contratadaId     String?  @map("contratada_id")
   ativo            Boolean  @default(true)
   createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
   // Relacionamentos
   unidadeNegocio UnidadeNegocio @relation(fields: [unidadeNegocioId], references: [id])
+  contratada     Contratada?    @relation(fields: [contratadaId], references: [id])
   fichasEPI      FichaEPI[]
 
   @@map("colaboradores")

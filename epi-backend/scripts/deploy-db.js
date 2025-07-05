@@ -25,11 +25,27 @@ async function deployDatabase() {
     
     if (shouldSeed) {
       console.log('🌱 Running database seed...');
-      execSync('npx prisma db seed', { 
-        stdio: 'inherit',
-        cwd: process.cwd()
-      });
-      console.log('✅ Database seeded successfully!');
+      try {
+        // Try standard prisma seed first
+        execSync('npx prisma db seed', { 
+          stdio: 'inherit',
+          cwd: process.cwd()
+        });
+        console.log('✅ Database seeded successfully!');
+      } catch (seedError) {
+        console.log('⚠️  Standard seed failed, trying compiled version...');
+        try {
+          // Fallback to compiled seed for production
+          execSync('node prisma/seed.js', { 
+            stdio: 'inherit',
+            cwd: process.cwd()
+          });
+          console.log('✅ Database seeded successfully with compiled version!');
+        } catch (compiledSeedError) {
+          console.log('⚠️  Both seed methods failed. Database migrations deployed but seed skipped.');
+          console.log('Migrations are complete, seed can be run manually later.');
+        }
+      }
     } else {
       console.log('⏭️  Skipping seed (use --seed flag or RUN_SEED=true to enable)');
     }

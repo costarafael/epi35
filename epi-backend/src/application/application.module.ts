@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { RepositoryModule } from '../infrastructure/repositories/repository.module';
+import { ConfiguracaoService } from '../domain/services/configuracao.service';
 
 // Contratada Use Cases
 import { CriarContratadaUseCase } from './use-cases/contratadas/criar-contratada.use-case';
@@ -36,6 +37,9 @@ import { RelatorioSaldoEstoqueUseCase } from './use-cases/queries/relatorio-sald
 @Module({
   imports: [RepositoryModule],
   providers: [
+    // Domain Services
+    ConfiguracaoService,
+    
     // Contratada Use Cases
     CriarContratadaUseCase,
     ListarContratadasUseCase,
@@ -69,6 +73,9 @@ import { RelatorioSaldoEstoqueUseCase } from './use-cases/queries/relatorio-sald
     RelatorioSaldoEstoqueUseCase,
   ],
   exports: [
+    // Domain Services
+    ConfiguracaoService,
+    
     // Contratada Use Cases
     CriarContratadaUseCase,
     ListarContratadasUseCase,

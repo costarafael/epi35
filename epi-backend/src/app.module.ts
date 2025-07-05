@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from './infrastructure/config/config.module';
 import { DatabaseModule } from './infrastructure/database/database.module';
 import { RepositoryModule } from './infrastructure/repositories/repository.module';
+import { ApplicationModule } from './application/application.module';
 import { HealthController } from './presentation/controllers/health.controller';
 import { ContratadaController } from './presentation/controllers/contratada.controller';
 import { EstoqueController } from './presentation/controllers/estoque.controller';
@@ -14,6 +15,7 @@ import { RelatoriosController } from './presentation/controllers/relatorios.cont
     ConfigModule,
     DatabaseModule,
     RepositoryModule,
+    ApplicationModule,
   ],
   controllers: [
     HealthController,

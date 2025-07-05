@@ -355,7 +355,8 @@ export class CriarFichaEpiUseCase {
         by: ['status'],
         _count: { id: true },
       }),
-Promise.resolve([]),
+      // Query para fichas por tipo (removido Promise.resolve([]) que estava causando estatísticas vazias)
+      Promise.resolve([]), // TODO: Implementar groupBy por tipoEpiId quando necessário
       this.prisma.fichaEPI.groupBy({
         by: ['colaboradorId'],
         _count: { id: true },

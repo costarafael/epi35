@@ -20,39 +20,30 @@ export class HealthController {
     });
   }
 
-  @Post('deploy-db')
-  async deployDatabase(@Res() res: Response) {
+  @Post('seed')
+  async runSeed(@Res() res: Response) {
     try {
-      console.log('🚀 Starting database deployment...');
-      
-      // Deploy migrations
-      console.log('📦 Deploying migrations...');
-      execSync('npx prisma migrate deploy', { 
-        stdio: 'pipe',
-        cwd: process.cwd()
-      });
-      
-      // Run seed
       console.log('🌱 Running database seed...');
-      execSync('npx prisma db seed', { 
-        stdio: 'pipe',
+      
+      // Execute compiled seed
+      execSync('node prisma/seed.js', { 
+        stdio: 'inherit',
         cwd: process.cwd()
       });
       
-      console.log('✅ Database deployment completed!');
+      console.log('✅ Database seeded successfully!');
       
       return res.status(HttpStatus.OK).json({
         status: 'success',
-        message: 'Database deployed and seeded successfully',
+        message: 'Database seeded successfully',
         timestamp: new Date().toISOString(),
       });
       
     } catch (error) {
-      console.error('❌ Database deployment failed:', error);
-      
+      console.error('❌ Seed failed:', error.message);
       return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
         status: 'error',
-        message: 'Database deployment failed',
+        message: 'Seed failed',
         error: error.message,
         timestamp: new Date().toISOString(),
       });

@@ -24,5 +24,12 @@
       "@infrastructure/*": ["src/infrastructure/*"],
       "@presentation/*": ["src/presentation/*"]
     }
-  }
+  },
+  "exclude": [
+    "test/**/*",
+    "**/*.spec.ts",
+    "**/*.test.ts",
+    "vitest.config.ts",
+    "vitest.config.e2e.ts"
+  ]
 }

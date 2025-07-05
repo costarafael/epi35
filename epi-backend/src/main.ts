@@ -11,8 +11,10 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   const configService = app.get(ConfigService);
 
-  // Global prefix
-  app.setGlobalPrefix('api');
+  // Global prefix - but exclude health endpoint for Render
+  app.setGlobalPrefix('api', {
+    exclude: ['health']
+  });
 
   // CORS configuration
   const corsOrigins = configService.get<string>('CORS_ORIGINS', '*');

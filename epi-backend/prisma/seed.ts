@@ -13,6 +13,7 @@ async function main() {
   await prisma.entrega.deleteMany();
   await prisma.fichaEPI.deleteMany();
   await prisma.colaborador.deleteMany();
+  await prisma.contratada.deleteMany();
   await prisma.movimentacaoEstoque.deleteMany();
   await prisma.notaMovimentacaoItem.deleteMany();
   await prisma.notaMovimentacao.deleteMany();
@@ -62,7 +63,30 @@ async function main() {
     }),
   ]);
 
-  // 3. Almoxarifados (campo ativo removido, codigo removido)
+  // 3. Contratadas
+  console.log('🏢 Creating contractors...');
+  const contratadas = await Promise.all([
+    prisma.contratada.create({
+      data: {
+        nome: 'Empresa Contratada Alpha LTDA',
+        cnpj: '11222333000181',
+      },
+    }),
+    prisma.contratada.create({
+      data: {
+        nome: 'Beta Serviços e Construções S.A.',
+        cnpj: '44555666000122',
+      },
+    }),
+    prisma.contratada.create({
+      data: {
+        nome: 'Gamma Engenharia e Consultoria',
+        cnpj: '77888999000163',
+      },
+    }),
+  ]);
+
+  // 4. Almoxarifados (campo ativo removido, codigo removido)
   console.log('📦 Creating warehouses...');
   const almoxarifados = await Promise.all([
     prisma.almoxarifado.create({
@@ -81,7 +105,7 @@ async function main() {
     }),
   ]);
 
-  // 4. Tipos de EPI (campos atualizados conforme documentação)
+  // 5. Tipos de EPI (campos atualizados conforme documentação)
   console.log('🦺 Creating EPI types...');
   const tiposEpi = await Promise.all([
     prisma.tipoEPI.create({
@@ -113,7 +137,7 @@ async function main() {
     }),
   ]);
 
-  // 5. Itens de Estoque
+  // 6. Itens de Estoque
   console.log('📊 Creating initial stock...');
   const estoqueItens = [];
   
@@ -131,9 +155,10 @@ async function main() {
     }
   }
 
-  // 6. Colaboradores
+  // 7. Colaboradores
   console.log('👷 Creating employees...');
   const colaboradores = await Promise.all([
+    // Colaboradores diretos (sem contratada)
     prisma.colaborador.create({
       data: {
         nome: 'Carlos Oliveira',
@@ -156,9 +181,46 @@ async function main() {
         ativo: true,
       },
     }),
+    // Colaboradores de contratadas
+    prisma.colaborador.create({
+      data: {
+        nome: 'Pedro Silva',
+        cpf: '34567890123',
+        matricula: 'ALPHA001',
+        cargo: 'Técnico de Segurança',
+        setor: 'Segurança do Trabalho',
+        unidadeNegocioId: unidades[0].id,
+        contratadaId: contratadas[0].id, // Empresa Alpha
+        ativo: true,
+      },
+    }),
+    prisma.colaborador.create({
+      data: {
+        nome: 'Maria Fernandes',
+        cpf: '45678901234',
+        matricula: 'BETA001',
+        cargo: 'Operadora de Máquinas',
+        setor: 'Produção',
+        unidadeNegocioId: unidades[1].id,
+        contratadaId: contratadas[1].id, // Beta Serviços
+        ativo: true,
+      },
+    }),
+    prisma.colaborador.create({
+      data: {
+        nome: 'João Santos',
+        cpf: '56789012345',
+        matricula: 'GAMMA001',
+        cargo: 'Engenheiro de Campo',
+        setor: 'Engenharia',
+        unidadeNegocioId: unidades[1].id,
+        contratadaId: contratadas[2].id, // Gamma Engenharia
+        ativo: true,
+      },
+    }),
   ]);
 
-  // 7. Fichas de EPI (estrutura conforme documentação - uma por colaborador)
+  // 8. Fichas de EPI (estrutura conforme documentação - uma por colaborador)
   console.log('📋 Creating EPI cards...');
   const fichas = [];
   
@@ -172,7 +234,7 @@ async function main() {
     fichas.push(ficha);
   }
 
-  // 8. Configurações do Sistema (campo ativa removido)
+  // 9. Configurações do Sistema (campo ativa removido)
   console.log('⚙️ Creating system configurations...');
   await Promise.all([
     prisma.configuracao.create({
@@ -195,6 +257,7 @@ async function main() {
   console.log('\n📊 Created data summary:');
   console.log(`👤 Users: ${users.length}`);
   console.log(`🏢 Business Units: ${unidades.length}`);
+  console.log(`🏛️  Contractors: ${contratadas.length}`);
   console.log(`📦 Warehouses: ${almoxarifados.length}`);
   console.log(`🦺 EPI Types: ${tiposEpi.length}`);
   console.log(`📊 Stock Items: ${estoqueItens.length}`);

@@ -5,8 +5,8 @@ import { Response } from 'express';
 export class HealthController {
   @Get('health')
   checkHealth(@Res() res: Response) {
-    // Ultra-simple health check - no dependencies, no async, no database
-    console.log('Health check called at:', new Date().toISOString());
+    // Health check at /health (no global prefix)
+    console.log('🟢 Health check called at /health:', new Date().toISOString());
     
     return res.status(HttpStatus.OK).json({
       status: 'ok',
@@ -15,13 +15,17 @@ export class HealthController {
       version: '3.5.0',
       environment: process.env.NODE_ENV || 'development',
       port: process.env.PORT || 3000,
+      route: '/health'
     });
   }
+}
 
-  @Get('api/health')
-  checkHealthApi(@Res() res: Response) {
-    // Backup route for /api/health in case global prefix causes issues
-    console.log('API Health check called at:', new Date().toISOString());
+@Controller('health')
+export class ApiHealthController {
+  @Get()
+  checkApiHealth(@Res() res: Response) {
+    // Health check at /api/health (with global prefix)
+    console.log('🟢 API Health check called at /api/health:', new Date().toISOString());
     
     return res.status(HttpStatus.OK).json({
       status: 'ok',
@@ -30,7 +34,7 @@ export class HealthController {
       version: '3.5.0',
       environment: process.env.NODE_ENV || 'development',
       port: process.env.PORT || 3000,
-      route: 'api/health',
+      route: '/api/health'
     });
   }
 }

@@ -2,7 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from './infrastructure/config/config.module';
 import { DatabaseModule } from './infrastructure/database/database.module';
 import { RepositoryModule } from './infrastructure/repositories/repository.module';
-import { HealthController } from './presentation/controllers/health.controller';
+import { HealthController, ApiHealthController } from './presentation/controllers/health.controller';
 
 @Module({
   imports: [
@@ -10,7 +10,7 @@ import { HealthController } from './presentation/controllers/health.controller';
     DatabaseModule,
     RepositoryModule,
   ],
-  controllers: [HealthController],
+  controllers: [HealthController, ApiHealthController],
   providers: [],
 })
 export class AppModule {}

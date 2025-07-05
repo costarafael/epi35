@@ -12,6 +12,8 @@ import { ObterContratadaUseCase } from './use-cases/contratadas/obter-contratada
 // Estoque Use Cases
 import { ConcluirNotaMovimentacaoUseCase } from './use-cases/estoque/concluir-nota-movimentacao.use-case';
 import { RealizarAjusteDirectoUseCase } from './use-cases/estoque/realizar-ajuste-direto.use-case';
+import { GerenciarNotaRascunhoUseCase } from './use-cases/estoque/gerenciar-nota-rascunho.use-case';
+import { CancelarNotaMovimentacaoUseCase } from './use-cases/estoque/cancelar-nota-movimentacao.use-case';
 
 // Fichas Use Cases
 import { CancelarDevolucaoUseCase } from './use-cases/fichas/cancelar-devolucao.use-case';
@@ -33,6 +35,7 @@ import { RelatorioItensDescartadosUseCase } from './use-cases/queries/relatorio-
 import { RelatoriopesquisarFichasTipoEpiUseCase } from './use-cases/queries/relatorio-pesquisar-fichas-tipo-epi.use-case';
 import { RelatorioPosicaoEstoqueUseCase } from './use-cases/queries/relatorio-posicao-estoque.use-case';
 import { RelatorioSaldoEstoqueUseCase } from './use-cases/queries/relatorio-saldo-estoque.use-case';
+import { RelatorioDescartesUseCase } from './use-cases/queries/relatorio-descartes.use-case';
 
 @Module({
   imports: [RepositoryModule],
@@ -50,6 +53,8 @@ import { RelatorioSaldoEstoqueUseCase } from './use-cases/queries/relatorio-sald
     // Estoque Use Cases
     ConcluirNotaMovimentacaoUseCase,
     RealizarAjusteDirectoUseCase,
+    GerenciarNotaRascunhoUseCase,
+    CancelarNotaMovimentacaoUseCase,
     
     // Fichas Use Cases
     CancelarDevolucaoUseCase,
@@ -71,6 +76,7 @@ import { RelatorioSaldoEstoqueUseCase } from './use-cases/queries/relatorio-sald
     RelatoriopesquisarFichasTipoEpiUseCase,
     RelatorioPosicaoEstoqueUseCase,
     RelatorioSaldoEstoqueUseCase,
+    RelatorioDescartesUseCase,
   ],
   exports: [
     // Domain Services
@@ -86,6 +92,8 @@ import { RelatorioSaldoEstoqueUseCase } from './use-cases/queries/relatorio-sald
     // Estoque Use Cases
     ConcluirNotaMovimentacaoUseCase,
     RealizarAjusteDirectoUseCase,
+    GerenciarNotaRascunhoUseCase,
+    CancelarNotaMovimentacaoUseCase,
     
     // Fichas Use Cases
     CancelarDevolucaoUseCase,
@@ -107,6 +115,7 @@ import { RelatorioSaldoEstoqueUseCase } from './use-cases/queries/relatorio-sald
     RelatoriopesquisarFichasTipoEpiUseCase,
     RelatorioPosicaoEstoqueUseCase,
     RelatorioSaldoEstoqueUseCase,
+    RelatorioDescartesUseCase,
   ],
 })
 export class ApplicationModule {}

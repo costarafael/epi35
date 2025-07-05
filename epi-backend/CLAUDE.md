@@ -2,9 +2,11 @@
 
 ## 🌐 PRODUÇÃO ATIVA
 **URL**: https://epi-backend-s14g.onrender.com
-**Status**: ✅ Operacional (Deploy: 05/07/2025)
+**Status**: ✅ Operacional (Deploy: 05/07/2025 18:01 UTC-3)
 **Health Check**: https://epi-backend-s14g.onrender.com/health
 **API Docs**: https://epi-backend-s14g.onrender.com/api/docs
+**Commit Live**: `8f7c723` - Dependency injection fixes
+**Endpoints**: 56 endpoints ativos (6 controllers)
 
 ## Fonte da Verdade
 📋 **Documentação Oficial**: `/docs-building/backend-modeuleEPI-documentation.md`
@@ -424,7 +426,7 @@ ENTREGUE → COM_COLABORADOR
 #### **📊 Configurações de Deploy**
 ```yaml
 # render.yaml
-buildCommand: cd epi-backend && npm install --legacy-peer-deps && npm run build && npx prisma generate
+buildCommand: cd epi-backend && npm ci && npm run build && npx prisma generate
 startCommand: cd epi-backend && node dist/src/main.js
 healthCheckPath: /health
 ```
@@ -434,6 +436,16 @@ healthCheckPath: /health
 2. **Package Lock Sync**: Atualizado package-lock.json para compatibilidade com npm ci
 3. **Health Check Routing**: Global prefix exclusion para endpoint `/health`
 4. **Timeout Configuration**: Server keepAliveTimeout + headersTimeout = 120s
+5. **Missing Use Cases**: Adicionados todos os use cases faltantes no ApplicationModule
+6. **Dependency Injection**: Corrigidos erros de DI em controllers
+
+#### **📋 Controllers em Produção (56 endpoints)**
+- **HealthController**: `/health` (1 endpoint)
+- **ContratadaController**: `/api/api/contratadas` (7 endpoints)
+- **EstoqueController**: `/api/api/estoque` (11 endpoints)
+- **FichasEpiController**: `/api/api/fichas-epi` (17 endpoints)
+- **NotasMovimentacaoController**: `/api/api/notas-movimentacao` (12 endpoints)
+- **RelatoriosController**: `/api/api/relatorios` (8 endpoints)
 
 #### **⚡ Health Check Implementation**
 ```typescript
@@ -455,16 +467,47 @@ export class HealthController {
 }
 ```
 
+#### **🔧 Correções Críticas de Deploy**
+```typescript
+// ApplicationModule - Todos os use cases registrados
+@Module({
+  imports: [RepositoryModule],
+  providers: [
+    ConfiguracaoService,
+    // Estoque Use Cases
+    GerenciarNotaRascunhoUseCase,
+    CancelarNotaMovimentacaoUseCase,
+    ConcluirNotaMovimentacaoUseCase,
+    // Relatórios Use Cases
+    RelatorioDescartesUseCase,
+    // ... todos os demais use cases
+  ],
+  exports: [/* mesma lista */]
+})
+```
+
 #### **📈 Monitoramento**
 - **Health Checks**: A cada 5 segundos (comportamento normal do Render)
 - **Auto-Deploy**: Ativado para commits na branch main
 - **Logs**: Console.log com emojis 🟢 para fácil identificação
+- **Últimos Deploys**: 
+  - `8f7c723` (05/07/2025 18:01): ✅ Dependências corrigidas - LIVE
+  - `f83c5fa` (05/07/2025): ❌ Missing use cases
+  - `2482a13` (05/07/2025): ❌ Dependency injection errors
 
 #### **🔄 CI/CD Pipeline**
 1. **Push to main** → GitHub webhook → Render auto-deploy
 2. **Build**: npm ci → nest build → prisma generate
 3. **Deploy**: Health check → Traffic routing
 4. **Monitoring**: Continuous health checks + application logs
+
+#### **🎯 Status Final**
+- ✅ **Build**: Sucesso (0 erros TypeScript)
+- ✅ **Deploy**: Live e operacional
+- ✅ **Health Check**: Respondendo corretamente
+- ✅ **API Docs**: Todos os endpoints visíveis
+- ✅ **Controllers**: 56 endpoints registrados
+- ✅ **Dependencies**: Todas as injeções funcionando
 
 ## ✅ OTIMIZAÇÕES COMPLETAMENTE IMPLEMENTADAS (04/07/2025)
 

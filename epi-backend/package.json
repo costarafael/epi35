@@ -38,6 +38,8 @@
     "prisma:deploy": "prisma migrate deploy",
     "prisma:seed": "ts-node prisma/seed.ts",
     "prisma:deploy:prod": "prisma migrate deploy && prisma db seed",
+    "deploy:db": "node scripts/deploy-db.js",
+    "deploy:db:seed": "node scripts/deploy-db.js --seed",
     "prisma:studio": "prisma studio",
     "prisma:test:deploy": "DATABASE_URL=postgresql://postgres:postgres@localhost:5436/epi_test_db_v35?schema=public prisma migrate deploy",
     "prisma:test:reset": "DATABASE_URL=postgresql://postgres:postgres@localhost:5436/epi_test_db_v35?schema=public prisma migrate reset --force"

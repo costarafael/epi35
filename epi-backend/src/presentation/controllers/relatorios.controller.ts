@@ -39,7 +39,7 @@ import { RELATORIOS, METRICS, SAUDE_SISTEMA, DATES } from '../../shared/constant
 
 @ApiTags('relatorios')
 @ApiBearerAuth()
-@Controller('api/relatorios')
+@Controller('relatorios')
 export class RelatoriosController {
   constructor(
     private readonly relatorioPosicaoEstoqueUseCase: RelatorioPosicaoEstoqueUseCase,

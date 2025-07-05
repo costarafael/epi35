@@ -42,7 +42,7 @@ import { IdSchema, SuccessResponse, PaginatedResponse } from '../dto/schemas/com
 
 @ApiTags('notas-movimentacao')
 @ApiBearerAuth()
-@Controller('api/notas-movimentacao')
+@Controller('notas-movimentacao')
 export class NotasMovimentacaoController {
   constructor(
     private readonly gerenciarNotaUseCase: GerenciarNotaRascunhoUseCase,

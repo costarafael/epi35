@@ -38,7 +38,7 @@ import { IdSchema, SuccessResponse } from '../dto/schemas/common.schemas';
 
 @ApiTags('contratadas')
 @ApiBearerAuth()
-@Controller('api/contratadas')
+@Controller('contratadas')
 export class ContratadaController {
   constructor(
     private readonly criarContratadaUseCase: CriarContratadaUseCase,

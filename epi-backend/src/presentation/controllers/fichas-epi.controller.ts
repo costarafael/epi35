@@ -48,7 +48,7 @@ import { mapEntregaToOutput } from '../../infrastructure/mapping/entrega.mapper'
 
 @ApiTags('fichas-epi')
 @ApiBearerAuth()
-@Controller('api/fichas-epi')
+@Controller('fichas-epi')
 export class FichasEpiController {
   constructor(
     private readonly criarFichaEpiUseCase: CriarFichaEpiUseCase,

@@ -40,7 +40,7 @@ import { IdSchema, SuccessResponse } from '../dto/schemas/common.schemas';
 
 @ApiTags('estoque')
 @ApiBearerAuth()
-@Controller('api/estoque')
+@Controller('estoque')
 export class EstoqueController {
   constructor(
     private readonly relatorioPosicaoEstoqueUseCase: RelatorioPosicaoEstoqueUseCase,

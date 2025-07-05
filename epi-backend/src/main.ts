@@ -72,7 +72,11 @@ async function bootstrap() {
 
   // Start server
   const port = configService.get<number>('PORT', 3000);
-  await app.listen(port);
+  const server = await app.listen(port);
+  
+  // Configure server timeouts for Render deployment
+  server.keepAliveTimeout = 120000; // 120 seconds
+  server.headersTimeout = 120000;   // 120 seconds
 
   console.log(`
   🚀 EPI Backend API is running!

@@ -1,5 +1,11 @@
 # Backend do Módulo de Gestão de EPI v3.5.4
 
+## 🌐 PRODUÇÃO ATIVA
+**URL**: https://epi-backend-s14g.onrender.com
+**Status**: ✅ Operacional (Deploy: 05/07/2025)
+**Health Check**: https://epi-backend-s14g.onrender.com/health
+**API Docs**: https://epi-backend-s14g.onrender.com/api/docs
+
 ## Fonte da Verdade
 📋 **Documentação Oficial**: `/docs-building/backend-modeuleEPI-documentation.md`
 🐳 **Containers**: `epi_db_dev_v35:5435`, `epi_db_test_v35:5436` (**reset automático**), `epi_redis:6379`
@@ -205,6 +211,13 @@ await createSampleDeliveries(prisma, usuarios[0], fichas, almoxarifados, tiposEp
 - `./claude-flow sparc "<task>"`: Executar modo SPARC
 - `./claude-flow memory store <key> <data>`: Armazenar informações
 
+### Deploy & Produção
+- **Render.com**: Deploy automático via GitHub (main branch)
+- **Health Check**: `/health` endpoint para monitoramento
+- **Environment**: PostgreSQL + Redis (Upstash) + Node.js 22.16.0
+- **Auto-deploy**: Ativado para commits na branch main
+- **Logs**: Monitoramento contínuo via Render Dashboard
+
 ## Validações Obrigatórias
 
 ### Antes de Commit
@@ -391,6 +404,67 @@ ENTREGUE → COM_COLABORADOR
 - **Test seeds minimalistas**: Apenas dados estruturais, nunca transacionais
 - **Limpeza de dados isolada**: Cada teste cria seus próprios dados de negócio
 - **Logs de debug temporários**: Ativar quando necessário, remover após resolução
+
+## 🚀 DEPLOY EM PRODUÇÃO (05/07/2025)
+
+### ✅ **STATUS**: Backend 100% Operacional no Render.com
+
+#### **🌐 URLs de Produção**
+- **Main**: https://epi-backend-s14g.onrender.com
+- **Health Check**: https://epi-backend-s14g.onrender.com/health
+- **API Documentation**: https://epi-backend-s14g.onrender.com/api/docs
+
+#### **🔧 Infraestrutura de Produção**
+- **Platform**: Render.com (Free Tier)
+- **Database**: PostgreSQL managed by Render (1GB, 90 days retention)
+- **Cache**: Redis via Upstash
+- **Runtime**: Node.js 22.16.0
+- **Build**: NestJS + TypeScript + Prisma
+
+#### **📊 Configurações de Deploy**
+```yaml
+# render.yaml
+buildCommand: cd epi-backend && npm install --legacy-peer-deps && npm run build && npx prisma generate
+startCommand: cd epi-backend && node dist/src/main.js
+healthCheckPath: /health
+```
+
+#### **🎯 Problemas Resolvidos Durante Deploy**
+1. **Dependencies Conflict**: Movido `class-validator`, `reflect-metadata` para dependencies
+2. **Package Lock Sync**: Atualizado package-lock.json para compatibilidade com npm ci
+3. **Health Check Routing**: Global prefix exclusion para endpoint `/health`
+4. **Timeout Configuration**: Server keepAliveTimeout + headersTimeout = 120s
+
+#### **⚡ Health Check Implementation**
+```typescript
+// Global prefix exclusion
+app.setGlobalPrefix('api', { exclude: ['health'] });
+
+// Health endpoint at /health (no database dependency)
+@Controller('health')
+export class HealthController {
+  @Get()
+  checkHealth(@Res() res: Response) {
+    return res.status(HttpStatus.OK).json({
+      status: 'ok',
+      timestamp: new Date().toISOString(),
+      service: 'epi-backend',
+      version: '3.5.0'
+    });
+  }
+}
+```
+
+#### **📈 Monitoramento**
+- **Health Checks**: A cada 5 segundos (comportamento normal do Render)
+- **Auto-Deploy**: Ativado para commits na branch main
+- **Logs**: Console.log com emojis 🟢 para fácil identificação
+
+#### **🔄 CI/CD Pipeline**
+1. **Push to main** → GitHub webhook → Render auto-deploy
+2. **Build**: npm ci → nest build → prisma generate
+3. **Deploy**: Health check → Traffic routing
+4. **Monitoring**: Continuous health checks + application logs
 
 ## ✅ OTIMIZAÇÕES COMPLETAMENTE IMPLEMENTADAS (04/07/2025)
 

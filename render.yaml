@@ -11,7 +11,9 @@ services:
     startCommand: cd epi-backend && node dist/src/main.js
     healthCheckPath: /health
     
-    # Force Render to use updated config
+    # Render optimizations based on official docs
+    previewsEnabled: false
+    autoDeploy: true
     
     # =================================
     # 🌐 Network Configuration

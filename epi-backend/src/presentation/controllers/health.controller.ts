@@ -1,50 +1,36 @@
-import { Controller, Get } from '@nestjs/common';
-import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
-import { PrismaService } from '../../infrastructure/database/prisma.service';
+import { Controller, Get, HttpStatus, Res } from '@nestjs/common';
+import { Response } from 'express';
 
-@ApiTags('health')
-@Controller('health')
+@Controller()
 export class HealthController {
-  constructor(private readonly prismaService: PrismaService) {}
+  @Get('health')
+  checkHealth(@Res() res: Response) {
+    // Ultra-simple health check - no dependencies, no async, no database
+    console.log('Health check called at:', new Date().toISOString());
+    
+    return res.status(HttpStatus.OK).json({
+      status: 'ok',
+      timestamp: new Date().toISOString(),
+      service: 'epi-backend',
+      version: '3.5.0',
+      environment: process.env.NODE_ENV || 'development',
+      port: process.env.PORT || 3000,
+    });
+  }
 
-  @Get()
-  @ApiOperation({ summary: 'Health check endpoint' })
-  @ApiResponse({
-    status: 200,
-    description: 'Service is healthy',
-    schema: {
-      type: 'object',
-      properties: {
-        status: { type: 'string', example: 'ok' },
-        timestamp: { type: 'string', example: '2025-07-05T11:43:53.000Z' },
-        service: { type: 'string', example: 'epi-backend' },
-        version: { type: 'string', example: '3.5.0' },
-        database: { type: 'string', example: 'connected' },
-      },
-    },
-  })
-  async checkHealth() {
-    try {
-      // Simple database connectivity check
-      await this.prismaService.$queryRaw`SELECT 1`;
-      
-      return {
-        status: 'ok',
-        timestamp: new Date().toISOString(),
-        service: 'epi-backend',
-        version: '3.5.0',
-        database: 'connected',
-      };
-    } catch (error) {
-      console.error('Health check failed:', error);
-      return {
-        status: 'error',
-        timestamp: new Date().toISOString(),
-        service: 'epi-backend',
-        version: '3.5.0',
-        database: 'disconnected',
-        error: error.message,
-      };
-    }
+  @Get('api/health')
+  checkHealthApi(@Res() res: Response) {
+    // Backup route for /api/health in case global prefix causes issues
+    console.log('API Health check called at:', new Date().toISOString());
+    
+    return res.status(HttpStatus.OK).json({
+      status: 'ok',
+      timestamp: new Date().toISOString(),
+      service: 'epi-backend',
+      version: '3.5.0',
+      environment: process.env.NODE_ENV || 'development',
+      port: process.env.PORT || 3000,
+      route: 'api/health',
+    });
   }
 }

@@ -95,9 +95,9 @@ export const mapEntregaToOutput = (entrega: any): EntregaOutput => {
         ? `Múltiplos EPIs (${nomesEquipamentos.join(', ')})` 
         : (primeiroItem?.estoqueItem?.tipoEpi?.nomeEquipamento || 'N/A'),
       codigo: primeiroItem?.estoqueItem?.tipoEpi?.numeroCa || 'N/A',
+      categoria: primeiroItem?.estoqueItem?.tipoEpi?.categoria || 'PROTECAO_CABECA',
       validadeMeses: primeiroItem?.estoqueItem?.tipoEpi?.vidaUtilDias ? 
         Math.round(primeiroItem.estoqueItem.tipoEpi.vidaUtilDias / 30) : undefined,
-      exigeAssinaturaEntrega: primeiroItem?.estoqueItem?.tipoEpi?.exigeAssinaturaEntrega || false,
     },
     almoxarifado: {
       nome: source.almoxarifado?.nome || 'N/A',

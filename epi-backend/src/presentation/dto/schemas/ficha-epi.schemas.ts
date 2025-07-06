@@ -125,8 +125,8 @@ export const EntregaUseCaseOutputSchema = z.object({
   tipoEpi: z.object({
     nome: z.string(),
     codigo: z.string(),
+    categoria: z.string(),
     validadeMeses: z.number().optional(),
-    exigeAssinaturaEntrega: z.boolean(),
   }),
   almoxarifado: z.object({
     nome: z.string(),

@@ -412,16 +412,32 @@ export class CriarEntregaFichaUseCase {
   ): Promise<any[]> {
     const itens = [];
 
+    // 🔍 DEBUG: Log detalhado do processamento de itens
+    console.log('🔍 [USE CASE] Criando itens de entrega:');
+    console.log('📋 Total de itens para processar:', input.itens.length);
+    console.log('📋 Itens:', JSON.stringify(input.itens, null, 2));
+    
+    // Verificar IDs únicos no use case também
+    const estoqueIds = input.itens.map(item => item.estoqueItemOrigemId);
+    const uniqueIds = [...new Set(estoqueIds)];
+    console.log('📋 [USE CASE] IDs únicos:', uniqueIds.length, 'de', estoqueIds.length, 'total');
+
     // IMPLEMENTAÇÃO CRÍTICA: Iterar sobre a quantidade e criar registros unitários
     // Conforme especificação: "Para cada item dessa lista, o sistema **deve iterar sobre a**
     // `quantidade` **e criar um registro individual e unitário na tabela** `entrega_itens`"
-    for (const itemInput of input.itens) {
+    for (const [index, itemInput] of input.itens.entries()) {
+      console.log(`📋 [USE CASE] Processando item ${index + 1}/${input.itens.length}:`, {
+        estoqueItemOrigemId: itemInput.estoqueItemOrigemId,
+        numeroSerie: itemInput.numeroSerie,
+      });
       // Buscar dados do estoque para calcular data limite devolução
       const estoqueItem = await tx.estoqueItem.findUnique({
         where: { id: itemInput.estoqueItemOrigemId },
         include: {
           tipoEpi: {
             select: {
+              id: true,
+              nomeEquipamento: true, // Para debug
               vidaUtilDias: true, // Campo correto no schema v3.5
             },
           },
@@ -431,6 +447,14 @@ export class CriarEntregaFichaUseCase {
       if (!estoqueItem) {
         throw new BusinessError(`EstoqueItem ${itemInput.estoqueItemOrigemId} não encontrado`);
       }
+
+      // 🔍 DEBUG: Log do item de estoque encontrado
+      console.log(`📋 [USE CASE] EstoqueItem encontrado para item ${index + 1}:`, {
+        estoqueItemId: estoqueItem.id,
+        tipoEpiId: estoqueItem.tipoEpi.id,
+        nomeEquipamento: estoqueItem.tipoEpi.nomeEquipamento,
+        quantidade: estoqueItem.quantidade,
+      });
 
       // Calcular data de devolução com base na vida útil (vidaUtilDias)
       let dataLimiteDevolucao: Date | null = null;

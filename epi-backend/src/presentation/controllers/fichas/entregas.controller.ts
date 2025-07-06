@@ -70,6 +70,24 @@ export class EntregasController {
     @Body(new ZodValidationPipe(CriarEntregaSchema)) 
     criarEntregaDto: CriarEntregaRequest,
   ): Promise<SuccessResponse> {
+    // 🔍 DEBUG: Log detalhado do payload recebido
+    console.log('🔍 [ENTREGAS CONTROLLER] Payload recebido:');
+    console.log('📋 FichaId:', fichaId);
+    console.log('📋 Quantidade:', criarEntregaDto.quantidade);
+    console.log('📋 Itens recebidos:', JSON.stringify(criarEntregaDto.itens, null, 2));
+    console.log('📋 Total de itens no array:', criarEntregaDto.itens.length);
+    
+    // Validar se há IDs duplicados
+    const estoqueIds = criarEntregaDto.itens.map(item => item.estoqueItemOrigemId);
+    const uniqueIds = [...new Set(estoqueIds)];
+    console.log('📋 IDs de EstoqueItem únicos:', uniqueIds.length, 'de', estoqueIds.length, 'total');
+    console.log('📋 IDs únicos:', uniqueIds);
+    
+    if (uniqueIds.length !== estoqueIds.length) {
+      console.log('⚠️ ALERTA: Existem IDs duplicados no payload!');
+      console.log('📋 IDs completos:', estoqueIds);
+    }
+
     const entrega = await this.criarEntregaFichaUseCase.execute({
       fichaEpiId: fichaId,
       quantidade: criarEntregaDto.quantidade,

@@ -23,29 +23,74 @@ export const mapItemEntregaToOutput = (item: any): ItemEntregaOutput => mapTo(it
 }));
 
 // Mapper para entrega completa (Prisma → DTO)
-export const mapEntregaToOutput = (entrega: any): EntregaOutput => mapTo(entrega, (source) => ({
-  id: source.id,
-  fichaEpiId: source.fichaEpiId,
-  colaboradorId: source.fichaEpi?.colaboradorId || source.colaboradorId,
-  dataEntrega: source.dataEntrega,
-  assinaturaColaborador: source.assinaturaColaborador || undefined,
-  observacoes: source.observacoes || undefined,
-  status: source.status as StatusEntrega,
-  itens: mapArrayTo(source.itens || [], mapItemEntregaToOutput),
-  colaborador: {
-    nome: source.fichaEpi?.colaborador?.nome || 'N/A',
-    cpf: source.fichaEpi?.colaborador?.cpf || 'N/A',
-    matricula: source.fichaEpi?.colaborador?.matricula || undefined,
-  },
-  tipoEpi: {
-    nome: source.itens?.[0]?.estoqueItem?.tipoEpi?.nomeEquipamento || 'N/A',
-    codigo: source.itens?.[0]?.estoqueItem?.tipoEpi?.numeroCa || 'N/A',
-    validadeMeses: source.itens?.[0]?.estoqueItem?.tipoEpi?.vidaUtilDias ? 
-      Math.round(source.itens[0].estoqueItem.tipoEpi.vidaUtilDias / 30) : undefined,
-    exigeAssinaturaEntrega: source.itens?.[0]?.estoqueItem?.tipoEpi?.exigeAssinaturaEntrega || false,
-  },
-  almoxarifado: {
-    nome: source.almoxarifado?.nome || 'N/A',
-    codigo: source.almoxarifado?.codigo || 'N/A',
-  },
-}));
+export const mapEntregaToOutput = (entrega: any): EntregaOutput => {
+  // 🔍 DEBUG: Log dos itens sendo mapeados
+  console.log('🔍 [MAPPER] Mapeando entrega:', {
+    entregaId: entrega.id,
+    totalItens: entrega.itens?.length || 0,
+    itensDetalhes: entrega.itens?.map((item: any, index: number) => ({
+      index,
+      itemId: item.id,
+      estoqueItemId: item.estoqueItemOrigemId,
+      tipoEpiId: item.estoqueItem?.tipoEpiId,
+      nomeEquipamento: item.estoqueItem?.tipoEpi?.nomeEquipamento,
+    })) || [],
+  });
+
+  // Para entregas com múltiplos tipos de EPI, agregamos a informação
+  const tiposUnicos = new Set();
+  const nomesEquipamentos: string[] = [];
+  
+  if (entrega.itens && entrega.itens.length > 0) {
+    entrega.itens.forEach((item: any) => {
+      const tipoEpiId = item.estoqueItem?.tipoEpiId;
+      const nomeEquipamento = item.estoqueItem?.tipoEpi?.nomeEquipamento;
+      
+      if (tipoEpiId && !tiposUnicos.has(tipoEpiId)) {
+        tiposUnicos.add(tipoEpiId);
+        if (nomeEquipamento) {
+          nomesEquipamentos.push(nomeEquipamento);
+        }
+      }
+    });
+  }
+
+  // 🔍 DEBUG: Log dos tipos únicos encontrados
+  console.log('🔍 [MAPPER] Tipos únicos encontrados:', {
+    totalTiposUnicos: tiposUnicos.size,
+    nomesEquipamentos,
+  });
+
+  // Usar o primeiro item para campos que precisam de um valor único
+  const primeiroItem = entrega.itens?.[0];
+
+  return mapTo(entrega, (source) => ({
+    id: source.id,
+    fichaEpiId: source.fichaEpiId,
+    colaboradorId: source.fichaEpi?.colaboradorId || source.colaboradorId,
+    dataEntrega: source.dataEntrega,
+    assinaturaColaborador: source.assinaturaColaborador || undefined,
+    observacoes: source.observacoes || undefined,
+    status: source.status as StatusEntrega,
+    itens: mapArrayTo(source.itens || [], mapItemEntregaToOutput),
+    colaborador: {
+      nome: source.fichaEpi?.colaborador?.nome || 'N/A',
+      cpf: source.fichaEpi?.colaborador?.cpf || 'N/A',
+      matricula: source.fichaEpi?.colaborador?.matricula || undefined,
+    },
+    // ✅ CORREÇÃO: Para múltiplos tipos, agregamos os nomes
+    tipoEpi: {
+      nome: nomesEquipamentos.length > 1 
+        ? `Múltiplos EPIs (${nomesEquipamentos.join(', ')})` 
+        : (primeiroItem?.estoqueItem?.tipoEpi?.nomeEquipamento || 'N/A'),
+      codigo: primeiroItem?.estoqueItem?.tipoEpi?.numeroCa || 'N/A',
+      validadeMeses: primeiroItem?.estoqueItem?.tipoEpi?.vidaUtilDias ? 
+        Math.round(primeiroItem.estoqueItem.tipoEpi.vidaUtilDias / 30) : undefined,
+      exigeAssinaturaEntrega: primeiroItem?.estoqueItem?.tipoEpi?.exigeAssinaturaEntrega || false,
+    },
+    almoxarifado: {
+      nome: source.almoxarifado?.nome || 'N/A',
+      codigo: source.almoxarifado?.codigo || 'N/A',
+    },
+  }));
+};

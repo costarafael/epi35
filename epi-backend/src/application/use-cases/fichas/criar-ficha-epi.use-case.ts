@@ -46,6 +46,13 @@ export class CriarFichaEpiUseCase {
             nome: true,
             cpf: true,
             matricula: true,
+            contratada: {
+              select: {
+                id: true,
+                nome: true,
+                cnpj: true,
+              },
+            },
           },
         },
       },
@@ -63,6 +70,13 @@ export class CriarFichaEpiUseCase {
             nome: true,
             cpf: true,
             matricula: true,
+            contratada: {
+              select: {
+                id: true,
+                nome: true,
+                cnpj: true,
+              },
+            },
           },
         },
         entregas: {
@@ -157,6 +171,17 @@ export class CriarFichaEpiUseCase {
                   select: {
                     dataLimiteDevolucao: true,
                     status: true,
+                    estoqueItem: {
+                      select: {
+                        tipoEpi: {
+                          select: {
+                            id: true,
+                            nomeEquipamento: true,
+                            vidaUtilDias: true,
+                          },
+                        },
+                      },
+                    },
                   },
                 },
               },
@@ -182,6 +207,13 @@ export class CriarFichaEpiUseCase {
             nome: true,
             cpf: true,
             matricula: true,
+            contratada: {
+              select: {
+                id: true,
+                nome: true,
+                cnpj: true,
+              },
+            },
           },
         },
         entregas: {
@@ -225,6 +257,13 @@ export class CriarFichaEpiUseCase {
             nome: true,
             cpf: true,
             matricula: true,
+            contratada: {
+              select: {
+                id: true,
+                nome: true,
+                cnpj: true,
+              },
+            },
           },
         },
       },
@@ -269,6 +308,13 @@ export class CriarFichaEpiUseCase {
             nome: true,
             cpf: true,
             matricula: true,
+            contratada: {
+              select: {
+                id: true,
+                nome: true,
+                cnpj: true,
+              },
+            },
           },
         },
       },
@@ -297,6 +343,13 @@ export class CriarFichaEpiUseCase {
             nome: true,
             cpf: true,
             matricula: true,
+            contratada: {
+              select: {
+                id: true,
+                nome: true,
+                cnpj: true,
+              },
+            },
           },
         },
       },
@@ -432,23 +485,83 @@ export class CriarFichaEpiUseCase {
 
   }
 
-  // ✅ NOVO MÉTODO: Mapear ficha com flag de devolução pendente
+  // ✅ MÉTODO MELHORADO: Mapear ficha com informações detalhadas
   private mapFichaWithDevolucaoPendente(ficha: any): FichaEpiOutput {
     const baseOutput = mapFichaEpiToOutput(ficha);
-    
-    // Calcular se tem devolução pendente
     const hoje = new Date();
-    const temDevolucaoPendente = ficha.entregas?.some((entrega: any) => 
-      entrega.itens?.some((item: any) => 
-        item.status === 'COM_COLABORADOR' && 
-        item.dataLimiteDevolucao && 
-        new Date(item.dataLimiteDevolucao) < hoje
-      )
-    ) || false;
+    
+    // Coletar todos os itens COM_COLABORADOR de todas as entregas
+    const todosItens = ficha.entregas?.flatMap((entrega: any) => entrega.itens || []) || [];
+    
+    // Calcular informações de EPIs
+    let episExpirados = 0;
+    let proximaDataVencimento: Date | undefined;
+    const datasVencimento: Date[] = [];
+    const tiposEpisMap = new Map<string, { id: string; nome: string; quantidade: number }>();
+    
+    todosItens.forEach((item: any) => {
+      // Contar EPI expirado
+      if (item.dataLimiteDevolucao) {
+        const dataVencimento = new Date(item.dataLimiteDevolucao);
+        datasVencimento.push(dataVencimento);
+        
+        if (dataVencimento < hoje) {
+          episExpirados++;
+        }
+      }
+      
+      // Agrupar por tipo de EPI
+      if (item.estoqueItem?.tipoEpi) {
+        const tipoEpi = item.estoqueItem.tipoEpi;
+        const key = tipoEpi.id;
+        
+        if (tiposEpisMap.has(key)) {
+          tiposEpisMap.get(key)!.quantidade++;
+        } else {
+          tiposEpisMap.set(key, {
+            id: tipoEpi.id,
+            nome: tipoEpi.nomeEquipamento,
+            quantidade: 1,
+          });
+        }
+      }
+    });
+    
+    // Encontrar próxima data de vencimento (futuras)
+    const datasVencimentoFuturas = datasVencimento.filter(data => data >= hoje);
+    if (datasVencimentoFuturas.length > 0) {
+      proximaDataVencimento = datasVencimentoFuturas.sort((a, b) => a.getTime() - b.getTime())[0];
+    }
+    
+    // Calcular dias até próximo vencimento
+    const diasAteProximoVencimento = proximaDataVencimento 
+      ? Math.ceil((proximaDataVencimento.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24))
+      : undefined;
+    
+    // Calcular se tem devolução pendente (EPIs vencidos)
+    const temDevolucaoPendente = episExpirados > 0;
 
     return {
       ...baseOutput,
       devolucaoPendente: temDevolucaoPendente,
+      // Informações da contratada
+      contratada: ficha.colaborador?.contratada ? {
+        id: ficha.colaborador.contratada.id,
+        nome: ficha.colaborador.contratada.nome,
+        cnpj: ficha.colaborador.contratada.cnpj,
+      } : undefined,
+      // Informações dos EPIs
+      episInfo: {
+        totalEpisComColaborador: todosItens.length,
+        episExpirados,
+        proximaDataVencimento,
+        diasAteProximoVencimento,
+        tiposEpisAtivos: Array.from(tiposEpisMap.values()).map(tipo => ({
+          tipoEpiId: tipo.id,
+          tipoEpiNome: tipo.nome,
+          quantidade: tipo.quantidade,
+        })),
+      },
     };
   }
 }

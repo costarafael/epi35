@@ -33,6 +33,23 @@ export const FichaEpiUseCaseOutputSchema = z.object({
     cpf: z.string(),
     matricula: z.string().optional(),
   }),
+  // ✅ NOVAS INFORMAÇÕES SOLICITADAS
+  contratada: z.object({
+    id: IdSchema,
+    nome: z.string(),
+    cnpj: z.string(),
+  }).optional(),
+  episInfo: z.object({
+    totalEpisComColaborador: z.number(), // Total de EPIs COM_COLABORADOR
+    episExpirados: z.number(), // EPIs com prazo vencido
+    proximaDataVencimento: z.date().optional(), // Próxima data de vencimento
+    diasAteProximoVencimento: z.number().optional(), // Dias até o próximo vencimento
+    tiposEpisAtivos: z.array(z.object({
+      tipoEpiId: IdSchema,
+      tipoEpiNome: z.string(),
+      quantidade: z.number(),
+    })), // Tipos de EPI ativos com o colaborador
+  }),
 });
 
 export const FichaFiltersSchema = z.object({

@@ -5,6 +5,7 @@ import {
   // RelatorioConformidadeController,
   RelatorioDescartesController,
   RelatorioSaudeController,
+  RelatorioMovimentacoesController,
 } from '../controllers/relatorios';
 import {
   DashboardFormatterService,
@@ -19,6 +20,7 @@ import {
     // RelatorioConformidadeController,
     RelatorioDescartesController,
     RelatorioSaudeController,
+    RelatorioMovimentacoesController,
   ],
   providers: [
     DashboardFormatterService,

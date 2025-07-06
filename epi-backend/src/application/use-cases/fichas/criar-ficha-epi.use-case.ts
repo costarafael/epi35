@@ -62,6 +62,9 @@ export class CriarFichaEpiUseCase {
   }
 
   async obterFicha(id: string): Promise<FichaEpiOutput | null> {
+    // 🔍 DEBUG: Log da consulta de ficha
+    console.log('🔍 [OBTER FICHA] Buscando ficha com ID:', id);
+    
     const ficha = await this.prisma.fichaEPI.findUnique({
       where: { id },
       include: {
@@ -84,15 +87,46 @@ export class CriarFichaEpiUseCase {
           include: {
             itens: {
               where: { status: 'COM_COLABORADOR' },
-              select: {
-                dataLimiteDevolucao: true,
-                status: true,
+              include: {
+                estoqueItem: {
+                  include: {
+                    tipoEpi: {
+                      select: {
+                        id: true,
+                        nomeEquipamento: true,
+                        numeroCa: true,
+                        vidaUtilDias: true,
+                      },
+                    },
+                  },
+                },
               },
             },
           },
         },
       },
     });
+
+    // 🔍 DEBUG: Log da ficha encontrada
+    if (ficha) {
+      console.log('🔍 [OBTER FICHA] Ficha encontrada:', {
+        fichaId: ficha.id,
+        colaboradorNome: ficha.colaborador.nome,
+        totalEntregas: ficha.entregas.length,
+        totalItens: ficha.entregas.reduce((total, entrega) => total + entrega.itens.length, 0),
+        itensDetalhados: ficha.entregas.flatMap(entrega => 
+          entrega.itens.map(item => ({
+            itemId: item.id,
+            tipoEpiId: item.estoqueItem?.tipoEpi?.id,
+            tipoEpiNome: item.estoqueItem?.tipoEpi?.nomeEquipamento,
+            hasEstoqueItem: !!item.estoqueItem,
+            hasTipoEpi: !!item.estoqueItem?.tipoEpi,
+          }))
+        ),
+      });
+    } else {
+      console.log('🔍 [OBTER FICHA] Ficha não encontrada para ID:', id);
+    }
 
     return ficha ? this.mapFichaWithDevolucaoPendente(ficha) : null;
   }
@@ -524,7 +558,28 @@ export class CriarFichaEpiUseCase {
     const datasVencimento: Date[] = [];
     const tiposEpisMap = new Map<string, { id: string; nome: string; quantidade: number }>();
     
-    todosItens.forEach((item: any) => {
+    // 🔍 DEBUG: Log inicial do agrupamento
+    console.log('🔍 [FICHA MAPPER] Iniciando agrupamento de equipamentos:');
+    console.log('🔍 [FICHA MAPPER] Total de itens para agrupar:', todosItens.length);
+    console.log('🔍 [FICHA MAPPER] Itens detalhados:', todosItens.map((item, idx) => ({
+      index: idx,
+      itemId: item.id,
+      tipoEpiId: item.estoqueItem?.tipoEpi?.id,
+      tipoEpiNome: item.estoqueItem?.tipoEpi?.nomeEquipamento,
+      hasEstoqueItem: !!item.estoqueItem,
+      hasTipoEpi: !!item.estoqueItem?.tipoEpi,
+    })));
+    
+    todosItens.forEach((item: any, index: number) => {
+      // 🔍 DEBUG: Log de cada item sendo processado
+      console.log(`🔍 [FICHA MAPPER] Processando item ${index + 1}/${todosItens.length}:`, {
+        itemId: item.id,
+        estoqueItemExists: !!item.estoqueItem,
+        tipoEpiExists: !!item.estoqueItem?.tipoEpi,
+        tipoEpiId: item.estoqueItem?.tipoEpi?.id,
+        tipoEpiNome: item.estoqueItem?.tipoEpi?.nomeEquipamento,
+      });
+
       // Contar EPI expirado
       if (item.dataLimiteDevolucao) {
         const dataVencimento = new Date(item.dataLimiteDevolucao);
@@ -540,16 +595,40 @@ export class CriarFichaEpiUseCase {
         const tipoEpi = item.estoqueItem.tipoEpi;
         const key = tipoEpi.id;
         
+        // 🔍 DEBUG: Log do agrupamento
+        console.log(`🔍 [FICHA MAPPER] Agrupando item ${index + 1}:`, {
+          tipoEpiKey: key,
+          tipoEpiNome: tipoEpi.nomeEquipamento,
+          jaExisteNoMapa: tiposEpisMap.has(key),
+          quantidadeAtual: tiposEpisMap.get(key)?.quantidade || 0,
+        });
+        
         if (tiposEpisMap.has(key)) {
           tiposEpisMap.get(key)!.quantidade++;
+          console.log(`🔍 [FICHA MAPPER] Incrementou quantidade para tipo ${tipoEpi.nomeEquipamento}: ${tiposEpisMap.get(key)!.quantidade}`);
         } else {
           tiposEpisMap.set(key, {
             id: tipoEpi.id,
             nome: tipoEpi.nomeEquipamento,
             quantidade: 1,
           });
+          console.log(`🔍 [FICHA MAPPER] Criou novo tipo ${tipoEpi.nomeEquipamento} com quantidade: 1`);
         }
+      } else {
+        console.log(`🔍 [FICHA MAPPER] ⚠️ Item ${index + 1} sem tipoEpi válido:`, {
+          itemId: item.id,
+          hasEstoqueItem: !!item.estoqueItem,
+          estoqueItemId: item.estoqueItem?.id,
+          estoqueItemTipoEpiId: item.estoqueItem?.tipoEpiId,
+        });
       }
+    });
+
+    // 🔍 DEBUG: Log final do mapa de tipos
+    console.log('🔍 [FICHA MAPPER] Mapa final de tipos de EPI:');
+    console.log('🔍 [FICHA MAPPER] Total de tipos únicos:', tiposEpisMap.size);
+    tiposEpisMap.forEach((tipo, key) => {
+      console.log(`🔍 [FICHA MAPPER] - ${key}: ${tipo.nome} (quantidade: ${tipo.quantidade})`);
     });
     
     // Encontrar próxima data de vencimento (futuras)

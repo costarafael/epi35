@@ -132,18 +132,63 @@ export class CriarEntregaFichaUseCase {
   }
 
   async listarEntregasPorFicha(fichaEpiId: string): Promise<EntregaOutput[]> {
+    // 🔍 DEBUG: Log da consulta de entregas
+    console.log('🔍 [USE CASE] Buscando entregas para fichaId:', fichaEpiId);
+
     const entregas = await this.prisma.entrega.findMany({
       where: { fichaEpiId },
       include: {
-        itens: true,
+        almoxarifado: { 
+          select: { nome: true, codigo: true } 
+        },
+        itens: {
+          include: {
+            estoqueItem: {
+              include: {
+                tipoEpi: {
+                  select: {
+                    id: true,
+                    nomeEquipamento: true,
+                    numeroCa: true,
+                    vidaUtilDias: true,
+                    categoria: true,
+                  },
+                },
+              },
+            },
+          },
+        },
         fichaEpi: {
-          select: {
-            id: true,
-            colaboradorId: true,
+          include: {
+            colaborador: {
+              select: {
+                nome: true,
+                cpf: true,
+                matricula: true,
+              },
+            },
           },
         },
       },
       orderBy: { dataEntrega: 'desc' },
+    });
+
+    // 🔍 DEBUG: Log das entregas encontradas com detalhes
+    console.log('🔍 [USE CASE] Entregas encontradas:', {
+      total: entregas.length,
+      entregas: entregas.map(e => ({
+        id: e.id,
+        dataEntrega: e.dataEntrega,
+        status: e.status,
+        totalItens: e.itens.length,
+        itensDetalhes: e.itens.map(item => ({
+          itemId: item.id,
+          estoqueItemId: item.estoqueItemOrigemId,
+          tipoEpiId: item.estoqueItem?.tipoEpiId,
+          nomeEquipamento: item.estoqueItem?.tipoEpi?.nomeEquipamento,
+          quantidade: item.quantidadeEntregue,
+        }))
+      }))
     });
 
     return entregas.map(mapEntregaToOutput);

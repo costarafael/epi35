@@ -126,27 +126,46 @@ export class EntregasController {
     @Query(new ZodValidationPipe(FiltrosEntregasSchema)) 
     filtros: FiltrosEntregas,
   ): Promise<PaginatedResponse> {
-    // Por simplicidade, retornamos uma estrutura básica
-    // Em implementação completa, criaria método específico no use case
+    // 🔍 DEBUG: Log da consulta de entregas
+    console.log('🔍 [ENTREGAS CONTROLLER] Buscando entregas para ficha:', fichaId);
+    console.log('🔍 [ENTREGAS CONTROLLER] Filtros recebidos:', filtros);
+
     const page = filtros.page || 1;
     const limit = filtros.limit || 10;
     
-    const resultado = {
-      entregas: [],
-      pagination: {
-        page,
-        limit,
-        total: 0,
-        totalPages: 1,
-        hasNext: false,
-        hasPrev: false,
-      },
-    };
+    // ✅ FIX: Implementar busca real de entregas usando o use case
+    const entregas = await this.criarEntregaFichaUseCase.listarEntregasPorFicha(fichaId);
+    
+    // 🔍 DEBUG: Log das entregas encontradas
+    console.log('🔍 [ENTREGAS CONTROLLER] Entregas encontradas:', {
+      total: entregas.length,
+      entregas: entregas.map(e => ({
+        id: e.id,
+        dataEntrega: e.dataEntrega,
+        totalItens: e.itens.length,
+        itensDetalhes: e.itens.map(item => ({
+          tipoEpiId: item.tipoEpiId,
+          quantidade: item.quantidadeEntregue,
+        }))
+      }))
+    });
+
+    // Aplicar paginação
+    const startIndex = (page - 1) * limit;
+    const endIndex = startIndex + limit;
+    const entregasPaginadas = entregas.slice(startIndex, endIndex);
 
     return {
       success: true,
-      data: resultado.entregas,
-      pagination: resultado.pagination,
+      data: entregasPaginadas,
+      pagination: {
+        page,
+        limit,
+        total: entregas.length,
+        totalPages: Math.ceil(entregas.length / limit),
+        hasNext: endIndex < entregas.length,
+        hasPrev: page > 1,
+      },
     };
   }
 }

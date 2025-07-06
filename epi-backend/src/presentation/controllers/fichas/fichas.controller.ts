@@ -115,28 +115,55 @@ export class FichasController {
     @Query(new ZodValidationPipe(FiltrosFichaEpiSchema)) 
     filtros: FiltrosFichaEpi,
   ): Promise<PaginatedResponse> {
-    // Por simplicidade, retornamos uma estrutura básica
-    // Em implementação completa, criaria método específico no use case
     const page = filtros.page || 1;
     const limit = Math.min(filtros.limit || 10, 100);
 
-    const resultado = {
-      fichas: [],
-      pagination: {
+    // Usar o use case para buscar dados reais
+    const fichasData = await this.criarFichaEpiUseCase.listarFichas(
+      {
+        colaboradorId: filtros.colaboradorId,
+        status: filtros.status,
+      },
+      {
         page,
         limit,
-        total: 0,
-        totalPages: 1,
-        hasNext: false,
-        hasPrev: false,
-      },
-    };
+      }
+    );
 
-    return {
-      success: true,
-      data: resultado.fichas,
-      pagination: resultado.pagination,
-    };
+    // Verificar se retornou array simples ou formato paginado
+    if (Array.isArray(fichasData)) {
+      // Retornou array simples, criar paginação manual
+      const startIndex = (page - 1) * limit;
+      const endIndex = startIndex + limit;
+      const paginatedItems = fichasData.slice(startIndex, endIndex);
+      
+      return {
+        success: true,
+        data: paginatedItems,
+        pagination: {
+          page,
+          limit,
+          total: fichasData.length,
+          totalPages: Math.ceil(fichasData.length / limit),
+          hasNext: endIndex < fichasData.length,
+          hasPrev: page > 1,
+        },
+      };
+    } else {
+      // Retornou formato paginado (PaginatedResult)
+      return {
+        success: true,
+        data: fichasData.items,
+        pagination: {
+          page: fichasData.page,
+          limit,
+          total: fichasData.total,
+          totalPages: fichasData.totalPages,
+          hasNext: fichasData.hasNext,
+          hasPrev: fichasData.hasPrev,
+        },
+      };
+    }
   }
 
   @Get('estatisticas')
@@ -167,15 +194,7 @@ export class FichasController {
     @Param('id', new ZodValidationPipe(IdSchema)) 
     id: string,
   ): Promise<SuccessResponse> {
-    // Por simplicidade, retornamos uma estrutura básica
-    // Em implementação completa, criaria método específico no use case
-    const ficha = {
-      id,
-      colaboradorId: '',
-      status: 'ATIVA',
-      dataEmissao: new Date(),
-      createdAt: new Date(),
-    };
+    const ficha = await this.criarFichaEpiUseCase.obterFicha(id);
 
     return {
       success: true,

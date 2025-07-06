@@ -26,12 +26,35 @@ async function bootstrap() {
     'https://epi-frontend.vercel.app', // Production frontend (if exists)
   ];
   
+  // Enable CORS with explicit configuration
   app.enableCors({
-    origin: corsOrigins ? corsOrigins.split(',') : defaultOrigins,
+    origin: function (origin, callback) {
+      const allowedOrigins = corsOrigins ? corsOrigins.split(',').map(o => o.trim()) : defaultOrigins;
+      
+      // Allow requests with no origin (mobile apps, Postman, etc.)
+      if (!origin) return callback(null, true);
+      
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      } else {
+        console.log(`🚫 CORS blocked origin: ${origin}`);
+        return callback(null, false);
+      }
+    },
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'X-Requested-With'],
+    allowedHeaders: [
+      'Content-Type', 
+      'Authorization', 
+      'Accept', 
+      'X-Requested-With',
+      'Origin',
+      'Cache-Control',
+      'Pragma'
+    ],
+    exposedHeaders: ['Content-Length', 'X-Kuma-Revision'],
     credentials: true,
-    optionsSuccessStatus: 200, // Support legacy browsers
+    optionsSuccessStatus: 200,
+    preflightContinue: false,
   });
 
   // Global pipes - Use Zod validation

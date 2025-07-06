@@ -7,8 +7,8 @@ services:
     runtime: node
     plan: free  # Change to starter/standard for production
     region: oregon  # or ohio/frankfurt depending on your location
-    buildCommand: cd epi-backend && npm ci && npm run build && npx prisma generate && npx prisma migrate deploy && node scripts/deploy-db.js --seed
-    startCommand: cd epi-backend && npm run start:prod
+    buildCommand: cd backend && npm ci && npm run build && npx prisma generate && npx prisma migrate deploy && node scripts/deploy-db.js --seed
+    startCommand: cd backend && npm run start:prod
     healthCheckPath: /health
     
     # Auto-deploy when pushing to main
@@ -53,7 +53,7 @@ services:
       
       # CORS
       - key: CORS_ORIGINS
-        value: "https://epi-frontend.onrender.com,https://yourdomain.com"
+        value: "https://costarafael.github.io,https://epi-frontend.onrender.com,https://yourdomain.com"
       
       # Feature Flags
       - key: SWAGGER_ENABLED

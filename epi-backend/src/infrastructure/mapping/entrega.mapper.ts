@@ -10,17 +10,28 @@ import { mapTo, mapArrayTo } from './mapper.util';
  */
 
 // Mapper para item de entrega (Prisma → DTO)
-export const mapItemEntregaToOutput = (item: any): ItemEntregaOutput => mapTo(item, (source) => ({
-  id: source.id,
-  tipoEpiId: source.estoqueItem?.tipoEpiId || 'N/A',
-  quantidadeEntregue: source.quantidadeEntregue || 1,
-  numeroSerie: source.numeroSerie || undefined,
-  estoqueItemOrigemId: source.estoqueItemOrigemId || undefined,
-  lote: undefined, // Campo removido do schema v3.5
-  dataFabricacao: undefined, // Campo removido do schema v3.5
-  dataLimiteDevolucao: source.dataLimiteDevolucao || undefined,
-  status: source.status as StatusEntregaItem,
-}));
+export const mapItemEntregaToOutput = (item: any): ItemEntregaOutput => {
+  // 🔍 DEBUG: Log detalhado de cada item individual
+  console.log('🔍 [MAPPER ITEM] Mapeando item individual:', {
+    itemId: item.id,
+    estoqueItemOrigemId: item.estoqueItemOrigemId,
+    tipoEpiId: item.estoqueItem?.tipoEpiId,
+    tipoEpiNome: item.estoqueItem?.tipoEpi?.nomeEquipamento,
+    quantidadeEntregue: item.quantidadeEntregue,
+  });
+
+  return mapTo(item, (source) => ({
+    id: source.id,
+    tipoEpiId: source.estoqueItem?.tipoEpiId || 'N/A',
+    quantidadeEntregue: source.quantidadeEntregue || 1,
+    numeroSerie: source.numeroSerie || undefined,
+    estoqueItemOrigemId: source.estoqueItemOrigemId || undefined,
+    lote: undefined, // Campo removido do schema v3.5
+    dataFabricacao: undefined, // Campo removido do schema v3.5
+    dataLimiteDevolucao: source.dataLimiteDevolucao || undefined,
+    status: source.status as StatusEntregaItem,
+  }));
+};
 
 // Mapper para entrega completa (Prisma → DTO)
 export const mapEntregaToOutput = (entrega: any): EntregaOutput => {

@@ -1,5 +1,48 @@
 # Backend do Módulo de Gestão de EPI v3.5.5
 
+## ✅ API DE USUÁRIOS PARA CRIAÇÃO DE ENTREGAS (06/07/2025)
+
+**STATUS**: ✅ Implementação 100% completa com testes validados
+**BUILD**: ✅ 0 erros de compilação
+**TESTES**: ✅ 11/11 testes de integração passando (100%)
+**FUNCIONALIDADE**: ✅ Bloqueio na criação de entregas resolvido
+
+### 🎯 Implementação Completa
+- **GET /api/usuarios**: Lista usuários com filtros e paginação
+- **GET /api/usuarios/:id**: Consulta usuário por ID  
+- **Use Case**: `ListarUsuariosUseCase` com business logic completa
+- **Controller**: `UsuariosController` com validações Zod
+- **Testes**: 11 cenários de integração (100% passando)
+- **Documentação**: Swagger UI completo com exemplos
+
+### 📋 Funcionalidades Técnicas
+- **Filtros Inteligentes**: Busca por nome/email case-insensitive
+- **Paginação Eficiente**: Padrão 50 itens, máximo 100 por página
+- **Type Safety**: Single Source of Truth com Zod schemas
+- **Error Handling**: Respostas apropriadas (404, 400, etc.)
+- **Performance**: Queries otimizadas com índices
+
+### 🔧 Arquivos Implementados
+- **Schemas**: `src/presentation/dto/schemas/usuarios.schemas.ts`
+- **Use Case**: `src/application/use-cases/usuarios/listar-usuarios.use-case.ts`
+- **Controller**: `src/presentation/controllers/usuarios.controller.ts`
+- **Testes**: `test/integration/usuarios/listar-usuarios.integration.spec.ts`
+- **Módulos**: Registrado em ApplicationModule e AppModule
+
+### 🚀 Integração com Entregas
+**Problema Resolvido**: Frontend agora tem acesso completo aos dados de usuários para:
+1. **Seleção de Responsáveis**: Lista todos os usuários disponíveis
+2. **Busca Rápida**: Filtros por nome/email para encontrar usuário específico
+3. **Validação**: Verificação de existência antes de criar entrega
+4. **Performance**: Paginação para listas grandes de usuários
+
+### ✅ Status de Qualidade
+- **Build**: ✅ 0 erros TypeScript
+- **Testes**: ✅ 11/11 cenários passando (listagem, filtros, paginação, individual, validações)
+- **Type Safety**: ✅ Schemas Zod com z.infer para tipos derivados
+- **API Docs**: ✅ Swagger completo com query parameters documentados
+- **Clean Architecture**: ✅ Separação de camadas respeitada
+
 ## ✅ ENDPOINTS DE ESTOQUE IMPLEMENTADOS (06/07/2025)
 
 **STATUS**: ✅ Implementação completa dos endpoints faltantes
@@ -96,8 +139,8 @@ src/presentation/
 **Status**: ✅ 100% Operacional e Funcional (Deploy: 05/07/2025 21:32 UTC-3)
 **Health Check**: https://epi-backend-s14g.onrender.com/health
 **API Docs**: https://epi-backend-s14g.onrender.com/api/docs
-**Commit Live**: `57db0dd` - Dashboard fix and production ready
-**Endpoints**: 50 endpoints ativos (6 controllers)
+**Commit Live**: `e9ed781` - User management API for delivery creation
+**Endpoints**: 52 endpoints ativos (7 controllers incluindo UsuariosController)
 **Database**: ✅ Migrations + Seed executados, dados funcionais carregados
 **Dashboard**: ✅ 5 fichas ativas, 6 itens em estoque, dados reais
 

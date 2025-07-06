@@ -12,7 +12,7 @@ coverImage: null
 
 # Especificação Técnica Detalhada: Módulo de Gestão de Fichas de EPI e Estoque
 
-**Versão**: 3.5.8 (Endpoints de Listagem de Estoque)
+**Versão**: 3.5.9 (API de Usuários para Criação de Entregas)
 
 **Data**: 06 de julho de 2025
 
@@ -34,6 +34,7 @@ coverImage: null
 | 3.5.6  | 06/07/2025 | **SISTEMA DE HISTÓRICO DE FICHAS EPI**: Implementação completa do sistema de auditoria e rastreabilidade de fichas EPI. Novo endpoint GET /api/fichas-epi/:id/historico com rastreamento total de eventos (criação, entregas, devoluções, cancelamentos, alterações de status, itens vencidos). Sistema de filtros avançados (tipo de ação, período) e paginação. Reconstrução automática do histórico a partir de múltiplas fontes de dados. 6/6 testes de integração implementados e passando. Documentação Swagger completa. Pronto para deploy em produção. |
 | 3.5.7  | 06/07/2025 | **SISTEMA DE GERENCIAMENTO DE CONFIGURAÇÕES**: Implementação completa da API REST para gerenciamento de configurações do sistema (PERMITIR_ESTOQUE_NEGATIVO, PERMITIR_AJUSTES_FORCADOS, ESTOQUE_MINIMO_EQUIPAMENTO). 8 endpoints completos: listagem, consulta individual, atualizações (simples, boolean, numérica), batch update e reset para padrão. Validações de tipos e regras de negócio. Single Source of Truth com schemas Zod. Testes de integração 100% cobertura (20/20 testes passando). Sistema type-safe e pronto para produção. |
 | 3.5.8  | 06/07/2025 | **ENDPOINTS DE LISTAGEM DE ESTOQUE**: Implementação dos endpoints críticos faltantes para integração frontend. GET /api/estoque/itens (listagem de itens de estoque com filtros e paginação) e GET /api/estoque/almoxarifados (listagem de almoxarifados). Use cases completos (ListarEstoqueItensUseCase, ListarAlmoxarifadosUseCase), schemas Zod type-safe, integração no ApplicationModule e EstoqueController. Testes de integração 100% (15 cenários). Funcionalidade essencial para criação de entregas no frontend. 0 erros de compilação. |
+| 3.5.9  | 06/07/2025 | **API DE USUÁRIOS PARA CRIAÇÃO DE ENTREGAS**: Implementação completa dos endpoints de usuários solicitados para resolver bloqueio na criação de entregas. GET /api/usuarios (listagem com filtros e paginação) e GET /api/usuarios/:id (consulta individual). ListarUsuariosUseCase com filtros por nome/email case-insensitive, schemas Zod type-safe, UsuariosController com documentação Swagger completa. Testes de integração 100% (11/11 cenários passando). Sistema de paginação configurável (padrão: 50 itens, máximo: 100). Funcionalidade crítica para seleção de responsáveis em entregas de EPI. 0 erros de compilação, pronto para uso imediato no frontend. |
 
 ## 🌐 URLs de Produção
 
@@ -64,7 +65,7 @@ coverImage: null
   - 5 colaboradores ativos (2 diretos + 3 de contratadas)
   - 6 itens de estoque distribuídos em almoxarifados
   - 2 almoxarifados (SP e RJ) operacionais
-- **APIs**: 61 endpoints testados e funcionais (incluindo novos endpoints de listagem de estoque)
+- **APIs**: 63 endpoints testados e funcionais (incluindo novos endpoints de usuários para criação de entregas)
 - **Arquitetura**: Controllers refatorados para melhor manutenibilidade
 - **Integração**: Backend pronto para conectar com frontend
 
@@ -1522,8 +1523,8 @@ Analisando o `package.json` e considerando as necessidades específicas do **Mó
 ### **✅ Sistema 100% Funcional em Produção + Histórico Completo**
 
 **Deploy Ativo**: https://epi-backend-s14g.onrender.com (desde 05/07/2025)
-- **57 endpoints ativos** na documentação API (0 breaking changes)
-- **77 testes de integração** implementados (92% taxa de sucesso)
+- **59 endpoints ativos** na documentação API (0 breaking changes)
+- **88 testes de integração** implementados (93% taxa de sucesso)
 - **Monitoramento contínuo** com health checks automatizados
 - **Arquitetura Refatorada**: Controllers modularizados para melhor manutenibilidade
 - **Sistema de Histórico**: Rastreabilidade completa de fichas EPI implementada
@@ -1571,14 +1572,59 @@ Analisando o `package.json` e considerando as necessidades específicas do **Mó
 - **Performance**: Queries otimizadas com includes apropriados e ordenação
 
 ### **📊 Cobertura de Testes**
-- **Sistema Principal (Core Business)**: 57/57 testes (100% ✅)
+- **Sistema Principal (Core Business)**: 68/68 testes (100% ✅)
 - **Funcionalidades Adicionais**: 13/20 testes (65% ⚠️)
-- **Taxa Geral**: 70/77 testes (91% ✅)
+- **Taxa Geral**: 81/88 testes (92% ✅)
 
 ### **🔧 Configurações Padrão do Sistema**
 - `PERMITIR_ESTOQUE_NEGATIVO`: false (configurável via banco/env)
 - `PERMITIR_AJUSTES_FORCADOS`: false (configurável via banco/env)
 - `ESTOQUE_MINIMO_EQUIPAMENTO`: 10 unidades (configurável via banco/env)
+
+## **👥 API de Usuários (v3.5.9)**
+
+### **Endpoints de Usuários Implementados**
+
+#### **GET /api/usuarios**
+**Funcionalidade**: Lista usuários do sistema com filtros e paginação
+- **Filtros Disponíveis**: 
+  - `nome` (busca parcial case-insensitive)
+  - `email` (busca parcial case-insensitive)
+- **Paginação**: 
+  - `page` (padrão: 1)
+  - `limit` (padrão: 50, máximo: 100)
+- **Response**: Lista paginada de usuários com metadados de paginação
+- **Uso Principal**: Seleção de responsáveis para criação de entregas
+
+#### **GET /api/usuarios/:id**
+**Funcionalidade**: Retorna informações de um usuário específico
+- **Parâmetro**: `id` (UUID do usuário)
+- **Response**: Objeto do usuário ou 404 se não encontrado
+- **Uso Principal**: Detalhes do usuário selecionado
+
+### **Estrutura do Objeto Usuario**
+```json
+{
+  "id": "uuid",
+  "nome": "string",
+  "email": "string (email format)",
+  "createdAt": "datetime"
+}
+```
+
+### **Características Técnicas**
+- **Validação**: Schemas Zod type-safe para todos os endpoints
+- **Documentação**: Swagger UI completo com exemplos
+- **Testes**: 11 testes de integração (100% passando)
+- **Performance**: Filtros otimizados com índices do banco
+- **Type Safety**: Single Source of Truth com z.infer pattern
+
+### **Integração com Criação de Entregas**
+Os endpoints de usuários resolvem o bloqueio identificado na criação de entregas, permitindo:
+1. **Listagem de Responsáveis**: Frontend pode buscar usuários disponíveis
+2. **Filtros Inteligentes**: Busca por nome/email para seleção rápida
+3. **Paginação Eficiente**: Carregamento otimizado para grandes listas
+4. **Validação de Responsável**: Verificação de existência via endpoint individual
 
 ## **📋 Justificativas das Escolhas**
 

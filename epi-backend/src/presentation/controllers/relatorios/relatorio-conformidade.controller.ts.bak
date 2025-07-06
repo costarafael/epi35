@@ -1,0 +1,217 @@
+import {
+  Controller,
+  Get,
+  Query,
+} from '@nestjs/common';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiQuery,
+  ApiBearerAuth,
+} from '@nestjs/swagger';
+import { ZodValidationPipe } from '../../pipes/zod-validation.pipe';
+import { PrismaService } from '../../../infrastructure/database/prisma.service';
+import {
+  FiltrosRelatorioConformidadeSchema,
+  FiltrosRelatorioConformidade,
+} from '../../dto/schemas/relatorios.schemas';
+import { SuccessResponse } from '../../dto/schemas/common.schemas';
+import { RelatorioFormatterService } from '../../../shared/formatters/relatorio-formatter.service';
+import { RelatorioUtilsService } from '../../../shared/formatters/relatorio-utils.service';
+
+@ApiTags('relatorios')
+@ApiBearerAuth()
+@Controller('relatorios/conformidade')
+export class RelatorioConformidadeController {
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly relatorioFormatter: RelatorioFormatterService,
+    private readonly relatorioUtils: RelatorioUtilsService,
+  ) {}
+
+  @Get()
+  @ApiOperation({ 
+    summary: 'Relatório de conformidade',
+    description: 'Analisa conformidade dos EPIs em uso',
+  })
+  @ApiQuery({ name: 'almoxarifadoId', required: false, type: String, format: 'uuid' })
+  @ApiQuery({ name: 'unidadeNegocioId', required: false, type: String, format: 'uuid' })
+  @ApiQuery({ name: 'tipoEpiId', required: false, type: String, format: 'uuid' })
+  @ApiQuery({ name: 'dataInicio', required: false, type: String, format: 'date' })
+  @ApiQuery({ name: 'dataFim', required: false, type: String, format: 'date' })
+  @ApiResponse({ status: 200, description: 'Relatório de conformidade gerado' })
+  async relatorioConformidade(
+    @Query(new ZodValidationPipe(FiltrosRelatorioConformidadeSchema)) 
+    filtros: FiltrosRelatorioConformidade,
+  ): Promise<SuccessResponse> {
+    // Validar filtros
+    this.relatorioUtils.validarFiltrosData(filtros);
+    this.relatorioUtils.validarUUIDs(filtros);
+
+    const { dataInicio, dataFim } = filtros.dataInicio && filtros.dataFim 
+      ? this.relatorioUtils.converterDatas(filtros)
+      : this.relatorioUtils.calcularPeriodoPadrao();
+
+    const hoje = new Date();
+
+    // Buscar itens em conformidade/não conformidade
+    const where = {
+      status: 'COM_COLABORADOR',
+      entrega: {
+        status: 'ASSINADA',
+        ...(filtros.almoxarifadoId && { almoxarifadoId: filtros.almoxarifadoId }),
+        ...(dataInicio && dataFim && {
+          dataEntrega: {
+            gte: dataInicio,
+            lte: dataFim,
+          },
+        }),
+      },
+      ...(filtros.tipoEpiId && {
+        estoqueItemOrigem: {
+          tipoEpiId: filtros.tipoEpiId,
+        },
+      }),
+    };
+
+    const [itensAnalisados, fichasAnalisadas] = await Promise.all([
+      this.prisma.entregaItem.findMany({
+        where,
+        include: {
+          entrega: {
+            include: {
+              fichaEpi: {
+                include: {
+                  colaborador: {
+                    include: {
+                      contratada: true,
+                    },
+                  },
+                },
+              },
+              almoxarifado: {
+                include: {
+                  unidadeNegocio: true,
+                },
+              },
+            },
+          },
+          estoqueItemOrigem: {
+            include: {
+              tipoEpi: true,
+            },
+          },
+        },
+      }),
+
+      // Buscar fichas para análise adicional
+      this.prisma.fichaEpi.findMany({
+        where: {
+          status: 'ATIVA',
+          entregas: {
+            some: {
+              ...(filtros.almoxarifadoId && { almoxarifadoId: filtros.almoxarifadoId }),
+            },
+          },
+        },
+        include: {
+          colaborador: {
+            include: {
+              contratada: true,
+            },
+          },
+          entregas: {
+            include: {
+              entregaItens: {
+                where: {
+                  status: 'COM_COLABORADOR',
+                },
+              },
+            },
+          },
+        },
+      }),
+    ]);
+
+    // Classificar itens
+    const itensConformes = itensAnalisados.filter(item => {
+      if (!item.dataLimiteDevolucao) return true; // Sem data limite = conforme
+      return new Date(item.dataLimiteDevolucao) >= hoje;
+    });
+
+    const itensVencidos = itensAnalisados.filter(item => {
+      if (!item.dataLimiteDevolucao) return false;
+      return new Date(item.dataLimiteDevolucao) < hoje;
+    });
+
+    const itensNaoConformes = itensAnalisados.filter(item => {
+      // Critérios de não conformidade: vencido ou sem data limite quando deveria ter
+      if (!item.dataLimiteDevolucao && item.estoqueItemOrigem.tipoEpi.vidaUtilDias) {
+        return true; // Deveria ter data limite mas não tem
+      }
+      return false;
+    });
+
+    const totalItens = itensAnalisados.length;
+    const percentualConformidade = totalItens > 0 
+      ? Math.round((itensConformes.length / totalItens) * 100)
+      : 100;
+
+    // Preparar detalhes
+    const detalhes = itensAnalisados.map(item => ({
+      entregaItemId: item.id,
+      colaboradorNome: item.entrega.fichaEpi.colaborador.nome,
+      contratadaNome: item.entrega.fichaEpi.colaborador.contratada?.nome,
+      tipoEpiNome: item.estoqueItemOrigem.tipoEpi.nomeEquipamento,
+      numeroCa: item.estoqueItemOrigem.tipoEpi.numeroCa,
+      dataEntrega: item.entrega.dataEntrega,
+      dataLimiteDevolucao: item.dataLimiteDevolucao,
+      status: item.status,
+      situacaoConformidade: this.determinarSituacaoConformidade(item, hoje),
+      almoxarifadoNome: item.entrega.almoxarifado.nome,
+      unidadeNegocioNome: item.entrega.almoxarifado.unidadeNegocio?.nome,
+      diasParaVencimento: item.dataLimiteDevolucao 
+        ? Math.ceil((new Date(item.dataLimiteDevolucao).getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24))
+        : null,
+    }));
+
+    const dadosConformidade = {
+      itensConformes: itensConformes.length,
+      itensNaoConformes: itensNaoConformes.length,
+      itensVencidos: itensVencidos.length,
+      percentualConformidade,
+      detalhes,
+    };
+
+    const relatorio = this.relatorioFormatter.formatarRelatorioConformidade(dadosConformidade);
+
+    return {
+      success: true,
+      data: relatorio,
+      message: 'Relatório de conformidade gerado com sucesso',
+    };
+  }
+
+  private determinarSituacaoConformidade(item: any, hoje: Date): string {
+    if (!item.dataLimiteDevolucao) {
+      if (item.estoqueItemOrigem.tipoEpi.vidaUtilDias) {
+        return 'NAO_CONFORME_SEM_DATA_LIMITE';
+      }
+      return 'CONFORME_SEM_PRAZO';
+    }
+
+    const dataLimite = new Date(item.dataLimiteDevolucao);
+    const diasParaVencimento = Math.ceil((dataLimite.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24));
+
+    if (diasParaVencimento < 0) {
+      return 'NAO_CONFORME_VENCIDO';
+    } else if (diasParaVencimento <= 7) {
+      return 'ATENCAO_VENCE_7_DIAS';
+    } else if (diasParaVencimento <= 30) {
+      return 'ATENCAO_VENCE_30_DIAS';
+    } else {
+      return 'CONFORME';
+    }
+  }
+}

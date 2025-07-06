@@ -16,13 +16,22 @@ async function bootstrap() {
     exclude: ['health']
   });
 
-  // CORS configuration
-  const corsOrigins = configService.get<string>('CORS_ORIGINS', '*');
+  // CORS configuration - Allow frontend development
+  const corsOrigins = configService.get<string>('CORS_ORIGINS');
+  const defaultOrigins = [
+    'http://localhost:5175',  // Vite dev server default
+    'http://localhost:5156',  // Frontend dev port
+    'http://localhost:5157',  // Frontend dev port alternative
+    'http://localhost:3000',  // Local development
+    'https://epi-frontend.vercel.app', // Production frontend (if exists)
+  ];
+  
   app.enableCors({
-    origin: corsOrigins === '*' ? true : corsOrigins.split(','),
+    origin: corsOrigins ? corsOrigins.split(',') : defaultOrigins,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'X-Requested-With'],
     credentials: true,
+    optionsSuccessStatus: 200, // Support legacy browsers
   });
 
   // Global pipes - Use Zod validation

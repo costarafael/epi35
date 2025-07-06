@@ -56,6 +56,8 @@ export const SYSTEM_CONSTANTS = {
   // Date Calculations
   DATES: {
     MILLISECONDS_PER_DAY: 1000 * 60 * 60 * 24,
+    DIAS_SEMANA: 7,
+    DIAS_VENCIMENTO_PROXIMO: 30,
   },
 } as const;
 

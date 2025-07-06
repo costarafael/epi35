@@ -3,12 +3,12 @@ import { ConfigModule } from './infrastructure/config/config.module';
 import { DatabaseModule } from './infrastructure/database/database.module';
 import { RepositoryModule } from './infrastructure/repositories/repository.module';
 import { ApplicationModule } from './application/application.module';
+import { RelatoriosModule } from './presentation/modules/relatorios.module';
+import { FichasModule } from './presentation/modules/fichas.module';
 import { HealthController } from './presentation/controllers/health.controller';
 import { ContratadaController } from './presentation/controllers/contratada.controller';
 import { EstoqueController } from './presentation/controllers/estoque.controller';
-import { FichasEpiController } from './presentation/controllers/fichas-epi.controller';
 import { NotasMovimentacaoController } from './presentation/controllers/notas-movimentacao.controller';
-import { RelatoriosController } from './presentation/controllers/relatorios.controller';
 
 @Module({
   imports: [
@@ -16,14 +16,17 @@ import { RelatoriosController } from './presentation/controllers/relatorios.cont
     DatabaseModule,
     RepositoryModule,
     ApplicationModule,
+    // Módulos refatorados
+    RelatoriosModule,
+    FichasModule,
   ],
   controllers: [
     HealthController,
     ContratadaController,
     EstoqueController,
-    FichasEpiController,
     NotasMovimentacaoController,
-    RelatoriosController,
+    // Os controllers de RelatoriosController e FichasEpiController foram refatorados
+    // e agora estão nos módulos RelatoriosModule e FichasModule respectivamente
   ],
   providers: [],
 })

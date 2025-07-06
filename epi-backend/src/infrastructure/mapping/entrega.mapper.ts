@@ -101,7 +101,7 @@ export const mapEntregaToOutput = (entrega: any): EntregaOutput => {
     },
     almoxarifado: {
       nome: source.almoxarifado?.nome || 'N/A',
-      codigo: source.almoxarifado?.codigo || 'N/A',
+      codigo: 'N/A', // Campo código não existe na entidade almoxarifado
     },
   }));
 };

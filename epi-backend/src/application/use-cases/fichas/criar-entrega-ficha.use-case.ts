@@ -139,7 +139,7 @@ export class CriarEntregaFichaUseCase {
       where: { fichaEpiId },
       include: {
         almoxarifado: { 
-          select: { nome: true, codigo: true } 
+          select: { nome: true } 
         },
         itens: {
           include: {
@@ -180,14 +180,14 @@ export class CriarEntregaFichaUseCase {
         id: e.id,
         dataEntrega: e.dataEntrega,
         status: e.status,
-        totalItens: e.itens.length,
-        itensDetalhes: e.itens.map(item => ({
+        totalItens: e.itens?.length || 0,
+        itensDetalhes: e.itens?.map(item => ({
           itemId: item.id,
           estoqueItemId: item.estoqueItemOrigemId,
           tipoEpiId: item.estoqueItem?.tipoEpiId,
           nomeEquipamento: item.estoqueItem?.tipoEpi?.nomeEquipamento,
           quantidade: item.quantidadeEntregue,
-        }))
+        })) || []
       }))
     });
 

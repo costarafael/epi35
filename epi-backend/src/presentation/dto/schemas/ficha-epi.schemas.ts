@@ -204,6 +204,59 @@ export const FiltrosPosseAtualSchema = z.object({
   incluirProximosVencimento: z.coerce.boolean().default(true),
 });
 
+// ✅ NOVO: Schemas para Histórico Geral da Ficha
+export const FiltrosHistoricoFichaSchema = z.object({
+  tipoAcao: z.enum(['CRIACAO', 'ENTREGA', 'DEVOLUCAO', 'CANCELAMENTO', 'ALTERACAO_STATUS', 'ITEM_VENCIDO', 'EDICAO']).optional(),
+  dataInicio: z.coerce.date().optional(),
+  dataFim: z.coerce.date().optional(),
+}).merge(PaginationSchema);
+
+export const ItemHistoricoFichaSchema = z.object({
+  id: IdSchema,
+  fichaEpiId: IdSchema,
+  tipoAcao: z.enum(['CRIACAO', 'ENTREGA', 'DEVOLUCAO', 'CANCELAMENTO', 'ALTERACAO_STATUS', 'ITEM_VENCIDO', 'EDICAO']),
+  descricao: z.string(),
+  dataAcao: z.date(),
+  responsavel: z.object({
+    id: IdSchema,
+    nome: z.string(),
+  }).optional(),
+  detalhes: z.object({
+    // Detalhes específicos por tipo de ação
+    entregaId: IdSchema.optional(),
+    tipoEpiNome: z.string().optional(),
+    quantidade: z.number().optional(),
+    itens: z.array(z.object({
+      numeroSerie: z.string().optional(),
+      dataLimiteDevolucao: z.date().optional(),
+    })).optional(),
+    statusAnterior: z.string().optional(),
+    statusNovo: z.string().optional(),
+    motivo: z.string().optional(),
+    observacoes: z.string().optional(),
+  }).optional(),
+});
+
+export const HistoricoFichaResponseSchema = z.object({
+  fichaId: IdSchema,
+  colaborador: z.object({
+    id: IdSchema,
+    nome: z.string(),
+    cpf: z.string(),
+    matricula: z.string().optional(),
+  }),
+  historico: z.array(ItemHistoricoFichaSchema),
+  estatisticas: z.object({
+    totalEventos: z.number(),
+    totalEntregas: z.number(),
+    totalDevolucoes: z.number(),
+    totalCancelamentos: z.number(),
+    itensAtivos: z.number(),
+    itensVencidos: z.number(),
+    dataUltimaAtividade: z.date().optional(),
+  }),
+});
+
 // Response schemas
 export const FichaEpiResponseSchema = z.object({
   id: IdSchema,
@@ -417,3 +470,8 @@ export type DevolucaoOutput = z.infer<typeof DevolucaoUseCaseOutputSchema>;
 export type CriarFichaEpiInput = z.infer<typeof CriarFichaEpiUseCaseInputSchema>;
 export type FichaEpiOutput = z.infer<typeof FichaEpiUseCaseOutputSchema>;
 export type FichaFilters = z.infer<typeof FichaFiltersSchema>;
+
+// ✅ NEW: Histórico Geral da Ficha types from Zod schemas
+export type FiltrosHistoricoFicha = z.infer<typeof FiltrosHistoricoFichaSchema>;
+export type ItemHistoricoFicha = z.infer<typeof ItemHistoricoFichaSchema>;
+export type HistoricoFichaResponse = z.infer<typeof HistoricoFichaResponseSchema>;

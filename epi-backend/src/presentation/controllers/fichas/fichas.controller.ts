@@ -17,14 +17,17 @@ import {
 } from '@nestjs/swagger';
 import { ZodValidationPipe } from '../../pipes/zod-validation.pipe';
 import { CriarFichaEpiUseCase } from '../../../application/use-cases/fichas/criar-ficha-epi.use-case';
+import { ObterHistoricoFichaUseCase } from '../../../application/use-cases/fichas/obter-historico-ficha.use-case';
 import { StatusFichaEPI } from '../../../domain/enums/ficha.enum';
 import {
   CriarFichaEpiSchema,
   AtualizarStatusFichaSchema,
   FiltrosFichaEpiSchema,
+  FiltrosHistoricoFichaSchema,
   CriarFichaEpiRequest,
   AtualizarStatusFichaRequest,
   FiltrosFichaEpi,
+  FiltrosHistoricoFicha,
 } from '../../dto/schemas/ficha-epi.schemas';
 import { IdSchema, SuccessResponse, PaginatedResponse } from '../../dto/schemas/common.schemas';
 import { FichaFormatterService } from '../../../shared/formatters/ficha-formatter.service';
@@ -35,6 +38,7 @@ import { FichaFormatterService } from '../../../shared/formatters/ficha-formatte
 export class FichasController {
   constructor(
     private readonly criarFichaEpiUseCase: CriarFichaEpiUseCase,
+    private readonly obterHistoricoFichaUseCase: ObterHistoricoFichaUseCase,
     private readonly fichaFormatter: FichaFormatterService,
   ) {}
 
@@ -252,6 +256,100 @@ export class FichasController {
       success: true,
       data: ficha,
       message: 'Ficha inativada com sucesso',
+    };
+  }
+
+  @Get(':id/historico')
+  @ApiOperation({ 
+    summary: 'Obter histórico completo da ficha',
+    description: 'Retorna o histórico completo de uma ficha de EPI incluindo criação, entregas, devoluções, cancelamentos e itens vencidos',
+  })
+  @ApiParam({ name: 'id', type: String, format: 'uuid', description: 'ID da ficha EPI' })
+  @ApiQuery({ name: 'tipoAcao', required: false, enum: ['CRIACAO', 'ENTREGA', 'DEVOLUCAO', 'CANCELAMENTO', 'ALTERACAO_STATUS', 'ITEM_VENCIDO', 'EDICAO'] })
+  @ApiQuery({ name: 'dataInicio', required: false, type: Date, description: 'Data de início do filtro' })
+  @ApiQuery({ name: 'dataFim', required: false, type: Date, description: 'Data de fim do filtro' })
+  @ApiQuery({ name: 'page', required: false, type: Number, description: 'Página (padrão: 1)' })
+  @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Itens por página (padrão: 50)' })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Histórico obtido com sucesso',
+    schema: {
+      type: 'object',
+      properties: {
+        success: { type: 'boolean' },
+        data: {
+          type: 'object',
+          properties: {
+            fichaId: { type: 'string', format: 'uuid' },
+            colaborador: {
+              type: 'object',
+              properties: {
+                id: { type: 'string', format: 'uuid' },
+                nome: { type: 'string' },
+                cpf: { type: 'string' },
+                matricula: { type: 'string', nullable: true },
+              },
+            },
+            historico: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  id: { type: 'string' },
+                  tipoAcao: { 
+                    type: 'string',
+                    enum: ['CRIACAO', 'ENTREGA', 'DEVOLUCAO', 'CANCELAMENTO', 'ALTERACAO_STATUS', 'ITEM_VENCIDO', 'EDICAO'],
+                  },
+                  descricao: { type: 'string' },
+                  dataAcao: { type: 'string', format: 'date-time' },
+                  responsavel: {
+                    type: 'object',
+                    nullable: true,
+                    properties: {
+                      id: { type: 'string', format: 'uuid' },
+                      nome: { type: 'string' },
+                    },
+                  },
+                  detalhes: { type: 'object', nullable: true },
+                },
+              },
+            },
+            estatisticas: {
+              type: 'object',
+              properties: {
+                totalEventos: { type: 'number' },
+                totalEntregas: { type: 'number' },
+                totalDevolucoes: { type: 'number' },
+                totalCancelamentos: { type: 'number' },
+                itensAtivos: { type: 'number' },
+                itensVencidos: { type: 'number' },
+                dataUltimaAtividade: { type: 'string', format: 'date-time', nullable: true },
+              },
+            },
+          },
+        },
+        message: { type: 'string' },
+      },
+    },
+  })
+  @ApiResponse({ status: 404, description: 'Ficha não encontrada' })
+  async obterHistoricoFicha(
+    @Param('id', new ZodValidationPipe(IdSchema)) 
+    id: string,
+    @Query(new ZodValidationPipe(FiltrosHistoricoFichaSchema)) 
+    filtros: FiltrosHistoricoFicha,
+  ): Promise<SuccessResponse> {
+    const paginacao = filtros.page || filtros.limit ? {
+      page: filtros.page || 1,
+      limit: filtros.limit || 50,
+    } : undefined;
+
+    const historico = await this.obterHistoricoFichaUseCase.execute(id, filtros, paginacao);
+
+    return {
+      success: true,
+      data: historico,
+      message: 'Histórico da ficha obtido com sucesso',
     };
   }
 }

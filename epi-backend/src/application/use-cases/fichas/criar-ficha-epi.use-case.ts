@@ -269,6 +269,18 @@ export class CriarFichaEpiUseCase {
       },
     });
 
+    // ✅ Registrar no histórico
+    await this.prisma.historicoFicha.create({
+      data: {
+        fichaEpiId: id,
+        acao: 'ATIVACAO',
+        detalhes: {
+          statusAnterior: fichaExistente.status,
+          statusNovo: 'ATIVA',
+        },
+      },
+    });
+
     return mapFichaEpiToOutput(ficha);
   }
 
@@ -316,6 +328,19 @@ export class CriarFichaEpiUseCase {
               },
             },
           },
+        },
+      },
+    });
+
+    // ✅ Registrar no histórico
+    await this.prisma.historicoFicha.create({
+      data: {
+        fichaEpiId: id,
+        acao: 'INATIVACAO',
+        detalhes: {
+          statusAnterior: fichaExistente.status,
+          statusNovo: 'INATIVA',
+          motivo: `Inativação solicitada - ${entregasAtivas} entrega(s) ativa(s) verificadas`,
         },
       },
     });

@@ -21,6 +21,7 @@ import { CancelarEntregaUseCase } from './use-cases/fichas/cancelar-entrega.use-
 import { CriarEntregaFichaUseCase } from './use-cases/fichas/criar-entrega-ficha.use-case';
 import { CriarFichaEpiUseCase } from './use-cases/fichas/criar-ficha-epi.use-case';
 import { CriarTipoEpiUseCase } from './use-cases/fichas/criar-tipo-epi.use-case';
+import { ObterHistoricoFichaUseCase } from './use-cases/fichas/obter-historico-ficha.use-case';
 import { ProcessarDevolucaoUseCase } from './use-cases/fichas/processar-devolucao.use-case';
 
 // Query Use Cases
@@ -62,6 +63,7 @@ import { RelatorioDescartesUseCase } from './use-cases/queries/relatorio-descart
     CriarEntregaFichaUseCase,
     CriarFichaEpiUseCase,
     CriarTipoEpiUseCase,
+    ObterHistoricoFichaUseCase,
     ProcessarDevolucaoUseCase,
     
     // Query Use Cases
@@ -101,6 +103,7 @@ import { RelatorioDescartesUseCase } from './use-cases/queries/relatorio-descart
     CriarEntregaFichaUseCase,
     CriarFichaEpiUseCase,
     CriarTipoEpiUseCase,
+    ObterHistoricoFichaUseCase,
     ProcessarDevolucaoUseCase,
     
     // Query Use Cases

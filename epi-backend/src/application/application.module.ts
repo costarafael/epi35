@@ -38,6 +38,10 @@ import { RelatorioPosicaoEstoqueUseCase } from './use-cases/queries/relatorio-po
 import { RelatorioSaldoEstoqueUseCase } from './use-cases/queries/relatorio-saldo-estoque.use-case';
 import { RelatorioDescartesUseCase } from './use-cases/queries/relatorio-descartes.use-case';
 
+// Configuracao Use Cases
+import { ObterConfiguracoesUseCase } from './use-cases/configuracoes/obter-configuracoes.use-case';
+import { AtualizarConfiguracoesUseCase } from './use-cases/configuracoes/atualizar-configuracoes.use-case';
+
 @Module({
   imports: [RepositoryModule],
   providers: [
@@ -79,6 +83,10 @@ import { RelatorioDescartesUseCase } from './use-cases/queries/relatorio-descart
     RelatorioPosicaoEstoqueUseCase,
     RelatorioSaldoEstoqueUseCase,
     RelatorioDescartesUseCase,
+    
+    // Configuracao Use Cases
+    ObterConfiguracoesUseCase,
+    AtualizarConfiguracoesUseCase,
   ],
   exports: [
     // Domain Services
@@ -119,6 +127,10 @@ import { RelatorioDescartesUseCase } from './use-cases/queries/relatorio-descart
     RelatorioPosicaoEstoqueUseCase,
     RelatorioSaldoEstoqueUseCase,
     RelatorioDescartesUseCase,
+    
+    // Configuracao Use Cases
+    ObterConfiguracoesUseCase,
+    AtualizarConfiguracoesUseCase,
   ],
 })
 export class ApplicationModule {}

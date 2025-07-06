@@ -3,6 +3,10 @@ import { z } from 'zod';
 // Common validation schemas
 export const IdSchema = z.string().uuid('ID deve ser um UUID válido');
 
+export const IdParamSchema = z.object({
+  id: IdSchema,
+});
+
 export const PaginationSchema = z.object({
   page: z.coerce.number().int().positive().default(1),
   limit: z.coerce.number().int().positive().max(100).default(10),

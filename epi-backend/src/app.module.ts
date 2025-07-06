@@ -9,6 +9,7 @@ import { HealthController } from './presentation/controllers/health.controller';
 import { ContratadaController } from './presentation/controllers/contratada.controller';
 import { EstoqueController } from './presentation/controllers/estoque.controller';
 import { NotasMovimentacaoController } from './presentation/controllers/notas-movimentacao.controller';
+import { TiposEpiController } from './presentation/controllers/tipos-epi.controller';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { NotasMovimentacaoController } from './presentation/controllers/notas-mo
     ContratadaController,
     EstoqueController,
     NotasMovimentacaoController,
+    TiposEpiController,
     // Os controllers de RelatoriosController e FichasEpiController foram refatorados
     // e agora estão nos módulos RelatoriosModule e FichasModule respectivamente
   ],

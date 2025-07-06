@@ -33,7 +33,18 @@ export class RelatorioMovimentacoesController {
   })
   @ApiQuery({ name: 'almoxarifadoId', required: false, type: String, format: 'uuid', description: 'Filtrar por almoxarifado' })
   @ApiQuery({ name: 'tipoEpiId', required: false, type: String, format: 'uuid', description: 'Filtrar por tipo de EPI' })
-  @ApiQuery({ name: 'tipoMovimentacao', required: false, enum: ['ENTRADA', 'SAIDA', 'TRANSFERENCIA', 'AJUSTE', 'DESCARTE', 'ESTORNO'], description: 'Filtrar por tipo de movimentação' })
+  @ApiQuery({ 
+    name: 'tipoMovimentacao', 
+    required: false, 
+    enum: [
+      'ENTRADA_NOTA', 'SAIDA_ENTREGA', 'ENTRADA_DEVOLUCAO', 'SAIDA_TRANSFERENCIA',
+      'ENTRADA_TRANSFERENCIA', 'SAIDA_DESCARTE', 'AJUSTE_POSITIVO', 'AJUSTE_NEGATIVO',
+      'ESTORNO_ENTRADA_NOTA', 'ESTORNO_SAIDA_ENTREGA', 'ESTORNO_ENTRADA_DEVOLUCAO',
+      'ESTORNO_SAIDA_DESCARTE', 'ESTORNO_SAIDA_TRANSFERENCIA', 'ESTORNO_ENTRADA_TRANSFERENCIA',
+      'ESTORNO_AJUSTE_POSITIVO', 'ESTORNO_AJUSTE_NEGATIVO'
+    ], 
+    description: 'Filtrar por tipo de movimentação específico' 
+  })
   @ApiQuery({ name: 'usuarioId', required: false, type: String, format: 'uuid', description: 'Filtrar por responsável' })
   @ApiQuery({ name: 'dataInicio', required: false, type: String, format: 'date', description: 'Data inicial do período' })
   @ApiQuery({ name: 'dataFim', required: false, type: String, format: 'date', description: 'Data final do período' })

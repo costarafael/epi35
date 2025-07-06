@@ -51,7 +51,13 @@ export const FiltrosRelatorioUsoSchema = z.object({
 export const FiltrosRelatorioMovimentacaoSchema = z.object({
   almoxarifadoId: IdSchema.optional(),
   tipoEpiId: IdSchema.optional(),
-  tipoMovimentacao: z.enum(['ENTRADA', 'SAIDA', 'TRANSFERENCIA', 'AJUSTE', 'DESCARTE', 'ESTORNO']).optional(),
+  tipoMovimentacao: z.enum([
+    'ENTRADA_NOTA', 'SAIDA_ENTREGA', 'ENTRADA_DEVOLUCAO', 'SAIDA_TRANSFERENCIA',
+    'ENTRADA_TRANSFERENCIA', 'SAIDA_DESCARTE', 'AJUSTE_POSITIVO', 'AJUSTE_NEGATIVO',
+    'ESTORNO_ENTRADA_NOTA', 'ESTORNO_SAIDA_ENTREGA', 'ESTORNO_ENTRADA_DEVOLUCAO',
+    'ESTORNO_SAIDA_DESCARTE', 'ESTORNO_SAIDA_TRANSFERENCIA', 'ESTORNO_ENTRADA_TRANSFERENCIA',
+    'ESTORNO_AJUSTE_POSITIVO', 'ESTORNO_AJUSTE_NEGATIVO'
+  ]).optional(),
   usuarioId: IdSchema.optional(),
   dataInicio: z.coerce.date().optional(),
   dataFim: z.coerce.date().optional(),

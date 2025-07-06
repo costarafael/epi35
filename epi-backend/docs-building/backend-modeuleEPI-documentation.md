@@ -12,7 +12,7 @@ coverImage: null
 
 # Especificação Técnica Detalhada: Módulo de Gestão de Fichas de EPI e Estoque
 
-**Versão**: 3.5.9 (API de Usuários para Criação de Entregas)
+**Versão**: 3.5.10 (Correção Crítica Mapeamento de Entregas)
 
 **Data**: 06 de julho de 2025
 
@@ -35,6 +35,7 @@ coverImage: null
 | 3.5.7  | 06/07/2025 | **SISTEMA DE GERENCIAMENTO DE CONFIGURAÇÕES**: Implementação completa da API REST para gerenciamento de configurações do sistema (PERMITIR_ESTOQUE_NEGATIVO, PERMITIR_AJUSTES_FORCADOS, ESTOQUE_MINIMO_EQUIPAMENTO). 8 endpoints completos: listagem, consulta individual, atualizações (simples, boolean, numérica), batch update e reset para padrão. Validações de tipos e regras de negócio. Single Source of Truth com schemas Zod. Testes de integração 100% cobertura (20/20 testes passando). Sistema type-safe e pronto para produção. |
 | 3.5.8  | 06/07/2025 | **ENDPOINTS DE LISTAGEM DE ESTOQUE**: Implementação dos endpoints críticos faltantes para integração frontend. GET /api/estoque/itens (listagem de itens de estoque com filtros e paginação) e GET /api/estoque/almoxarifados (listagem de almoxarifados). Use cases completos (ListarEstoqueItensUseCase, ListarAlmoxarifadosUseCase), schemas Zod type-safe, integração no ApplicationModule e EstoqueController. Testes de integração 100% (15 cenários). Funcionalidade essencial para criação de entregas no frontend. 0 erros de compilação. |
 | 3.5.9  | 06/07/2025 | **API DE USUÁRIOS PARA CRIAÇÃO DE ENTREGAS**: Implementação completa dos endpoints de usuários solicitados para resolver bloqueio na criação de entregas. GET /api/usuarios (listagem com filtros e paginação) e GET /api/usuarios/:id (consulta individual). ListarUsuariosUseCase com filtros por nome/email case-insensitive, schemas Zod type-safe, UsuariosController com documentação Swagger completa. Testes de integração 100% (11/11 cenários passando). Sistema de paginação configurável (padrão: 50 itens, máximo: 100). Funcionalidade crítica para seleção de responsáveis em entregas de EPI. 0 erros de compilação, pronto para uso imediato no frontend. |
+| 3.5.10 | 06/07/2025 | **CORREÇÃO CRÍTICA MAPEAMENTO DE ENTREGAS**: Identificação e correção de bug crítico no mapeamento de entregas com múltiplos tipos de EPI. Issue: "Frontend envia 1x Óculos + 1x Luvas, backend retorna 2x Óculos". Root cause localizado em `entrega.mapper.ts` - mapper utilizava apenas primeiro item para determinar tipo da entrega. Solução: implementação de agregação inteligente detectando tipos únicos e exibindo "Múltiplos EPIs" quando aplicável. Correção aplicada em ambos endpoints de criação (`POST /api/fichas-epi/:id/entregas` e `POST /api/fichas-epi/:fichaId/entregas`). Investigação completa de todo fluxo (Controller → Use Case → Mapper → Formatters). Commit 293e00c deployado em produção. Mantém rastreabilidade unitária e backward compatibility 100%. |
 
 ## 🌐 URLs de Produção
 
@@ -55,10 +56,10 @@ coverImage: null
 - **Health Checks**: Contínuos (5s interval)
 - **Status**: ✅ Operacional desde 05/07/2025 13:50 UTC
 - **Auto-Deploy**: Ativo para commits na main
-- **Commit Atual**: `6ce2577` (06/07/2025 08:30 UTC-3)
+- **Commit Atual**: `e7f1c3b` (06/07/2025 15:30 UTC-3)
 
-### **Status de Produção (06/07/2025 14:00)**
-#### **✅ Sistema Completamente Funcional + Refatorado**
+### **Status de Produção (06/07/2025 15:30)**
+#### **✅ Sistema Completamente Funcional + Bug Crítico Corrigido**
 - **Dashboard**: Funcionando com dados reais (5 fichas ativas, 6 itens estoque)
 - **Database**: Popolado com dados de demonstração
   - 3 contratadas cadastradas (Alpha, Beta, Gamma)
@@ -66,6 +67,7 @@ coverImage: null
   - 6 itens de estoque distribuídos em almoxarifados
   - 2 almoxarifados (SP e RJ) operacionais
 - **APIs**: 63 endpoints testados e funcionais (incluindo novos endpoints de usuários para criação de entregas)
+- **BUG FIX**: ✅ Correção crítica aplicada - mapeamento de entregas com múltiplos tipos de EPI funcionando corretamente
 - **Arquitetura**: Controllers refatorados para melhor manutenibilidade
 - **Integração**: Backend pronto para conectar com frontend
 

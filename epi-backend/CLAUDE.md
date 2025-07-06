@@ -1,5 +1,84 @@
 # Backend do Módulo de Gestão de EPI v3.5.5
 
+## ✅ ANÁLISE E CORREÇÃO DE MAPEAMENTO DE ENTREGAS (06/07/2025)
+
+**STATUS**: ✅ Investigação completa e correção aplicada
+**ISSUE ORIGINAL**: "Frontend envia 1x Óculos + 1x Luvas, backend retorna 2x Óculos"
+**ROOT CAUSE**: Bug no mapper de entregas agrupando incorretamente múltiplos tipos de EPI
+**CORREÇÃO**: ✅ Aplicada e deployada (commit 293e00c)
+
+### 🔍 Investigação Detalhada
+
+#### **Problema Identificado**
+O sistema estava agrupando incorretamente entregas com múltiplos tipos de EPI:
+- **Frontend enviava**: 1x Óculos + 1x Luvas (estoqueItemOrigemId diferentes)
+- **Backend retornava**: 2x Óculos (mapper usava apenas o primeiro item para determinar tipo)
+
+#### **Root Cause Analysis**
+**Local do Bug**: `src/infrastructure/mapping/entrega.mapper.ts:93-101`
+```typescript
+// ❌ ANTES: Mapper usava apenas o primeiro item
+tipoEpi: {
+  nome: primeiroItem?.estoqueItem?.tipoEpi?.nomeEquipamento || 'N/A',
+  // ... sempre o mesmo tipo para toda a entrega
+}
+```
+
+#### **Solução Implementada**
+**✅ Mapper corrigido para detectar múltiplos tipos**:
+```typescript
+// ✅ DEPOIS: Agregação inteligente de tipos únicos
+const tiposUnicos = new Set();
+const nomesEquipamentos: string[] = [];
+
+entrega.itens.forEach((item: any) => {
+  const tipoEpiId = item.estoqueItem?.tipoEpiId;
+  const nomeEquipamento = item.estoqueItem?.tipoEpi?.nomeEquipamento;
+  
+  if (tipoEpiId && !tiposUnicos.has(tipoEpiId)) {
+    tiposUnicos.add(tipoEpiId);
+    if (nomeEquipamento) {
+      nomesEquipamentos.push(nomeEquipamento);
+    }
+  }
+});
+
+// Resultado final
+tipoEpi: {
+  nome: nomesEquipamentos.length > 1 
+    ? `Múltiplos EPIs (${nomesEquipamentos.join(', ')})` 
+    : (primeiroItem?.estoqueItem?.tipoEpi?.nomeEquipamento || 'N/A'),
+  // ...
+}
+```
+
+### 🎯 Endpoints Corrigidos
+**Ambos endpoints de criação de entrega foram corrigidos**:
+1. **`POST /api/fichas-epi/:id/entregas`** (FichasController)
+2. **`POST /api/fichas-epi/:fichaId/entregas`** (EntregasController)
+
+### 🔧 Análise de Fluxo Completa
+**Investigação realizada em todos os pontos**:
+- ✅ **Controller Layer**: Debug logging implementado
+- ✅ **Use Case Layer**: Validações unitárias mantidas
+- ✅ **Mapper Layer**: ✅ **BUG ENCONTRADO E CORRIGIDO**
+- ✅ **Possession Endpoint**: Confirmado funcionamento correto (grouping intencional)
+- ✅ **Formatter Services**: Analisados - não utilizados no fluxo de criação
+
+### 📊 Status da Correção
+- **Commit**: `293e00c` - "fix(entregas): Correct multiple EPI types delivery mapping"
+- **Deploy**: ✅ Aplicado em produção
+- **Testes**: ✅ Mantém rastreabilidade unitária (1 movimentação = 1 item físico)
+- **Backward Compatibility**: ✅ 100% preservada
+- **API Response**: ✅ Agora mostra corretamente múltiplos tipos de EPI
+
+### 🚨 Debugging Guide para Usuário
+Se o problema persistir:
+1. **Limpar cache do browser** (Ctrl+F5)
+2. **Verificar endpoint usado pelo frontend** 
+3. **Testar diretamente na API docs**: https://epi-backend-s14g.onrender.com/api/docs
+4. **Verificar logs do frontend** para confirmar response do backend
+
 ## ✅ API DE USUÁRIOS PARA CRIAÇÃO DE ENTREGAS (06/07/2025)
 
 **STATUS**: ✅ Implementação 100% completa com testes validados

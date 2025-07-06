@@ -11,6 +11,7 @@ import { EstoqueController } from './presentation/controllers/estoque.controller
 import { NotasMovimentacaoController } from './presentation/controllers/notas-movimentacao.controller';
 import { TiposEpiController } from './presentation/controllers/tipos-epi.controller';
 import { ConfiguracoesController } from './presentation/controllers/configuracoes.controller';
+import { UsuariosController } from './presentation/controllers/usuarios.controller';
 
 @Module({
   imports: [
@@ -29,6 +30,7 @@ import { ConfiguracoesController } from './presentation/controllers/configuracoe
     NotasMovimentacaoController,
     TiposEpiController,
     ConfiguracoesController,
+    UsuariosController,
     // Os controllers de RelatoriosController e FichasEpiController foram refatorados
     // e agora estão nos módulos RelatoriosModule e FichasModule respectivamente
   ],

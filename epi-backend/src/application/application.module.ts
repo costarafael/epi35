@@ -44,6 +44,9 @@ import { RelatorioDescartesUseCase } from './use-cases/queries/relatorio-descart
 import { ObterConfiguracoesUseCase } from './use-cases/configuracoes/obter-configuracoes.use-case';
 import { AtualizarConfiguracoesUseCase } from './use-cases/configuracoes/atualizar-configuracoes.use-case';
 
+// Usuario Use Cases
+import { ListarUsuariosUseCase } from './use-cases/usuarios/listar-usuarios.use-case';
+
 @Module({
   imports: [RepositoryModule],
   providers: [
@@ -91,6 +94,9 @@ import { AtualizarConfiguracoesUseCase } from './use-cases/configuracoes/atualiz
     // Configuracao Use Cases
     ObterConfiguracoesUseCase,
     AtualizarConfiguracoesUseCase,
+    
+    // Usuario Use Cases
+    ListarUsuariosUseCase,
   ],
   exports: [
     // Domain Services
@@ -137,6 +143,9 @@ import { AtualizarConfiguracoesUseCase } from './use-cases/configuracoes/atualiz
     // Configuracao Use Cases
     ObterConfiguracoesUseCase,
     AtualizarConfiguracoesUseCase,
+    
+    // Usuario Use Cases
+    ListarUsuariosUseCase,
   ],
 })
 export class ApplicationModule {}

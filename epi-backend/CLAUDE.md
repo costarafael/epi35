@@ -1,6 +1,60 @@
 # Backend do Módulo de Gestão de EPI v3.5.5
 
-## ✅ ANÁLISE E CORREÇÃO DE MAPEAMENTO DE ENTREGAS (06/07/2025)
+## ✅ CORREÇÃO DE HISTÓRICO DE ENTREGAS COM MÚLTIPLOS TIPOS DE EPI (06/07/2025)
+
+**STATUS**: ✅ Correção completa implementada e testada
+**ISSUE ORIGINAL**: "Histórico mostra '2 item(ns) de Capacete de Segurança' para entrega de 1 Capacete + 1 Luva"
+**ROOT CAUSE**: Bug na descrição do histórico usando apenas o primeiro tipo de EPI
+**CORREÇÃO**: ✅ Aplicada e commitada (commit 86d1c6a)
+
+### 🔍 Investigação Detalhada
+
+#### **Problema Identificado**
+O sistema de histórico estava gerando descrições incorretas para entregas com múltiplos tipos de EPI:
+- **Frontend reportou**: Histórico mostrando "2 item(ns) de Capacete de Segurança" para entrega mista
+- **Situação real**: 1x Capacete + 1x Luva sendo processados corretamente pelo backend
+- **Root cause**: Histórico usava apenas `entrega.itens[0]` para determinar descrição
+
+#### **Root Cause Analysis**
+**Local do Bug**: `src/application/use-cases/fichas/obter-historico-ficha.use-case.ts:179`
+```typescript
+// ❌ ANTES: Usava apenas o primeiro item da entrega
+descricao: `Entrega realizada - ${entrega.itens.length} item(ns) de ${entrega.itens[0]?.estoqueItem.tipoEpi.nomeEquipamento || 'EPI'}`,
+```
+
+#### **Solução Implementada**
+**✅ Histórico corrigido para detectar múltiplos tipos únicos**:
+```typescript
+// ✅ DEPOIS: Detecção inteligente de tipos únicos
+const tiposUnicos = new Set<string>();
+const nomesEquipamentos: string[] = [];
+
+entrega.itens.forEach(item => {
+  const tipoEpiId = item.estoqueItem?.tipoEpi?.nomeEquipamento;
+  if (tipoEpiId && !tiposUnicos.has(tipoEpiId)) {
+    tiposUnicos.add(tipoEpiId);
+    nomesEquipamentos.push(tipoEpiId);
+  }
+});
+
+const descricaoTipos = nomesEquipamentos.length > 1 
+  ? `Múltiplos EPIs (${nomesEquipamentos.join(', ')})` 
+  : (nomesEquipamentos[0] || 'EPI');
+
+descricao: `Entrega realizada - ${entrega.itens.length} item(ns) de ${descricaoTipos}`,
+```
+
+### 🎯 Resultados da Correção
+**Antes**: "Entrega realizada - 2 item(ns) de Capacete de Segurança"
+**Depois**: "Entrega realizada - 2 item(ns) de Múltiplos EPIs (Capacete de Segurança, Luva de Segurança)"
+
+### ✅ Validação Completa
+- **Build**: ✅ 0 erros de compilação
+- **Testes**: ✅ 6/6 testes de histórico passando
+- **Commit**: ✅ `86d1c6a` - "fix(historico): Correct delivery history description for multiple EPI types"
+- **Deploy**: ✅ Pronto para deploy automático via GitHub → Render
+
+## ✅ ANÁLISE E CORREÇÃO DE MAPEAMENTO DE ENTREGAS (06/07/2025) - RESOLVIDO
 
 **STATUS**: ✅ Investigação completa e correção aplicada
 **ISSUE ORIGINAL**: "Frontend envia 1x Óculos + 1x Luvas, backend retorna 2x Óculos"

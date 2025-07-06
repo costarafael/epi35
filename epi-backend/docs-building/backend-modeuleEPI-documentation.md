@@ -12,7 +12,7 @@ coverImage: null
 
 # Especificação Técnica Detalhada: Módulo de Gestão de Fichas de EPI e Estoque
 
-**Versão**: 3.5.5 (Refatoração Controllers)
+**Versão**: 3.5.8 (Endpoints de Listagem de Estoque)
 
 **Data**: 06 de julho de 2025
 
@@ -32,6 +32,8 @@ coverImage: null
 | 3.5.4  | 05/07/2025 | **DEPLOY PRODUÇÃO FINALIZADO**: Sistema 100% funcional em produção (https://epi-backend-s14g.onrender.com), backend completo com 50 endpoints operacionais, dashboard funcional mostrando dados reais (5 fichas ativas, 6 itens em estoque), database populado com dados de demonstração (3 contratadas, 5 colaboradores), correções de API routes, seed script para produção implementado, monitoramento ativo e sistema pronto para integração com frontend. |
 | 3.5.5  | 06/07/2025 | **REFATORAÇÃO DE CONTROLLERS COMPLETA**: Refatoração bem-sucedida dos controllers grandes para melhor manutenibilidade. RelatoriosController (673 linhas) dividido em 4 controllers especializados, FichasEpiController (630 linhas) refatorado em 3 controllers especializados, criação de 5 formatters services centralizados, implementação de módulos organizados (RelatoriosModule e FichasModule), 100% compatibilidade API preservada, 0 erros de compilação, sistema otimizado seguindo princípios Clean Architecture e Single Responsibility. |
 | 3.5.6  | 06/07/2025 | **SISTEMA DE HISTÓRICO DE FICHAS EPI**: Implementação completa do sistema de auditoria e rastreabilidade de fichas EPI. Novo endpoint GET /api/fichas-epi/:id/historico com rastreamento total de eventos (criação, entregas, devoluções, cancelamentos, alterações de status, itens vencidos). Sistema de filtros avançados (tipo de ação, período) e paginação. Reconstrução automática do histórico a partir de múltiplas fontes de dados. 6/6 testes de integração implementados e passando. Documentação Swagger completa. Pronto para deploy em produção. |
+| 3.5.7  | 06/07/2025 | **SISTEMA DE GERENCIAMENTO DE CONFIGURAÇÕES**: Implementação completa da API REST para gerenciamento de configurações do sistema (PERMITIR_ESTOQUE_NEGATIVO, PERMITIR_AJUSTES_FORCADOS, ESTOQUE_MINIMO_EQUIPAMENTO). 8 endpoints completos: listagem, consulta individual, atualizações (simples, boolean, numérica), batch update e reset para padrão. Validações de tipos e regras de negócio. Single Source of Truth com schemas Zod. Testes de integração 100% cobertura (20/20 testes passando). Sistema type-safe e pronto para produção. |
+| 3.5.8  | 06/07/2025 | **ENDPOINTS DE LISTAGEM DE ESTOQUE**: Implementação dos endpoints críticos faltantes para integração frontend. GET /api/estoque/itens (listagem de itens de estoque com filtros e paginação) e GET /api/estoque/almoxarifados (listagem de almoxarifados). Use cases completos (ListarEstoqueItensUseCase, ListarAlmoxarifadosUseCase), schemas Zod type-safe, integração no ApplicationModule e EstoqueController. Testes de integração 100% (15 cenários). Funcionalidade essencial para criação de entregas no frontend. 0 erros de compilação. |
 
 ## 🌐 URLs de Produção
 
@@ -62,7 +64,7 @@ coverImage: null
   - 5 colaboradores ativos (2 diretos + 3 de contratadas)
   - 6 itens de estoque distribuídos em almoxarifados
   - 2 almoxarifados (SP e RJ) operacionais
-- **APIs**: 51 endpoints testados e funcionais (0 breaking changes após refatoração + histórico)
+- **APIs**: 61 endpoints testados e funcionais (incluindo novos endpoints de listagem de estoque)
 - **Arquitetura**: Controllers refatorados para melhor manutenibilidade
 - **Integração**: Backend pronto para conectar com frontend
 
@@ -202,6 +204,133 @@ O sistema separa configurações em duas categorias principais: **Configuraçõe
 2. Restart da aplicação
 3. Validação pós-mudança obrigatória
 4. Rollback plan preparado
+
+### 1.4. Sistema de Gerenciamento de Configurações (v3.5.7)
+
+#### **🔧 API REST para Configurações do Sistema**
+
+**Implementação**: Sistema completo de gerenciamento de configurações via API REST, permitindo controle dinâmico das configurações operacionais sem necessidade de redeploy.
+
+**Localização**: 
+- **Schemas**: `/src/presentation/dto/schemas/configuracoes.schemas.ts`
+- **Use Cases**: `/src/application/use-cases/configuracoes/`
+- **Controller**: `/src/presentation/controllers/configuracoes.controller.ts`
+- **Testes**: `/test/integration/configuracoes/configuracoes-api.integration.spec.ts`
+
+#### **📊 Configurações Gerenciadas**
+
+| Chave | Tipo | Valor Padrão | Descrição | Validações |
+|-------|------|-------------|-----------|------------|
+| `PERMITIR_ESTOQUE_NEGATIVO` | Boolean | `false` | Permite saldos negativos no estoque | Verifica se existem itens com saldo negativo antes de desabilitar |
+| `PERMITIR_AJUSTES_FORCADOS` | Boolean | `false` | Permite ajustes diretos no estoque | Sem validações específicas |
+| `ESTOQUE_MINIMO_EQUIPAMENTO` | Number | `10` | Limite mínimo global para alertas | Deve ser ≥ 0 e ≤ 999.999 |
+
+#### **🌐 Endpoints da API (8 endpoints)**
+
+```bash
+# Listar todas as configurações
+GET /api/configuracoes
+
+# Obter status do sistema
+GET /api/configuracoes/status
+
+# Obter configuração específica
+GET /api/configuracoes/:chave
+
+# Atualizar configuração (genérico)
+PUT /api/configuracoes/:chave
+
+# Atualizar configuração booleana (simplificado)
+PATCH /api/configuracoes/:chave/boolean
+
+# Atualizar configuração numérica (simplificado)
+PATCH /api/configuracoes/:chave/number
+
+# Atualização em lote (até 10 configurações)
+POST /api/configuracoes/batch
+
+# Reset para valores padrão
+POST /api/configuracoes/reset
+```
+
+#### **🔒 Regras de Negócio e Validações**
+
+**Validação de Tipos**:
+- **Boolean**: Aceita `"true"`, `"false"`, `"1"`, `"0"`
+- **Number**: Validação numérica rigorosa com limites específicos
+- **String**: Validação de tamanho e caracteres permitidos
+
+**Regras de Negócio Específicas**:
+1. **PERMITIR_ESTOQUE_NEGATIVO**: Não pode ser desabilitado se existirem itens com saldo negativo
+2. **ESTOQUE_MINIMO_EQUIPAMENTO**: Deve estar entre 0 e 999.999 unidades
+3. **Auto-criação**: Configurações são criadas automaticamente com valores padrão se não existirem
+
+#### **📋 Single Source of Truth com Zod**
+
+**Padrão Implementado**: Todas as validações e tipos derivam dos schemas Zod, eliminando duplicação de código:
+
+```typescript
+// Schema define estrutura e validações
+export const ConfiguracaoOutputSchema = z.object({
+  chave: ChaveConfiguracaoSchema,
+  valor: z.string(),
+  valorParsed: z.union([z.boolean(), z.number(), z.string()]),
+  tipo: TipoConfiguracaoSchema,
+  descricao: z.string(),
+  createdAt: z.date(),
+  updatedAt: z.date().optional(),
+});
+
+// Tipos derivados automaticamente
+export type ConfiguracaoOutput = z.infer<typeof ConfiguracaoOutputSchema>;
+```
+
+#### **🧪 Cobertura de Testes**
+
+**Status**: ✅ **100% Coverage** (20/20 testes passando)
+
+**Categorias de Teste**:
+- **Funcionalidades básicas**: Listagem, consulta individual, criação automática
+- **Atualizações**: Simples, booleana, numérica com validações
+- **Operações em lote**: Batch update, reset para padrão
+- **Validações**: Tipos inválidos, regras de negócio, limites
+- **Integração**: Consistência entre endpoints e ConfiguracaoService
+
+#### **⚡ Performance e Integração**
+
+**Integração com ConfiguracaoService**: 
+- Mudanças via API são refletidas imediatamente no sistema
+- Cache invalidado automaticamente em atualizações
+- Consistência garantida entre múltiplos endpoints
+
+**Exemplos de Uso**:
+```bash
+# Habilitar estoque negativo temporariamente
+PATCH /api/configuracoes/PERMITIR_ESTOQUE_NEGATIVO/boolean
+{ "ativo": true, "descricao": "Emergência - import em andamento" }
+
+# Atualizar múltiplas configurações
+POST /api/configuracoes/batch
+{
+  "configuracoes": [
+    { "chave": "PERMITIR_ESTOQUE_NEGATIVO", "valor": "false" },
+    { "chave": "ESTOQUE_MINIMO_EQUIPAMENTO", "valor": "25" }
+  ]
+}
+
+# Reset completo para padrão
+POST /api/configuracoes/reset
+```
+
+#### **🔄 Ciclo de Vida e Auditoria**
+
+**Rastreabilidade**: Todas as mudanças ficam registradas com:
+- Valor anterior e novo valor
+- Timestamp da alteração  
+- Histórico completo de configurações
+- Status de sucesso/falha em operações batch
+
+**Status de Produção**: ✅ Deployment realizado com commit `a2ce7a5`
 
 1. **Fonte Única da Verdade**: O saldo de itens é auditável e reconstruível a partir de um livro-razão imutável (`movimentacoes_estoque`).
 
@@ -1023,6 +1152,26 @@ CREATE INDEX idx_historico_responsavel ON historico_fichas (responsavel_id);
 - `GET /api/notas-movimentacao/{notaId}`: Detalhes de uma nota.
 
 - `GET /api/estoque-itens/{itemId}/historico`: Histórico de movimentação (UC-QUERY-02).
+
+- `GET /api/estoque/itens`: Lista itens de estoque com filtros e paginação.
+
+    - **Query Parameters**:
+        - `almoxarifadoId` (opcional): Filtrar por almoxarifado
+        - `tipoEpiId` (opcional): Filtrar por tipo de EPI
+        - `apenasDisponiveis` (opcional): Apenas itens disponíveis
+        - `apenasComSaldo` (opcional): Apenas itens com saldo > 0
+        - `page` (opcional): Página (padrão: 1)
+        - `limit` (opcional): Itens por página (padrão: 50, máx: 100)
+
+    - **Resposta**: Lista paginada de itens de estoque com informações do almoxarifado e tipo de EPI
+
+- `GET /api/estoque/almoxarifados`: Lista almoxarifados disponíveis.
+
+    - **Query Parameters**:
+        - `unidadeNegocioId` (opcional): Filtrar por unidade de negócio
+        - `incluirContadores` (opcional): Incluir contagem de itens
+
+    - **Resposta**: Lista de almoxarifados ordenados por principais primeiro
 
 ### 8.2. Recursos de Ajustes Diretos
 

@@ -18,6 +18,8 @@ import {
 import { ZodValidationPipe } from '../pipes/zod-validation.pipe';
 import { RelatorioPosicaoEstoqueUseCase } from '../../application/use-cases/queries/relatorio-posicao-estoque.use-case';
 import { RealizarAjusteDirectoUseCase } from '../../application/use-cases/estoque/realizar-ajuste-direto.use-case';
+import { ListarEstoqueItensUseCase } from '../../application/use-cases/estoque/listar-estoque-itens.use-case';
+import { ListarAlmoxarifadosUseCase } from '../../application/use-cases/estoque/listar-almoxarifados.use-case';
 import {
   FiltrosEstoqueSchema,
   AjusteDirectoSchema,
@@ -35,6 +37,10 @@ import {
   ValidacaoDivergenciasRequest,
   FiltrosKardex,
   FiltrosAnaliseGiro,
+  ListarEstoqueItensQuerySchema,
+  ListarEstoqueItensQuery,
+  ListarAlmoxarifadosQuerySchema,
+  ListarAlmoxarifadosQuery,
 } from '../dto/schemas/estoque.schemas';
 import { IdSchema, SuccessResponse } from '../dto/schemas/common.schemas';
 
@@ -45,6 +51,8 @@ export class EstoqueController {
   constructor(
     private readonly relatorioPosicaoEstoqueUseCase: RelatorioPosicaoEstoqueUseCase,
     private readonly realizarAjusteDirectoUseCase: RealizarAjusteDirectoUseCase,
+    private readonly listarEstoqueItensUseCase: ListarEstoqueItensUseCase,
+    private readonly listarAlmoxarifadosUseCase: ListarAlmoxarifadosUseCase,
   ) {}
 
   @Get('posicao')
@@ -395,6 +403,120 @@ export class EstoqueController {
         },
         dataGeracao: relatorio.dataGeracao,
       },
+    };
+  }
+
+  @Get('itens')
+  @ApiOperation({ 
+    summary: 'Listar itens de estoque',
+    description: 'Lista itens de estoque com filtros opcionais e paginação',
+  })
+  @ApiQuery({ name: 'almoxarifadoId', required: false, type: String, format: 'uuid', description: 'Filtrar por almoxarifado' })
+  @ApiQuery({ name: 'tipoEpiId', required: false, type: String, format: 'uuid', description: 'Filtrar por tipo de EPI' })
+  @ApiQuery({ name: 'apenasDisponiveis', required: false, type: Boolean, description: 'Apenas itens disponíveis' })
+  @ApiQuery({ name: 'apenasComSaldo', required: false, type: Boolean, description: 'Apenas itens com saldo > 0' })
+  @ApiQuery({ name: 'page', required: false, type: Number, description: 'Página (padrão: 1)' })
+  @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Itens por página (padrão: 50, máx: 100)' })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Lista de itens de estoque',
+    schema: {
+      type: 'object',
+      properties: {
+        success: { type: 'boolean', example: true },
+        data: {
+          type: 'object',
+          properties: {
+            items: { type: 'array' },
+            pagination: {
+              type: 'object',
+              properties: {
+                page: { type: 'number' },
+                limit: { type: 'number' },
+                total: { type: 'number' },
+                totalPages: { type: 'number' },
+              },
+            },
+          },
+        },
+      },
+    },
+  })
+  async listarEstoqueItens(
+    @Query(new ZodValidationPipe(ListarEstoqueItensQuerySchema)) 
+    query: ListarEstoqueItensQuery,
+  ): Promise<SuccessResponse> {
+    const resultado = await this.listarEstoqueItensUseCase.execute({
+      almoxarifadoId: query.almoxarifadoId,
+      tipoEpiId: query.tipoEpiId,
+      apenasDisponiveis: query.apenasDisponiveis,
+      apenasComSaldo: query.apenasComSaldo,
+      page: query.page,
+      limit: query.limit,
+    });
+
+    return {
+      success: true,
+      data: resultado,
+    };
+  }
+
+  @Get('almoxarifados')
+  @ApiOperation({ 
+    summary: 'Listar almoxarifados',
+    description: 'Lista almoxarifados com filtros opcionais',
+  })
+  @ApiQuery({ name: 'unidadeNegocioId', required: false, type: String, format: 'uuid', description: 'Filtrar por unidade de negócio' })
+  @ApiQuery({ name: 'incluirContadores', required: false, type: Boolean, description: 'Incluir contagem de itens' })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Lista de almoxarifados',
+    schema: {
+      type: 'object',
+      properties: {
+        success: { type: 'boolean', example: true },
+        data: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              id: { type: 'string', format: 'uuid' },
+              nome: { type: 'string' },
+              isPrincipal: { type: 'boolean' },
+              unidadeNegocioId: { type: 'string', format: 'uuid' },
+              createdAt: { type: 'string', format: 'date-time' },
+              unidadeNegocio: {
+                type: 'object',
+                properties: {
+                  id: { type: 'string', format: 'uuid' },
+                  nome: { type: 'string' },
+                  codigo: { type: 'string' },
+                },
+              },
+              _count: {
+                type: 'object',
+                properties: {
+                  estoqueItens: { type: 'number' },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  })
+  async listarAlmoxarifados(
+    @Query(new ZodValidationPipe(ListarAlmoxarifadosQuerySchema)) 
+    query: ListarAlmoxarifadosQuery,
+  ): Promise<SuccessResponse> {
+    const almoxarifados = await this.listarAlmoxarifadosUseCase.execute({
+      unidadeNegocioId: query.unidadeNegocioId,
+      incluirContadores: query.incluirContadores,
+    });
+
+    return {
+      success: true,
+      data: almoxarifados,
     };
   }
 }

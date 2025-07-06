@@ -14,6 +14,8 @@ import { ConcluirNotaMovimentacaoUseCase } from './use-cases/estoque/concluir-no
 import { RealizarAjusteDirectoUseCase } from './use-cases/estoque/realizar-ajuste-direto.use-case';
 import { GerenciarNotaRascunhoUseCase } from './use-cases/estoque/gerenciar-nota-rascunho.use-case';
 import { CancelarNotaMovimentacaoUseCase } from './use-cases/estoque/cancelar-nota-movimentacao.use-case';
+import { ListarEstoqueItensUseCase } from './use-cases/estoque/listar-estoque-itens.use-case';
+import { ListarAlmoxarifadosUseCase } from './use-cases/estoque/listar-almoxarifados.use-case';
 
 // Fichas Use Cases
 import { CancelarDevolucaoUseCase } from './use-cases/fichas/cancelar-devolucao.use-case';
@@ -60,6 +62,8 @@ import { AtualizarConfiguracoesUseCase } from './use-cases/configuracoes/atualiz
     RealizarAjusteDirectoUseCase,
     GerenciarNotaRascunhoUseCase,
     CancelarNotaMovimentacaoUseCase,
+    ListarEstoqueItensUseCase,
+    ListarAlmoxarifadosUseCase,
     
     // Fichas Use Cases
     CancelarDevolucaoUseCase,
@@ -104,6 +108,8 @@ import { AtualizarConfiguracoesUseCase } from './use-cases/configuracoes/atualiz
     RealizarAjusteDirectoUseCase,
     GerenciarNotaRascunhoUseCase,
     CancelarNotaMovimentacaoUseCase,
+    ListarEstoqueItensUseCase,
+    ListarAlmoxarifadosUseCase,
     
     // Fichas Use Cases
     CancelarDevolucaoUseCase,

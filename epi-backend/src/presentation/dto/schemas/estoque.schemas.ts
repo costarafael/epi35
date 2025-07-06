@@ -241,3 +241,80 @@ export type HistoricoAjustesResponse = z.infer<typeof HistoricoAjustesResponseSc
 export type ValidacaoDivergenciasResponse = z.infer<typeof ValidacaoDivergenciasResponseSchema>;
 export type KardexResponse = z.infer<typeof KardexResponseSchema>;
 export type AnaliseGiroResponse = z.infer<typeof AnaliseGiroResponseSchema>;
+
+// ===== NOVOS SCHEMAS PARA LISTAGEM =====
+
+// Schemas para listagem de estoque-itens
+export const ListarEstoqueItensQuerySchema = z.object({
+  almoxarifadoId: IdSchema.optional(),
+  tipoEpiId: IdSchema.optional(),
+  apenasDisponiveis: z.coerce.boolean().default(false),
+  apenasComSaldo: z.coerce.boolean().default(false),
+  page: z.coerce.number().int().positive().default(1),
+  limit: z.coerce.number().int().positive().max(100).default(50),
+});
+
+export const EstoqueItemResponseSchema = z.object({
+  id: IdSchema,
+  almoxarifadoId: IdSchema,
+  tipoEpiId: IdSchema,
+  quantidade: z.number(),
+  status: z.string(),
+  createdAt: z.date(),
+  almoxarifado: z.object({
+    id: IdSchema,
+    nome: z.string(),
+    unidadeNegocioId: IdSchema,
+    unidadeNegocio: z.object({
+      id: IdSchema,
+      nome: z.string(),
+      codigo: z.string(),
+    }),
+  }),
+  tipoEpi: z.object({
+    id: IdSchema,
+    nomeEquipamento: z.string(),
+    numeroCa: z.string(),
+    descricao: z.string().optional(),
+    categoriaEpi: z.string().optional(),
+  }),
+});
+
+export const ListarEstoqueItensResponseSchema = z.object({
+  items: z.array(EstoqueItemResponseSchema),
+  pagination: z.object({
+    page: z.number(),
+    limit: z.number(),
+    total: z.number(),
+    totalPages: z.number(),
+  }),
+});
+
+// Schemas para listagem de almoxarifados
+export const ListarAlmoxarifadosQuerySchema = z.object({
+  unidadeNegocioId: IdSchema.optional(),
+  incluirContadores: z.coerce.boolean().default(false),
+});
+
+export const AlmoxarifadoResponseSchema = z.object({
+  id: IdSchema,
+  nome: z.string(),
+  isPrincipal: z.boolean(),
+  unidadeNegocioId: IdSchema,
+  createdAt: z.date(),
+  unidadeNegocio: z.object({
+    id: IdSchema,
+    nome: z.string(),
+    codigo: z.string(),
+  }),
+  _count: z.object({
+    estoqueItens: z.number(),
+  }).optional(),
+});
+
+// Type exports para novos schemas
+export type ListarEstoqueItensQuery = z.infer<typeof ListarEstoqueItensQuerySchema>;
+export type EstoqueItemResponse = z.infer<typeof EstoqueItemResponseSchema>;
+export type ListarEstoqueItensResponse = z.infer<typeof ListarEstoqueItensResponseSchema>;
+export type ListarAlmoxarifadosQuery = z.infer<typeof ListarAlmoxarifadosQuerySchema>;
+export type AlmoxarifadoResponse = z.infer<typeof AlmoxarifadoResponseSchema>;

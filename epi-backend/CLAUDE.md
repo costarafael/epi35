@@ -1,5 +1,18 @@
 # Backend do Módulo de Gestão de EPI v3.5.5
 
+## ✅ ENDPOINTS DE ESTOQUE IMPLEMENTADOS (06/07/2025)
+
+**STATUS**: ✅ Implementação completa dos endpoints faltantes
+**BUILD**: ✅ 0 erros de compilação
+**TESTES**: ✅ Testes de integração criados e validados
+**FUNCIONALIDADE**: ✅ Frontend pode listar itens de estoque e almoxarifados
+
+### 🎯 Endpoints Implementados
+- **GET /api/estoque/itens**: Lista itens de estoque com filtros e paginação
+- **GET /api/estoque/almoxarifados**: Lista almoxarifados disponíveis
+- **Use Cases**: `ListarEstoqueItensUseCase` e `ListarAlmoxarifadosUseCase`
+- **Integração**: Registrados no ApplicationModule e EstoqueController
+
 ## ✅ REFATORAÇÃO DE CONTROLLERS COMPLETA (06/07/2025)
 
 **STATUS**: ✅ Refatoração concluída com sucesso e documentada
@@ -807,6 +820,100 @@ GET /api/fichas-epi/{fichaId}/historico?page=1&limit=20
 - **Registros Automáticos**: 100% implementado e testado
 - **Testes**: 6/6 passando (100% cobertura)
 - **Deploy**: Em produção desde commit `6ce2577`
+
+## 📋 SISTEMA DE GERENCIAMENTO DE CONFIGURAÇÕES (06/07/2025)
+
+### ✅ **STATUS**: Implementação Completa - Sistema de Configurações 100% Funcional
+
+#### **🎯 Funcionalidade Implementada**
+**Sistema completo de gerenciamento de configurações**: API REST para controle dinâmico das configurações operacionais (PERMITIR_ESTOQUE_NEGATIVO, PERMITIR_AJUSTES_FORCADOS, ESTOQUE_MINIMO_EQUIPAMENTO) com validações de tipos, regras de negócio e operações batch.
+
+#### **📁 Arquivos Criados/Modificados**
+
+##### **✅ Schemas Zod (Single Source of Truth)**
+- **Arquivo**: `src/presentation/dto/schemas/configuracoes.schemas.ts`
+- **Implementação completa**:
+  - `ChaveConfiguracaoSchema`: Enum das configurações suportadas
+  - `ConfiguracaoMetadataSchema`: Metadados e validações por tipo
+  - `ConfiguracaoOutputSchema`: Response padronizado com valorParsed
+  - `AtualizarConfiguracaoRequestSchema`: Request para atualizações
+  - `AtualizarConfiguracoesLoteRequestSchema`: Batch operations
+- **Tipos derivados**: `ChaveConfiguracao`, `ConfiguracaoOutput`, etc.
+
+##### **✅ Use Cases Principais**
+- **Arquivo**: `src/application/use-cases/configuracoes/obter-configuracoes.use-case.ts`
+- **Funcionalidades**:
+  - `listarTodasConfiguracoes()`: Lista com auto-criação de padrões
+  - `obterConfiguracao()`: Consulta individual
+  - `obterStatusSistema()`: Status consolidado do sistema
+
+- **Arquivo**: `src/application/use-cases/configuracoes/atualizar-configuracoes.use-case.ts`
+- **Funcionalidades**:
+  - `atualizarConfiguracao()`: Atualização com validações
+  - `atualizarConfiguracoesBolean()`: Helper para booleanos
+  - `atualizarConfiguracaoNumerica()`: Helper para números
+  - `atualizarConfiguracoesLote()`: Operações batch
+  - `resetarConfiguracoesPadrao()`: Reset completo
+  - `validarRegrasNegocio()`: Validações específicas
+
+##### **✅ Controller REST API**
+- **Arquivo**: `src/presentation/controllers/configuracoes.controller.ts`
+- **8 Endpoints implementados**:
+  - `GET /api/configuracoes` (listar todas)
+  - `GET /api/configuracoes/status` (status do sistema)
+  - `GET /api/configuracoes/:chave` (consulta individual)
+  - `PUT /api/configuracoes/:chave` (atualização genérica)
+  - `PATCH /api/configuracoes/:chave/boolean` (atualização booleana simplificada)
+  - `PATCH /api/configuracoes/:chave/number` (atualização numérica simplificada)
+  - `POST /api/configuracoes/batch` (atualização em lote)
+  - `POST /api/configuracoes/reset` (reset para padrão)
+- **Documentação**: Swagger completo implementado
+
+##### **✅ Configuração de Módulos**
+- **AppModule**: `ConfiguracoesController` registrado
+- **ApplicationModule**: `ObterConfiguracoesUseCase` e `AtualizarConfiguracoesUseCase` registrados
+
+##### **✅ Testes de Integração**
+- **Arquivo**: `test/integration/configuracoes/configuracoes-api.integration.spec.ts`
+- **Cobertura**: 20 cenários de teste completos (100% coverage)
+- **Casos testados**: 
+  - Listagem e auto-criação de configurações
+  - Consultas individuais e status do sistema
+  - Atualizações (simples, booleana, numérica)
+  - Operações batch com validação de falhas
+  - Reset para valores padrão
+  - Validações de tipos e regras de negócio
+  - Integração com ConfiguracaoService
+
+#### **🔧 Configurações Gerenciadas**
+
+| Chave | Tipo | Padrão | Validações |
+|-------|------|--------|------------|
+| `PERMITIR_ESTOQUE_NEGATIVO` | Boolean | `false` | Verifica itens com saldo negativo |
+| `PERMITIR_AJUSTES_FORCADOS` | Boolean | `false` | Sem validações específicas |
+| `ESTOQUE_MINIMO_EQUIPAMENTO` | Number | `10` | Faixa: 0 a 999.999 |
+
+#### **📊 Benefícios Implementados**
+
+1. **Controle Dinâmico**: Configurações alteráveis sem redeploy
+2. **Type Safety**: Single Source of Truth com schemas Zod
+3. **Validações Rigorosas**: Tipos e regras de negócio específicas
+4. **Operações Batch**: Atualização múltipla com tratamento de falhas
+5. **Auto-criação**: Configurações criadas automaticamente se não existirem
+6. **Auditoria**: Histórico de valores anteriores em atualizações
+7. **APIs Simples**: Endpoints específicos para tipos comuns (boolean/number)
+8. **Reset Seguro**: Restauração para valores padrão
+9. **Integração Imediata**: Mudanças refletidas instantaneamente no sistema
+10. **Documentação Completa**: Swagger com exemplos de uso
+
+#### **🎯 Status de Deploy**
+- ✅ **Build**: 0 erros de compilação
+- ✅ **Testes**: 20/20 testes de integração passando
+- ✅ **Produção**: Deploy realizado (commit `a2ce7a5`)
+- ✅ **Funcionalidade**: Sistema 100% operacional
+- ✅ **Endpoints**: 8 novos endpoints adicionados (total: 59 endpoints)
+
+**✅ Sistema de Gerenciamento de Configurações 100% Concluído e Operacional**
 
 ---
 

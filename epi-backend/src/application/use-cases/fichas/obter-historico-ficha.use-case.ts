@@ -171,12 +171,29 @@ export class ObterHistoricoFichaUseCase {
     const eventos: ItemHistoricoFicha[] = [];
 
     for (const entrega of entregas) {
+      // Identificar tipos únicos de EPI na entrega
+      const tiposUnicos = new Set<string>();
+      const nomesEquipamentos: string[] = [];
+
+      entrega.itens.forEach(item => {
+        const tipoEpiId = item.estoqueItem?.tipoEpi?.nomeEquipamento;
+        if (tipoEpiId && !tiposUnicos.has(tipoEpiId)) {
+          tiposUnicos.add(tipoEpiId);
+          nomesEquipamentos.push(tipoEpiId);
+        }
+      });
+
+      // Gerar descrição adequada para múltiplos tipos de EPI
+      const descricaoTipos = nomesEquipamentos.length > 1 
+        ? `Múltiplos EPIs (${nomesEquipamentos.join(', ')})` 
+        : (nomesEquipamentos[0] || 'EPI');
+
       // Evento de entrega
       eventos.push({
         id: `entrega-${entrega.id}`,
         fichaEpiId: fichaId,
         tipoAcao: 'ENTREGA',
-        descricao: `Entrega realizada - ${entrega.itens.length} item(ns) de ${entrega.itens[0]?.estoqueItem.tipoEpi.nomeEquipamento || 'EPI'}`,
+        descricao: `Entrega realizada - ${entrega.itens.length} item(ns) de ${descricaoTipos}`,
         dataAcao: entrega.dataEntrega,
         responsavel: {
           id: entrega.responsavel.id,
@@ -184,7 +201,7 @@ export class ObterHistoricoFichaUseCase {
         },
         detalhes: {
           entregaId: entrega.id,
-          tipoEpiNome: entrega.itens[0]?.estoqueItem.tipoEpi.nomeEquipamento,
+          tipoEpiNome: descricaoTipos,
           quantidade: entrega.itens.length,
           itens: entrega.itens.map(item => ({
             numeroSerie: undefined, // TODO: implementar quando houver

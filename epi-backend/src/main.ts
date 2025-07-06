@@ -26,23 +26,44 @@ async function bootstrap() {
     'https://epi-frontend.vercel.app', // Production frontend (if exists)
   ];
   
-  // Enable CORS with explicit configuration
-  const allowedOrigins = corsOrigins ? corsOrigins.split(',').map(o => o.trim()) : defaultOrigins;
-  console.log('🌐 CORS configured with allowed origins:', allowedOrigins);
+  // CORS Configuration - PERMISSIVE for development
+  console.log('🌐 CORS configured in PERMISSIVE mode for all origins');
   
+  // Permissive CORS middleware
+  app.use((req, res, next) => {
+    const origin = req.headers.origin;
+    console.log(`🔍 Request from origin: ${origin || 'no-origin'}`);
+    
+    // Always allow the origin that made the request
+    if (origin) {
+      res.header('Access-Control-Allow-Origin', origin);
+      console.log(`✅ CORS allowed for origin: ${origin}`);
+    } else {
+      res.header('Access-Control-Allow-Origin', '*');
+      console.log('✅ CORS allowed for no-origin request');
+    }
+    
+    res.header('Access-Control-Allow-Credentials', 'true');
+    res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,PATCH,OPTIONS,HEAD');
+    res.header('Access-Control-Allow-Headers', '*');
+    res.header('Access-Control-Expose-Headers', '*');
+    res.header('Access-Control-Max-Age', '86400'); // 24 hours
+    
+    if (req.method === 'OPTIONS') {
+      console.log('✅ OPTIONS preflight handled');
+      res.status(200).end();
+      return;
+    }
+    
+    next();
+  });
+  
+  // Also enable NestJS CORS as fallback
   app.enableCors({
-    origin: allowedOrigins,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-    allowedHeaders: [
-      'Content-Type', 
-      'Authorization', 
-      'Accept', 
-      'X-Requested-With',
-      'Origin',
-      'Cache-Control',
-      'Pragma'
-    ],
-    exposedHeaders: ['Content-Length', 'X-Kuma-Revision'],
+    origin: true, // Allow all origins
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS', 'HEAD'],
+    allowedHeaders: '*',
+    exposedHeaders: '*',
     credentials: true,
     optionsSuccessStatus: 200,
     preflightContinue: false,

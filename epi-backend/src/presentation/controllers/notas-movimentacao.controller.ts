@@ -22,6 +22,7 @@ import { TipoNotaMovimentacao } from '../../domain/enums/estoque.enum';
 import { GerenciarNotaRascunhoUseCase } from '../../application/use-cases/estoque/gerenciar-nota-rascunho.use-case';
 import { ConcluirNotaMovimentacaoUseCase } from '../../application/use-cases/estoque/concluir-nota-movimentacao.use-case';
 import { CancelarNotaMovimentacaoUseCase } from '../../application/use-cases/estoque/cancelar-nota-movimentacao.use-case';
+import { PrismaService } from '../../infrastructure/database/prisma.service';
 import {
   CriarNotaMovimentacaoSchema,
   AdicionarItemNotaSchema,
@@ -48,6 +49,7 @@ export class NotasMovimentacaoController {
     private readonly gerenciarNotaUseCase: GerenciarNotaRascunhoUseCase,
     private readonly concluirNotaUseCase: ConcluirNotaMovimentacaoUseCase,
     private readonly cancelarNotaUseCase: CancelarNotaMovimentacaoUseCase,
+    private readonly prismaService: PrismaService,
   ) {}
 
   @Post()
@@ -79,16 +81,23 @@ export class NotasMovimentacaoController {
   async criarNota(
     @Body(new ZodValidationPipe(CriarNotaMovimentacaoSchema)) 
     criarNotaDto: CriarNotaMovimentacaoRequest,
-    @Request() req: any,
   ): Promise<SuccessResponse> {
-    const usuarioId = req.user?.id || 'user-temp'; // TODO: Implementar autenticação
+    // Para desenvolvimento: buscar usuário admin do seed
+    // TODO: Implementar autenticação real com JWT
+    const adminUser = await this.prismaService.usuario.findFirst({
+      where: { email: 'admin@epi.com' }
+    });
+    
+    if (!adminUser) {
+      throw new Error('Usuário admin não encontrado. Execute o seed primeiro.');
+    }
 
     const nota = await this.gerenciarNotaUseCase.criarNota({
       tipo: criarNotaDto.tipo as TipoNotaMovimentacao,
       almoxarifadoOrigemId: criarNotaDto.almoxarifadoOrigemId,
       almoxarifadoDestinoId: criarNotaDto.almoxarifadoDestinoId,
       observacoes: criarNotaDto.observacoes,
-      usuarioId,
+      usuarioId: adminUser.id,
     });
 
     return {

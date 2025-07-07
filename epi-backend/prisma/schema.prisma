@@ -203,7 +203,7 @@ model EstoqueItem {
 
 model NotaMovimentacao {
   id                    String          @id @default(uuid())
-  almoxarifadoId        String          @map("almoxarifado_id")
+  almoxarifadoId        String?         @map("almoxarifado_id")
   almoxarifadoDestinoId String?         @map("almoxarifado_destino_id")
   responsavelId         String          @map("responsavel_id")
   tipoNota              TipoNotaEnum    @map("tipo_nota")
@@ -214,7 +214,7 @@ model NotaMovimentacao {
   createdAt             DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
 
   // Relacionamentos
-  almoxarifadoOrigem  Almoxarifado             @relation("NotaAlmoxarifadoOrigem", fields: [almoxarifadoId], references: [id])
+  almoxarifadoOrigem  Almoxarifado?            @relation("NotaAlmoxarifadoOrigem", fields: [almoxarifadoId], references: [id])
   almoxarifadoDestino Almoxarifado?            @relation("NotaAlmoxarifadoDestino", fields: [almoxarifadoDestinoId], references: [id])
   responsavel         Usuario                  @relation(fields: [responsavelId], references: [id])
   itens               NotaMovimentacaoItem[]

@@ -74,22 +74,22 @@ describe('GerenciarNotaRascunhoUseCase - Integration Tests', () => {
       expect(notaCriada.status).toBe(StatusNotaMovimentacao.RASCUNHO);
     });
 
-    it('deve criar nota de saída em rascunho com sucesso', async () => {
+    it('deve criar nota de descarte em rascunho com sucesso', async () => {
       // Arrange - Buscar dados reais do seed
       const usuario = await testSetup.findUser('admin@test.com');
       const almoxarifado = await testSetup.findAlmoxarifado('Almoxarifado Central');
 
       // Act - Criar nota em rascunho
       const result = await useCase.criarNota({
-        tipo: TipoNotaMovimentacao.TRANSFERENCIA,
+        tipo: TipoNotaMovimentacao.DESCARTE,
         almoxarifadoOrigemId: almoxarifado.id,
         usuarioId: usuario.id,
-        observacoes: 'Nota de saída em rascunho',
+        observacoes: 'Nota de descarte em rascunho',
       });
 
       // Assert - Verificar se a nota foi criada
       expect(result).toBeDefined();
-      expect(result.tipo).toBe(TipoNotaMovimentacao.TRANSFERENCIA);
+      expect(result.tipo).toBe(TipoNotaMovimentacao.DESCARTE);
       expect(result.almoxarifadoOrigemId).toBe(almoxarifado.id);
       expect(result.status).toBe(StatusNotaMovimentacao.RASCUNHO);
     });
@@ -102,14 +102,13 @@ describe('GerenciarNotaRascunhoUseCase - Integration Tests', () => {
       const almoxarifado = await testSetup.findAlmoxarifado('Almoxarifado Central');
       const tipoCapacete = await testSetup.findTipoEpi('CA-12345');
 
-      // Criar nota em rascunho
+      // Criar nota em rascunho (ENTRADA não deve ter almoxarifadoId/origem)
       const notaRascunho = await testSetup.prismaService.notaMovimentacao.create({
         data: {
           numeroDocumento: 'RASCUNHO-001',
           tipoNota: TipoNotaMovimentacao.ENTRADA,
-          almoxarifadoOrigem: { connect: { id: almoxarifado.id } },
-          almoxarifadoDestino: { connect: { id: almoxarifado.id } },
-          responsavel: { connect: { id: usuario.id } },
+          almoxarifadoDestinoId: almoxarifado.id,
+          responsavelId: usuario.id,
           status: StatusNotaMovimentacao.RASCUNHO,
           observacoes: 'Nota para adicionar item',
         },
@@ -146,9 +145,8 @@ describe('GerenciarNotaRascunhoUseCase - Integration Tests', () => {
         data: {
           numeroDocumento: 'PENDENTE-001',
           tipoNota: TipoNotaMovimentacao.ENTRADA,
-          almoxarifadoOrigem: { connect: { id: almoxarifado.id } },
-          almoxarifadoDestino: { connect: { id: almoxarifado.id } },
-          responsavel: { connect: { id: usuario.id } },
+          almoxarifadoDestinoId: almoxarifado.id,
+          responsavelId: usuario.id,
           status: StatusNotaMovimentacao.RASCUNHO,
           observacoes: 'Nota pendente',
         },
@@ -176,9 +174,8 @@ describe('GerenciarNotaRascunhoUseCase - Integration Tests', () => {
         data: {
           numeroDocumento: 'RASCUNHO-002',
           tipoNota: TipoNotaMovimentacao.ENTRADA,
-          almoxarifadoOrigem: { connect: { id: almoxarifado.id } },
-          almoxarifadoDestino: { connect: { id: almoxarifado.id } },
-          responsavel: { connect: { id: usuario.id } },
+          almoxarifadoDestinoId: almoxarifado.id,
+          responsavelId: usuario.id,
           status: StatusNotaMovimentacao.RASCUNHO,
           observacoes: 'Nota para remover item',
           itens: {
@@ -218,13 +215,16 @@ describe('GerenciarNotaRascunhoUseCase - Integration Tests', () => {
       const usuario = await testSetup.findUser('admin@test.com');
       const almoxarifado = await testSetup.findAlmoxarifado('Almoxarifado Central');
 
+      // Buscar segundo almoxarifado para transferência
+      const almoxarifado2 = await testSetup.findAlmoxarifado('Almoxarifado Filial');
+
       // Criar algumas notas em rascunho
       await testSetup.prismaService.notaMovimentacao.createMany({
         data: [
           {
             numeroDocumento: 'RASCUNHO-LIST-1',
             tipoNota: TipoNotaMovimentacao.ENTRADA,
-            almoxarifadoId: almoxarifado.id,
+            almoxarifadoDestinoId: almoxarifado.id,
             responsavelId: usuario.id,
             status: StatusNotaMovimentacao.RASCUNHO,
             observacoes: 'Rascunho 1',
@@ -233,6 +233,7 @@ describe('GerenciarNotaRascunhoUseCase - Integration Tests', () => {
             numeroDocumento: 'RASCUNHO-LIST-2',
             tipoNota: TipoNotaMovimentacao.TRANSFERENCIA,
             almoxarifadoId: almoxarifado.id,
+            almoxarifadoDestinoId: almoxarifado2.id,
             responsavelId: usuario.id,
             status: StatusNotaMovimentacao.RASCUNHO,
             observacoes: 'Rascunho 2',

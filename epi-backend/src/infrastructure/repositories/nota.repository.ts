@@ -47,9 +47,9 @@ export class NotaRepository implements INotaRepository {
       data: {
         numeroDocumento: entity.numero,
         tipoNota: entity.tipo as any,
-        almoxarifadoOrigem: entity.almoxarifadoOrigemId ? { connect: { id: entity.almoxarifadoOrigemId } } : undefined,
-        almoxarifadoDestino: entity.almoxarifadoDestinoId ? { connect: { id: entity.almoxarifadoDestinoId } } : undefined,
-        responsavel: { connect: { id: entity.usuarioId } },
+        almoxarifadoId: entity.almoxarifadoOrigemId,
+        almoxarifadoDestinoId: entity.almoxarifadoDestinoId,
+        responsavelId: entity.usuarioId,
         observacoes: entity.observacoes,
         status: StatusNotaMovimentacao.RASCUNHO as any,
       },
@@ -113,7 +113,7 @@ export class NotaRepository implements INotaRepository {
       where.almoxarifadoDestinoId = filtros.almoxarifadoDestinoId;
     }
     if (filtros.usuarioId) {
-      where.usuarioId = filtros.usuarioId;
+      where.responsavelId = filtros.usuarioId;
     }
     if (filtros.dataInicio || filtros.dataFim) {
       where.createdAt = {};
@@ -150,7 +150,7 @@ export class NotaRepository implements INotaRepository {
     };
 
     if (usuarioId) {
-      where.usuarioId = usuarioId;
+      where.responsavelId = usuarioId;
     }
 
     const notas = await this.prisma.notaMovimentacao.findMany({
@@ -473,8 +473,8 @@ export class NotaRepository implements INotaRepository {
       nota.id,
       nota.numeroDocumento, // Corrigido: usar numeroDocumento do banco
       nota.tipoNota as TipoNotaMovimentacao, // Corrigido: usar tipoNota do banco
-      nota.almoxarifadoOrigemId || nota.almoxarifadoId, // Suporte para ambos os nomes
-      nota.almoxarifadoDestinoId,
+      nota.almoxarifadoId, // Campo de origem (almoxarifadoId no schema)
+      nota.almoxarifadoDestinoId, // Campo de destino
       nota.responsavelId, // Corrigido: usar responsavelId do banco
       nota.observacoes,
       nota.status as StatusNotaMovimentacao,

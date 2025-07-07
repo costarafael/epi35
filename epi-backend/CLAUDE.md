@@ -1,7 +1,3 @@
-Absolutamente. Aqui está o documento reestruturado para ser um guia conciso e instrutivo, ideal para orientar agentes de IA em tarefas de codificação e arquitetura, mantendo os padrões e a precisão técnica do projeto.
-
------
-
 # **Guia de Desenvolvimento e Arquitetura: Módulo de Gestão de EPI v3.5**
 
 Este documento serve como a fonte central da verdade para o desenvolvimento do backend do Módulo de Gestão de EPI. Ele estabelece os princípios de arquitetura, padrões de código, comandos essenciais e guias de implementação que devem ser seguidos para garantir a qualidade, manutenibilidade e performance do sistema.

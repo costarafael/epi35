@@ -163,7 +163,7 @@ model Almoxarifado {
 }
 
 model TipoEPI {
-  id              String              @id @db.VarChar(6)
+  id              String              @id @default(uuid())
   nomeEquipamento String              @map("nome_equipamento") @db.VarChar(255)
   numeroCa        String              @unique @map("numero_ca") @db.VarChar(50)
   descricao       String?             @db.Text
@@ -180,9 +180,9 @@ model TipoEPI {
 }
 
 model EstoqueItem {
-  id            String                 @id @db.VarChar(6)
+  id            String                 @id @default(uuid())
   almoxarifadoId String                @map("almoxarifado_id")
-  tipoEpiId     String                 @map("tipo_epi_id") @db.VarChar(6)
+  tipoEpiId     String                 @map("tipo_epi_id")
   quantidade    Int                    @default(0)
   custoUnitario Decimal?               @map("custo_unitario") @db.Decimal(12, 2)
   status        StatusEstoqueItemEnum  @default(DISPONIVEL)
@@ -227,8 +227,8 @@ model NotaMovimentacaoItem {
   id                   String @id @default(uuid())
   notaMovimentacaoId   String @map("nota_movimentacao_id")
   quantidade           Int
-  estoqueItemId        String? @map("estoque_item_id") @db.VarChar(6)
-  tipoEpiId            String? @map("tipo_epi_id") @db.VarChar(6)
+  estoqueItemId        String? @map("estoque_item_id")
+  tipoEpiId            String? @map("tipo_epi_id")
   custoUnitario        Decimal? @map("custo_unitario") @db.Decimal(12, 2)
 
   // Relacionamentos
@@ -241,12 +241,12 @@ model NotaMovimentacaoItem {
 
 model MovimentacaoEstoque {
   id                   String                @id @default(uuid())
-  estoqueItemId        String                @map("estoque_item_id") @db.VarChar(6)
+  estoqueItemId        String                @map("estoque_item_id")
   responsavelId        String                @map("responsavel_id")
   tipoMovimentacao     TipoMovimentacaoEnum  @map("tipo_movimentacao")
   quantidadeMovida     Int                   @map("quantidade_movida")
   notaMovimentacaoId   String?               @map("nota_movimentacao_id")
-  entregaId            String?               @map("entrega_id") @db.VarChar(6)
+  entregaId            String?               @map("entrega_id")
   movimentacaoOrigemId String?               @map("movimentacao_origem_id")
   dataMovimentacao     DateTime              @default(now()) @map("data_movimentacao") @db.Timestamptz(6)
 
@@ -313,7 +313,7 @@ model FichaEPI {
 }
 
 model Entrega {
-  id               String             @id @db.VarChar(6)
+  id               String             @id @default(uuid())
   fichaEpiId       String             @map("ficha_epi_id")
   almoxarifadoId   String             @map("almoxarifado_id")
   responsavelId    String             @map("responsavel_id")
@@ -336,8 +336,8 @@ model Entrega {
 
 model EntregaItem {
   id                   String                @id @default(uuid())
-  entregaId            String                @map("entrega_id") @db.VarChar(6)
-  estoqueItemOrigemId  String                @map("estoque_item_origem_id") @db.VarChar(6)
+  entregaId            String                @map("entrega_id")
+  estoqueItemOrigemId  String                @map("estoque_item_origem_id")
   quantidadeEntregue   Int                   @default(1) @map("quantidade_entregue")
   dataLimiteDevolucao  DateTime?             @map("data_limite_devolucao") @db.Date
   status               StatusEntregaItemEnum @default(COM_COLABORADOR)

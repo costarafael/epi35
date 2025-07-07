@@ -8,6 +8,18 @@ import { HttpExceptionFilter } from './presentation/filters/http-exception.filte
 import { GlobalZodValidationPipe } from './presentation/pipes/global-zod-validation.pipe';
 
 async function bootstrap() {
+  // 🔧 FORCE MIGRATION ON STARTUP (temporary fix for render deploy issue)
+  if (process.env.NODE_ENV === 'production') {
+    console.log('🔧 Applying pending migrations on startup...');
+    try {
+      const { execSync } = require('child_process');
+      execSync('npx prisma migrate deploy', { stdio: 'inherit' });
+      console.log('✅ Migrations applied successfully!');
+    } catch (error) {
+      console.error('❌ Migration failed:', error.message);
+    }
+  }
+
   const app = await NestFactory.create(AppModule);
   const configService = app.get(ConfigService);
 

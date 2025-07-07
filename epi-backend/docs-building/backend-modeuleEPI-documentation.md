@@ -12,7 +12,7 @@ coverImage: null
 
 # Especificação Técnica Detalhada: Módulo de Gestão de Fichas de EPI e Estoque
 
-**Versão**: 3.7.2 (Sistema de IDs Customizados + Implementação Completa + Endpoints Otimizados)
+**Versão**: 3.7.3 (Sistema de Notas de Movimentação + Correção Crítica + IDs Customizados)
 
 **Data**: 07 de julho de 2025
 
@@ -40,6 +40,7 @@ coverImage: null
 | 3.7.0  | 07/07/2025 | **OTIMIZAÇÃO MASSIVA DO FRONTEND + DISPLAY OBJECTS + ENDPOINTS OTIMIZADOS**: Implementação revolucionária de otimização frontend baseada na análise do `fichaProcessAdapter.ts` (1.429 linhas). **ENDPOINTS OTIMIZADOS**: Novo `GET /api/fichas-epi/:id/complete` com dados completamente processados pelo backend, elimina 3-5 chamadas API simultâneas. **DISPLAY OBJECTS**: Sistema de cores semânticas (`green`, `red`, `yellow`, `gray`) + labels legíveis calculados pelo backend, elimina 280+ linhas de lógica complexa do frontend. **BUSINESS LOGIC MIGRATION**: 85% da lógica de negócio movida para backend (status calculation, vencimento logic, CPF masking, iniciais generation, histórico formatting). **STRUCTURED DATA**: Histórico com resumos formatados (`"3x Capacete (CA 12345)"`), mudanças de status automáticas (`"Disponível → Com Colaborador"`), dados estruturados organizados. **PERFORMANCE BOOST**: 3-5x melhoria de performance, redução de 57.8% no código total (2.440 → 1.030 linhas), flexibilidade UI preservada. **CONTROLLERS NOVOS**: `FichasOtimizadasController`, `EntregasOtimizadasController`, `DevolucoesOtimizadasController` com documentação Swagger completa. **SCHEMAS ZOD**: Atualizados com `StatusDisplaySchema`, `StatusVencimentoDisplaySchema`, `TipoDisplaySchema`, `ColaboradorDetalhadoSchema` com novos campos. Sistema pronto para integração frontend com redução massiva de complexidade mantendo total flexibilidade de UI. |
 | 3.7.1  | 07/07/2025 | **IMPLEMENTAÇÃO COMPLETA + ENDPOINTS OTIMIZADOS + TESTES VALIDADOS**: Finalização completa da otimização frontend com todas as funcionalidades implementadas e testadas. **LISTAGEM OTIMIZADA**: `GET /api/fichas-epi/list-enhanced` implementado com `ListarFichasEnhancedUseCase`, status display calculado, estatísticas pré-processadas pelo backend. **CONTROLLERS FINALIZADOS**: Todos os 3 controllers otimizados (`FichasOtimizadas`, `EntregasOtimizadas`, `DevolucoesOtimizadas`) implementados com use cases conectados e documentação Swagger completa. **CORREÇÕES TÉCNICAS**: Corrigido `test-database.service.ts` com nomes corretos de tabelas do schema v3.5, ambiente de testes 100% funcional. **VALIDAÇÃO COMPLETA**: Testes de integração executados com sucesso (11/11 cenários de usuários passando), build sem erros de TypeScript, sistema validado para produção. **REGISTROS MÓDULOS**: Todos os use cases registrados no `ApplicationModule`, controllers registrados no `AppModule`. **STATUS FINAL**: Sistema 100% implementado, testado e pronto para integração frontend com otimização massiva de performance e redução de complexidade. |
 | 3.7.2  | 07/07/2025 | **SISTEMA DE IDs CUSTOMIZADOS + MELHOR LEGIBILIDADE**: Implementação completa do sistema de geração de IDs customizados para melhor experiência do usuário. **IDS AMIGÁVEIS**: Entregas (E+5chars), EstoqueItems (I+5chars), TipoEPI (C+5chars) com caracteres não-confusos excluindo 0,1,O,I,L. **UTILITIES COMPLETAS**: Funções de geração (`generateEntregaId()`, `generateEstoqueItemId()`, `generateTipoEpiId()`), validação customizada e detecção automática de tipo UUID vs Custom. **MIDDLEWARE PRISMA**: Sistema automático de geração de IDs em operações `create` e `createMany` com suporte completo a transações. **COMPATIBILIDADE TOTAL**: Validação dual UUID/Custom ID em schemas Zod (`IdSchema`, `EntregaIdSchema`, `EstoqueItemIdSchema`, `TipoEpiIdSchema`), sistema funciona com dados existentes (UUIDs) e novos registros (IDs customizados). **MIGRAÇÃO SEGURA**: Implementação gradual sem breaking changes, novos registros usarão IDs customizados, registros existentes mantêm UUIDs. **TESTES VALIDADOS**: 13/14 testes unitários para geração e validação de IDs. **PRODUÇÃO READY**: Sistema compilado e pronto para deploy sem afetar funcionalidade existente. |
+| 3.7.3  | 07/07/2025 | **SISTEMA DE NOTAS DE MOVIMENTAÇÃO + RESOLUÇÃO CRÍTICA**: Implementação completa e correção crítica do sistema de Notas de Movimentação de Estoque. **BUG CRÍTICO RESOLVIDO**: Validação de `almoxarifadoId` corrigida para permitir valor `null` em notas de ENTRADA (era obrigatório por constraint de DB incorreta). **MIGRAÇÃO DB**: Nova migration `20250707184445_fix_nota_movimentacao_almoxarifado_fields` aplicada em produção via startup migration. **TIPOS SUPORTADOS**: ENTRADA (almoxarifadoDestino obrigatório), TRANSFERENCIA (origem e destino obrigatórios), DESCARTE (almoxarifado obrigatório). **VALIDAÇÃO COMPLETA**: Schemas Zod atualizados com regras específicas por tipo de nota, prevenção de configurações inválidas. **DEPLOY AUTOMÁTICO**: Sistema configurado com migração automática via render.yaml e startup hook no main.ts. **FRONTEND FUNCIONAL**: Todas as 3 operações de nota funcionando corretamente - criação de notas de entrada, transferência e descarte validadas e testadas. **STATUS**: 100% operacional em produção, issue crítica resolvida, sistema de estoque totalmente funcional. |
 
 ## 🌐 URLs de Produção
 
@@ -60,22 +61,27 @@ coverImage: null
 - **Health Checks**: Contínuos (5s interval)
 - **Status**: ✅ Operacional desde 05/07/2025 13:50 UTC
 - **Auto-Deploy**: Ativo para commits na main
-- **Commit Atual**: `0ed2b44` (07/07/2025 14:42 UTC-3)
+- **Commit Atual**: `d25c5ae` (07/07/2025 16:15 UTC-3)
 
-### **Status de Produção (07/07/2025 14:45)**
-#### **✅ Sistema Completamente Otimizado + IDs Customizados + Endpoints Frontend-Ready**
+### **Status de Produção (07/07/2025 16:15)**
+#### **✅ Sistema Completo + Notas de Movimentação + IDs Customizados + Endpoints Frontend-Ready**
 - **Dashboard**: Funcionando com dados reais (5 fichas ativas, 6 itens estoque)
 - **Database**: Popolado com dados de demonstração
   - 3 contratadas cadastradas (Alpha, Beta, Gamma)
   - 5 colaboradores ativos (2 diretos + 3 de contratadas)
   - 6 itens de estoque distribuídos em almoxarifados
   - 2 almoxarifados (SP e RJ) operacionais
-- **APIs**: 66+ endpoints testados e funcionais (incluindo novos endpoints otimizados)
+- **APIs**: 70+ endpoints testados e funcionais (incluindo sistema completo de notas de movimentação)
 - **OTIMIZAÇÃO FRONTEND**: ✅ Endpoints otimizados implementados e testados
   - `GET /api/fichas-epi/:id/complete` - Dados processados pelo backend
   - `GET /api/fichas-epi/list-enhanced` - Listagem otimizada com estatísticas
   - `POST /api/entregas/create-complete` - Criação otimizada de entregas
   - `POST /api/devolucoes/process-batch` - Processamento em lote de devoluções
+- **NOTAS DE MOVIMENTAÇÃO**: ✅ Sistema completo implementado e funcional
+  - `POST /api/notas-movimentacao` - Criação de notas (ENTRADA, TRANSFERENCIA, DESCARTE)
+  - `GET /api/notas-movimentacao` - Listagem com filtros avançados
+  - `GET /api/notas-movimentacao/:id` - Consulta individual
+  - Validação específica por tipo de nota com constraints corretos
 - **CONTROLLERS OTIMIZADOS**: 3 novos controllers especializados implementados
 - **SISTEMA DE IDs CUSTOMIZADOS**: ✅ Implementado para melhor legibilidade
   - Entregas: E+5chars (ex: E4UI02)
@@ -1891,10 +1897,149 @@ Analisando o `package.json` e considerando as necessidades específicas do **Mó
 
 ### **Características Técnicas**
 - **Validação**: Schemas Zod type-safe para todos os endpoints
-- **Documentação**: Swagger UI completo com exemplos
-- **Testes**: 11 testes de integração (100% passando)
-- **Performance**: Filtros otimizados com índices do banco
-- **Type Safety**: Single Source of Truth com z.infer pattern
+
+## **📋 Sistema de Notas de Movimentação (v3.7.3)**
+
+### **Funcionalidade Completa Implementada**
+
+O Sistema de Notas de Movimentação permite o controle e registro de todas as movimentações de estoque de EPIs através de três tipos de operações fundamentais:
+
+#### **Tipos de Notas Suportados**
+
+##### **1. ENTRADA** 
+- **Finalidade**: Registro de EPIs recebidos de fornecedores ou devoluções
+- **Campos Obrigatórios**: `almoxarifadoDestinoId`, `observacoes`
+- **Campos Opcionais**: `almoxarifadoId` (deve ser `null`)
+- **Validação**: `almoxarifadoOrigemId` deve ser `null`
+
+##### **2. TRANSFERENCIA**
+- **Finalidade**: Movimentação de EPIs entre almoxarifados
+- **Campos Obrigatórios**: `almoxarifadoOrigemId`, `almoxarifadoDestinoId`
+- **Validação**: Ambos os almoxarifados devem ser diferentes e válidos
+
+##### **3. DESCARTE**
+- **Finalidade**: Baixa definitiva de EPIs por vencimento, dano ou inutilização
+- **Campos Obrigatórios**: `almoxarifadoId`, `observacoes`
+- **Campos Opcionais**: `almoxarifadoDestinoId` (deve ser `null`)
+
+#### **Endpoints Implementados**
+
+##### **POST /api/notas-movimentacao**
+**Funcionalidade**: Criação de nova nota de movimentação
+- **Body**: Dados da nota conforme tipo específico
+- **Validação**: Regras específicas por tipo de movimentação
+- **Response**: Nota criada com ID e dados completos
+- **Regras de Negócio**: 
+  - Validação de estoque disponível para transferências
+  - Verificação de existência dos almoxarifados
+  - Aplicação de regras de estoque negativo (configurável)
+
+##### **GET /api/notas-movimentacao**
+**Funcionalidade**: Listagem de notas com filtros avançados
+- **Filtros Disponíveis**:
+  - `tipo` (ENTRADA, TRANSFERENCIA, DESCARTE)
+  - `almoxarifadoId` (filtro por almoxarifado origem)
+  - `almoxarifadoDestinoId` (filtro por almoxarifado destino)
+  - `dataInicio` / `dataFim` (período)
+- **Paginação**: `page`, `limit` (padrão: 50, máximo: 100)
+- **Ordenação**: Por data de criação (mais recentes primeiro)
+
+##### **GET /api/notas-movimentacao/:id**
+**Funcionalidade**: Consulta individual de nota
+- **Parâmetro**: `id` (UUID da nota)
+- **Response**: Dados completos da nota incluindo itens relacionados
+- **Inclui**: Informações de almoxarifados origem/destino quando aplicável
+
+#### **Estrutura de Dados**
+
+```json
+{
+  "id": "uuid",
+  "tipo": "ENTRADA | TRANSFERENCIA | DESCARTE",
+  "numero": "string (auto-gerado)",
+  "almoxarifadoId": "uuid | null",
+  "almoxarifadoDestinoId": "uuid | null", 
+  "observacoes": "string",
+  "createdAt": "datetime",
+  "updatedAt": "datetime",
+  "itens": [
+    {
+      "id": "uuid",
+      "tipoEpiId": "uuid", 
+      "quantidade": "number",
+      "valorUnitario": "decimal (opcional)"
+    }
+  ]
+}
+```
+
+#### **Correção Crítica Aplicada (v3.7.3)**
+
+##### **Problema Identificado**
+- **Constraint de DB incorreta**: Campo `almoxarifado_id` estava definido como `NOT NULL` na tabela `nota_movimentacao`
+- **Impacto**: Notas de ENTRADA falhavam na validação pois precisam de `almoxarifadoId = null`
+- **Erro**: "Almoxarifados obrigatórios não informados ou configuração inválida para o tipo de nota"
+
+##### **Solução Implementada**
+- **Migration**: `20250707184445_fix_nota_movimentacao_almoxarifado_fields.sql`
+- **Alteração**: Campo `almoxarifado_id` modificado para permitir `NULL`
+- **Schema Atualizado**: 
+  ```prisma
+  model NotaMovimentacao {
+    almoxarifadoId        String?         @map("almoxarifado_id")
+    almoxarifadoDestinoId String?         @map("almoxarifado_destino_id")
+  }
+  ```
+
+##### **Deploy em Produção**
+- **Sistema de Migração**: Configurado para aplicação automática via `render.yaml`
+- **Startup Migration**: Hook implementado em `main.ts` para garantir aplicação
+- **Status**: ✅ Migração aplicada com sucesso em produção
+- **Resultado**: Todas as operações de nota funcionando corretamente
+
+#### **Validações e Regras de Negócio**
+
+##### **Validações por Tipo**
+```typescript
+// Schema Zod para validação
+const CriarNotaMovimentacaoSchema = z.object({
+  tipo: z.enum(['ENTRADA', 'TRANSFERENCIA', 'DESCARTE']),
+  almoxarifadoId: z.string().uuid().nullable(),
+  almoxarifadoDestinoId: z.string().uuid().nullable(),
+  observacoes: z.string().min(1),
+  itens: z.array(ItemNotaSchema).min(1)
+}).refine((data) => {
+  switch (data.tipo) {
+    case 'ENTRADA':
+      return data.almoxarifadoDestinoId && !data.almoxarifadoId;
+    case 'TRANSFERENCIA': 
+      return data.almoxarifadoId && data.almoxarifadoDestinoId;
+    case 'DESCARTE':
+      return data.almoxarifadoId && !data.almoxarifadoDestinoId;
+  }
+}, {
+  message: 'Almoxarifados obrigatórios não informados ou configuração inválida para o tipo de nota'
+});
+```
+
+##### **Integridade de Dados**
+- **Transações Atômicas**: Todas as operações encapsuladas em transações Prisma
+- **Validação de Estoque**: Verificação de disponibilidade antes de movimentações
+- **Auditoria**: Registro automático de todas as movimentações na tabela `MovimentacaoEstoque`
+- **Rastreabilidade**: Vínculo direto entre notas e movimentações de estoque individual
+
+#### **Configurações do Sistema**
+- **Estoque Negativo**: Controlado via `PERMITIR_ESTOQUE_NEGATIVO` (padrão: false)
+- **Validação de Almoxarifados**: Verificação de existência ativa obrigatória
+- **Numeração**: Geração automática de números sequenciais para controle interno
+
+### **Status de Implementação**
+- ✅ **APIs Completas**: Todos os endpoints funcionais
+- ✅ **Validações**: Regras de negócio implementadas e testadas
+- ✅ **Database**: Schema corrigido e migrations aplicadas
+- ✅ **Produção**: Sistema 100% operacional
+- ✅ **Documentação**: Swagger UI completo disponível
+- ✅ **Frontend Ready**: Endpoints prontos para integração com interface de usuário
 
 ### **Integração com Criação de Entregas**
 Os endpoints de usuários resolvem o bloqueio identificado na criação de entregas, permitindo:
@@ -2014,23 +2159,93 @@ class PrismaEntregaRepository implements IEntregaRepository {
 
 ### **📊 Roadmap de Performance**
 
-#### **8. Database Optimization**
+#### **8. Livro Razão Completo com Saldos (PLANEJADO)**
+**Escopo**: Implementar livro razão enterprise-grade com saldos anterior/posterior
+**Prazo**: Desenvolvimento futuro
+```sql
+-- Migration planejada
+ALTER TABLE movimentacoes_estoque 
+ADD COLUMN saldo_anterior INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN saldo_posterior INTEGER NOT NULL DEFAULT 0;
+
+-- Índices para auditoria
+CREATE INDEX idx_movimentacoes_saldos ON 
+movimentacoes_estoque(estoque_item_id, data_movimentacao);
+```
+
+**Benefícios esperados**:
+- **Auditoria completa**: Saldo antes e depois de cada operação
+- **Reconciliação automática**: Validação de consistência de dados
+- **Compliance**: Atender normas de auditoria externa
+- **Debug avançado**: Rastreamento detalhado de problemas de estoque
+
+**Implementação planejada**:
+```typescript
+// Registro com saldos e lock para evitar race conditions
+async registrarMovimentacaoComSaldo(
+  estoqueItemId: string,
+  quantidade: number,
+  tipo: TipoMovimentacao,
+  responsavelId: string
+): Promise<void> {
+  await this.prisma.$transaction(async (tx) => {
+    // Row-level lock para consistência
+    const estoqueAtual = await tx.estoqueItem.findUnique({
+      where: { id: estoqueItemId }
+      // SELECT ... FOR UPDATE implícito
+    });
+    
+    const saldoAnterior = estoqueAtual.quantidade;
+    const quantidadeMovida = tipo.includes('SAIDA') ? -quantidade : quantidade;
+    const saldoPosterior = saldoAnterior + quantidadeMovida;
+    
+    // Registro no livro razão completo
+    await tx.movimentacaoEstoque.create({
+      data: {
+        estoqueItemId,
+        quantidadeMovida: Math.abs(quantidade),
+        tipoMovimentacao: tipo,
+        saldoAnterior,      // Estado antes da operação
+        saldoPosterior,     // Estado após a operação
+        responsavelId,
+        dataMovimentacao: new Date()
+      }
+    });
+    
+    // Atualização do estoque agregado
+    await tx.estoqueItem.update({
+      where: { id: estoqueItemId },
+      data: { quantidade: saldoPosterior }
+    });
+    
+    // Validação de estoque negativo
+    if (saldoPosterior < 0) {
+      const configuracao = await this.getConfiguracaoEstoqueNegativo();
+      if (!configuracao.permitir) {
+        throw new BusinessError('Estoque insuficiente');
+      }
+    }
+  });
+}
+```
+
+#### **9. Database Optimization**
 - Índices específicos para queries mais frequentes
 - Análise de slow queries
 - Connection pooling otimizado
 
-#### **9. API Rate Limiting**
+#### **10. API Rate Limiting**
 - Implementar throttling por usuário/endpoint
 - Proteção contra abuse de APIs públicas
 
 ### **🔐 Hardening de Segurança**
 
-#### **10. RBAC (Role-Based Access Control)**
+#### **11. RBAC (Role-Based Access Control)**
 - Definir roles: ADMIN, MANAGER, OPERATOR, VIEW_ONLY
 - Implementar guards por endpoint
 - Audit log de ações sensíveis
 
-#### **11. Input Sanitization**
+#### **12. Input Sanitization**
 - Validação adicional além do Zod
 - Proteção contra SQL injection
 - XSS prevention

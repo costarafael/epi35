@@ -121,7 +121,7 @@ export class ConcluirNotaMovimentacaoUseCase {
           for (const item of itensGrupo) {
             switch (notaComItens.tipo) {
               case TipoNotaMovimentacao.ENTRADA:
-                await this.processarEntrada(item, almoxarifadoDestinoId, notaComItens.id, input.usuarioId);
+                await this.processarEntrada(item, almoxarifadoDestinoId, notaComItens.id, notaComItens.usuarioId);
                 break;
 
               case TipoNotaMovimentacao.TRANSFERENCIA:
@@ -130,12 +130,12 @@ export class ConcluirNotaMovimentacaoUseCase {
                   almoxarifadoOrigemId,
                   almoxarifadoDestinoId,
                   notaComItens.id,
-                  input.usuarioId,
+                  notaComItens.usuarioId,
                 );
                 break;
 
               case TipoNotaMovimentacao.DESCARTE:
-                await this.processarDescarte(item, almoxarifadoOrigemId, notaComItens.id, input.usuarioId);
+                await this.processarDescarte(item, almoxarifadoOrigemId, notaComItens.id, notaComItens.usuarioId);
                 break;
 
               case TipoNotaMovimentacao.ENTRADA_AJUSTE:
@@ -145,7 +145,7 @@ export class ConcluirNotaMovimentacaoUseCase {
                 if (!ajustesForcadosPermitidos) {
                   throw new BusinessError('Ajustes de estoque estão desabilitados no sistema');
                 }
-                await this.processarAjuste(item, almoxarifadoDestinoId, notaComItens.id, input.usuarioId);
+                await this.processarAjuste(item, almoxarifadoDestinoId, notaComItens.id, notaComItens.usuarioId);
                 break;
             }
           }
@@ -232,7 +232,7 @@ export class ConcluirNotaMovimentacaoUseCase {
       // Processar conforme o tipo de nota
       switch (nota.tipo) {
         case TipoNotaMovimentacao.ENTRADA:
-          await this.processarEntrada(item, almoxarifadoDestinoId, nota.id, input.usuarioId);
+          await this.processarEntrada(item, almoxarifadoDestinoId, nota.id, nota.usuarioId);
           movimentacaoCreated = true;
           estoqueAtualizado = true;
           break;
@@ -243,14 +243,14 @@ export class ConcluirNotaMovimentacaoUseCase {
             almoxarifadoOrigemId,
             almoxarifadoDestinoId,
             nota.id,
-            input.usuarioId,
+            nota.usuarioId,
           );
           movimentacaoCreated = true;
           estoqueAtualizado = true;
           break;
 
         case TipoNotaMovimentacao.DESCARTE:
-          await this.processarDescarte(item, almoxarifadoOrigemId, nota.id, input.usuarioId);
+          await this.processarDescarte(item, almoxarifadoOrigemId, nota.id, nota.usuarioId);
           movimentacaoCreated = true;
           estoqueAtualizado = true;
           break;
@@ -262,7 +262,7 @@ export class ConcluirNotaMovimentacaoUseCase {
           if (!ajustesForcadosPermitidos) {
             throw new BusinessError('Ajustes de estoque estão desabilitados no sistema');
           }
-          await this.processarAjuste(item, almoxarifadoDestinoId, nota.id, input.usuarioId);
+          await this.processarAjuste(item, almoxarifadoDestinoId, nota.id, nota.usuarioId);
           movimentacaoCreated = true;
           estoqueAtualizado = true;
           break;
@@ -293,7 +293,7 @@ export class ConcluirNotaMovimentacaoUseCase {
     item: any,
     almoxarifadoId: string,
     notaId: string,
-    usuarioId: string,
+    responsavelIdNota: string,
   ): Promise<void> {
     // Buscar ou criar o estoque item
     const estoqueItem = await this.estoqueRepository.criarOuAtualizar(
@@ -303,14 +303,14 @@ export class ConcluirNotaMovimentacaoUseCase {
       0, // quantidade inicial se não existir
     );
 
-    // Criar movimentação de entrada diretamente (static method compatibility issue)
+    // Criar movimentação de entrada usando o responsável da nota
     await this.prisma.movimentacaoEstoque.create({
       data: {
         estoqueItemId: estoqueItem.id,
         tipoMovimentacao: TipoMovimentacao.ENTRADA_NOTA,
         quantidadeMovida: item.quantidade,
         notaMovimentacaoId: notaId,
-        responsavelId: usuarioId,
+        responsavelId: responsavelIdNota,
         movimentacaoOrigemId: null,
       },
     });
@@ -329,7 +329,7 @@ export class ConcluirNotaMovimentacaoUseCase {
     almoxarifadoOrigemId: string,
     almoxarifadoDestinoId: string,
     notaId: string,
-    usuarioId: string,
+    responsavelIdNota: string,
   ): Promise<void> {
     // Buscar estoque item de origem
     const estoqueItemOrigem = await this.estoqueRepository.findByAlmoxarifadoAndTipo(
@@ -349,14 +349,14 @@ export class ConcluirNotaMovimentacaoUseCase {
       0,
     );
 
-    // Criar movimentações usando dados diretos (sem static methods por falta de compatibilidade)
+    // Criar movimentações usando o responsável da nota
     await this.prisma.movimentacaoEstoque.create({
       data: {
         estoqueItemId: estoqueItemOrigem.id,
         tipoMovimentacao: TipoMovimentacao.SAIDA_TRANSFERENCIA,
         quantidadeMovida: item.quantidade,
         notaMovimentacaoId: notaId,
-        responsavelId: usuarioId,
+        responsavelId: responsavelIdNota,
         movimentacaoOrigemId: null,
       },
     });
@@ -367,7 +367,7 @@ export class ConcluirNotaMovimentacaoUseCase {
         tipoMovimentacao: TipoMovimentacao.ENTRADA_TRANSFERENCIA,
         quantidadeMovida: item.quantidade,
         notaMovimentacaoId: notaId,
-        responsavelId: usuarioId,
+        responsavelId: responsavelIdNota,
         movimentacaoOrigemId: null,
       },
     });
@@ -392,7 +392,7 @@ export class ConcluirNotaMovimentacaoUseCase {
     item: any,
     almoxarifadoId: string,
     notaId: string,
-    usuarioId: string,
+    responsavelIdNota: string,
   ): Promise<void> {
     // Buscar estoque item
     const estoqueItem = await this.estoqueRepository.findByAlmoxarifadoAndTipo(
@@ -404,14 +404,14 @@ export class ConcluirNotaMovimentacaoUseCase {
       throw new BusinessError('Item de estoque não encontrado para descarte');
     }
 
-    // Criar movimentação de saída (descarte)
+    // Criar movimentação de saída (descarte) usando responsável da nota
     await this.prisma.movimentacaoEstoque.create({
       data: {
         estoqueItemId: estoqueItem.id,
         tipoMovimentacao: TipoMovimentacao.SAIDA_DESCARTE,
         quantidadeMovida: item.quantidade,
         notaMovimentacaoId: notaId,
-        responsavelId: usuarioId,
+        responsavelId: responsavelIdNota,
         movimentacaoOrigemId: null,
       },
     });
@@ -429,7 +429,7 @@ export class ConcluirNotaMovimentacaoUseCase {
     item: any,
     almoxarifadoId: string,
     notaId: string,
-    usuarioId: string,
+    responsavelIdNota: string,
   ): Promise<void> {
     // Buscar ou criar estoque item
     const estoqueItem = await this.estoqueRepository.criarOuAtualizar(
@@ -444,14 +444,14 @@ export class ConcluirNotaMovimentacaoUseCase {
       ? TipoMovimentacao.AJUSTE_POSITIVO 
       : TipoMovimentacao.AJUSTE_NEGATIVO;
 
-    // Criar movimentação de ajuste
+    // Criar movimentação de ajuste usando responsável da nota
     await this.prisma.movimentacaoEstoque.create({
       data: {
         estoqueItemId: estoqueItem.id,
         tipoMovimentacao,
         quantidadeMovida: Math.abs(item.quantidade),
         notaMovimentacaoId: notaId,
-        responsavelId: usuarioId,
+        responsavelId: responsavelIdNota,
         movimentacaoOrigemId: null,
       },
     });

@@ -124,19 +124,71 @@ export class NotasMovimentacaoController {
     @Query(new ZodValidationPipe(FiltrosNotaMovimentacaoSchema)) 
     filtros: FiltrosNotaMovimentacao,
   ): Promise<PaginatedResponse> {
-    // TODO: Implementar paginação real
-    const notas = await this.gerenciarNotaUseCase.listarRascunhos();
+    // Construir filtros para query direta no Prisma
+    const where: any = {};
+    
+    if (filtros.numero) {
+      where.numeroDocumento = { contains: filtros.numero, mode: 'insensitive' };
+    }
+    if (filtros.tipo) {
+      where.tipoNota = filtros.tipo;
+    }
+    if (filtros.status) {
+      where.status = filtros.status;
+    }
+    if (filtros.almoxarifadoOrigemId) {
+      where.almoxarifadoId = filtros.almoxarifadoOrigemId;
+    }
+    if (filtros.almoxarifadoDestinoId) {
+      where.almoxarifadoDestinoId = filtros.almoxarifadoDestinoId;
+    }
+    if (filtros.usuarioId) {
+      where.responsavelId = filtros.usuarioId;
+    }
+    if (filtros.dataInicio || filtros.dataFim) {
+      where.createdAt = {};
+      if (filtros.dataInicio) {
+        where.createdAt.gte = filtros.dataInicio;
+      }
+      if (filtros.dataFim) {
+        where.createdAt.lte = filtros.dataFim;
+      }
+    }
+
+    const notas = await this.prismaService.notaMovimentacao.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+    });
+
+    // Mapear para formato esperado pelo frontend (baseado na resposta atual)
+    const notasFormatadas = notas.map(nota => ({
+      id: nota.id,
+      numero: nota.numeroDocumento || '',
+      tipo: nota.tipoNota,
+      almoxarifadoOrigemId: nota.almoxarifadoId,
+      almoxarifadoDestinoId: nota.almoxarifadoDestinoId,
+      usuarioId: nota.responsavelId,
+      observacoes: nota.observacoes,
+      _status: nota.status,
+      createdAt: nota.createdAt,
+      _itens: [], // Por enquanto retornamos vazio para manter compatibilidade
+    }));
+
+    // Implementar paginação simples
+    const startIndex = (filtros.page - 1) * filtros.limit;
+    const endIndex = startIndex + filtros.limit;
+    const notasPaginadas = notasFormatadas.slice(startIndex, endIndex);
     
     return {
       success: true,
-      data: notas,
+      data: notasPaginadas,
       pagination: {
         page: Number(filtros.page),
         limit: Number(filtros.limit),
-        total: notas.length,
-        totalPages: Math.ceil(notas.length / Number(filtros.limit)),
-        hasNext: false,
-        hasPrev: false,
+        total: notasFormatadas.length,
+        totalPages: Math.ceil(notasFormatadas.length / Number(filtros.limit)),
+        hasNext: endIndex < notasFormatadas.length,
+        hasPrev: filtros.page > 1,
       },
     };
   }

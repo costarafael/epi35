@@ -18,6 +18,8 @@ import {
 import { ZodValidationPipe } from '../../pipes/zod-validation.pipe';
 import { CriarFichaEpiUseCase } from '../../../application/use-cases/fichas/criar-ficha-epi.use-case';
 import { ObterHistoricoFichaUseCase } from '../../../application/use-cases/fichas/obter-historico-ficha.use-case';
+import { ObterFichaCompletaUseCase } from '../../../application/use-cases/fichas/obter-ficha-completa.use-case';
+import { ListarFichasEnhancedUseCase } from '../../../application/use-cases/fichas/listar-fichas-enhanced.use-case';
 import { StatusFichaEPI } from '../../../domain/enums/ficha.enum';
 import {
   CriarFichaEpiSchema,
@@ -28,6 +30,10 @@ import {
   AtualizarStatusFichaRequest,
   FiltrosFichaEpi,
   FiltrosHistoricoFicha,
+  FichaListQuerySchema,
+  FichaListQuery,
+  FichaCompleta,
+  FichaListEnhanced,
 } from '../../dto/schemas/ficha-epi.schemas';
 import { IdSchema, SuccessResponse, PaginatedResponse } from '../../dto/schemas/common.schemas';
 import { FichaFormatterService } from '../../../shared/formatters/ficha-formatter.service';
@@ -39,6 +45,8 @@ export class FichasController {
   constructor(
     private readonly criarFichaEpiUseCase: CriarFichaEpiUseCase,
     private readonly obterHistoricoFichaUseCase: ObterHistoricoFichaUseCase,
+    private readonly obterFichaCompletaUseCase: ObterFichaCompletaUseCase,
+    private readonly listarFichasEnhancedUseCase: ListarFichasEnhancedUseCase,
     private readonly fichaFormatter: FichaFormatterService,
   ) {}
 
@@ -350,6 +358,192 @@ export class FichasController {
       success: true,
       data: historico,
       message: 'Histórico da ficha obtido com sucesso',
+    };
+  }
+
+  // ========================================
+  // 🚀 NOVOS ENDPOINTS OTIMIZADOS PARA FRONTEND
+  // ========================================
+
+  @Get('list-enhanced')
+  @ApiOperation({ 
+    summary: 'Listagem otimizada de fichas (Frontend Optimized)',
+    description: 'Lista fichas com dados pré-processados e estatísticas calculadas no backend para reduzir complexidade do frontend',
+  })
+  @ApiQuery({ name: 'page', required: false, type: Number, description: 'Página (padrão: 1)' })
+  @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Itens por página (padrão: 20, máx: 100)' })
+  @ApiQuery({ name: 'search', required: false, type: String, description: 'Busca por nome ou matrícula' })
+  @ApiQuery({ name: 'status', required: false, enum: ['ativa', 'inativa', 'vencida', 'pendente_devolucao'] })
+  @ApiQuery({ name: 'cargo', required: false, type: String, description: 'Filtro por cargo' })
+  @ApiQuery({ name: 'empresa', required: false, type: String, description: 'Filtro por empresa' })
+  @ApiQuery({ name: 'vencimentoProximo', required: false, type: Boolean, description: 'Filtrar fichas com vencimento próximo (30 dias)' })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Lista otimizada de fichas com dados pré-processados',
+    schema: {
+      type: 'object',
+      properties: {
+        success: { type: 'boolean', example: true },
+        data: {
+          type: 'object',
+          properties: {
+            items: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  id: { type: 'string', format: 'uuid' },
+                  colaborador: {
+                    type: 'object',
+                    properties: {
+                      nome: { type: 'string' },
+                      matricula: { type: 'string', nullable: true },
+                      cargo: { type: 'string', nullable: true },
+                      empresa: { type: 'string', nullable: true },
+                    },
+                  },
+                  status: { 
+                    type: 'string', 
+                    enum: ['ativa', 'inativa', 'vencida', 'pendente_devolucao'],
+                    description: 'Status calculado no backend',
+                  },
+                  totalEpisAtivos: { type: 'number', description: 'Total de EPIs ativos (pré-calculado)' },
+                  totalEpisVencidos: { type: 'number', description: 'Total de EPIs vencidos (pré-calculado)' },
+                  proximoVencimento: { type: 'string', nullable: true, description: 'Data do próximo vencimento (pré-calculado)' },
+                  ultimaAtualizacao: { type: 'string', format: 'date-time' },
+                },
+              },
+            },
+            pagination: {
+              type: 'object',
+              properties: {
+                total: { type: 'number' },
+                page: { type: 'number' },
+                limit: { type: 'number' },
+                totalPages: { type: 'number' },
+              },
+            },
+          },
+        },
+      },
+    },
+  })
+  async listarFichasEnhanced(
+    @Query(new ZodValidationPipe(FichaListQuerySchema)) 
+    query: FichaListQuery,
+  ): Promise<SuccessResponse> {
+    const resultado = await this.listarFichasEnhancedUseCase.execute(query);
+
+    return {
+      success: true,
+      data: resultado,
+      message: 'Lista de fichas otimizada obtida com sucesso',
+    };
+  }
+
+  @Get(':id/complete')
+  @ApiOperation({ 
+    summary: 'Obter ficha completa otimizada (Frontend Optimized)',
+    description: 'Obtém todos os dados de uma ficha em uma única chamada com estatísticas e status calculados no backend',
+  })
+  @ApiParam({ name: 'id', type: String, format: 'uuid' })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Ficha completa com dados otimizados',
+    schema: {
+      type: 'object',
+      properties: {
+        success: { type: 'boolean', example: true },
+        data: {
+          type: 'object',
+          properties: {
+            ficha: {
+              type: 'object',
+              properties: {
+                id: { type: 'string', format: 'uuid' },
+                status: { 
+                  type: 'string', 
+                  enum: ['ativa', 'inativa', 'vencida', 'pendente_devolucao'],
+                  description: 'Status calculado no backend',
+                },
+                colaborador: {
+                  type: 'object',
+                  properties: {
+                    id: { type: 'string', format: 'uuid' },
+                    nome: { type: 'string' },
+                    cpf: { type: 'string' },
+                    matricula: { type: 'string', nullable: true },
+                    cargo: { type: 'string', nullable: true },
+                    empresa: { type: 'string', nullable: true },
+                  },
+                },
+              },
+            },
+            equipamentosEmPosse: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  id: { type: 'string', format: 'uuid' },
+                  nomeEquipamento: { type: 'string' },
+                  numeroCA: { type: 'string' },
+                  categoria: { type: 'string' },
+                  dataEntrega: { type: 'string', format: 'date' },
+                  dataLimiteDevolucao: { type: 'string', format: 'date', nullable: true },
+                  statusVencimento: { 
+                    type: 'string', 
+                    enum: ['dentro_prazo', 'vencendo', 'vencido'],
+                    description: 'Status de vencimento calculado no backend',
+                  },
+                  diasParaVencimento: { type: 'number', description: 'Dias para vencimento calculado no backend' },
+                  podeDevolver: { type: 'boolean', description: 'Lógica de negócio calculada no backend' },
+                  entregaId: { type: 'string', format: 'uuid' },
+                  itemEntregaId: { type: 'string', format: 'uuid' },
+                },
+              },
+            },
+            historico: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  id: { type: 'string', format: 'uuid' },
+                  data: { type: 'string', format: 'date-time' },
+                  tipo: { 
+                    type: 'string', 
+                    enum: ['entrega', 'devolucao', 'assinatura', 'cancelamento'],
+                  },
+                  descricao: { type: 'string' },
+                  responsavel: { type: 'string', nullable: true },
+                  detalhes: { type: 'object', nullable: true },
+                },
+              },
+            },
+            estatisticas: {
+              type: 'object',
+              properties: {
+                totalEpisAtivos: { type: 'number' },
+                totalEpisVencidos: { type: 'number' },
+                proximoVencimento: { type: 'string', nullable: true },
+                diasProximoVencimento: { type: 'number', nullable: true },
+              },
+            },
+          },
+        },
+      },
+    },
+  })
+  @ApiResponse({ status: 404, description: 'Ficha não encontrada' })
+  async obterFichaCompleta(
+    @Param('id', new ZodValidationPipe(IdSchema)) 
+    id: string,
+  ): Promise<SuccessResponse> {
+    const fichaCompleta = await this.obterFichaCompletaUseCase.execute({ fichaId: id });
+
+    return {
+      success: true,
+      data: fichaCompleta,
+      message: 'Ficha completa obtida com sucesso',
     };
   }
 }

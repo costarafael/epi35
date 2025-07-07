@@ -1,7 +1,48 @@
 import { z } from 'zod';
 
 // Common validation schemas
-export const IdSchema = z.string().uuid('ID deve ser um UUID válido');
+export const IdSchema = z.string().refine(
+  (id) => {
+    // Aceita UUIDs (para compatibilidade com dados existentes)
+    const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    // Aceita IDs customizados (E, I, C + 5 chars alfanuméricos sem 0, 1, O, I, L)
+    const allowedChars = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ'.replace(/[01OIL]/g, '');
+    const customIdPattern = new RegExp(`^[EIC][${allowedChars}]{5}$`);
+    
+    return uuidPattern.test(id) || customIdPattern.test(id);
+  },
+  'ID deve ser um UUID válido ou um ID customizado (ex: E4U302, I7XK91, C2MN58)'
+);
+
+// Schemas específicos para cada tipo de ID
+const allowedChars = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ'.replace(/[01OIL]/g, '');
+
+export const EntregaIdSchema = z.string().refine(
+  (id) => {
+    const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const entregaPattern = new RegExp(`^E[${allowedChars}]{5}$`);
+    return uuidPattern.test(id) || entregaPattern.test(id);
+  },
+  'ID da entrega deve ser um UUID ou formato E + 5 chars (ex: E4U202)'
+);
+
+export const EstoqueItemIdSchema = z.string().refine(
+  (id) => {
+    const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const estoquePattern = new RegExp(`^I[${allowedChars}]{5}$`);
+    return uuidPattern.test(id) || estoquePattern.test(id);
+  },
+  'ID do item de estoque deve ser um UUID ou formato I + 5 chars (ex: I7XK91)'
+);
+
+export const TipoEpiIdSchema = z.string().refine(
+  (id) => {
+    const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const tipoEpiPattern = new RegExp(`^C[${allowedChars}]{5}$`);
+    return uuidPattern.test(id) || tipoEpiPattern.test(id);
+  },
+  'ID do tipo de EPI deve ser um UUID ou formato C + 5 chars (ex: C2MN58)'
+);
 
 export const IdParamSchema = z.object({
   id: IdSchema,

@@ -3,6 +3,7 @@ import { TipoEPI } from '../../../domain/entities/tipo-epi.entity';
 import { BusinessError, ConflictError } from '../../../domain/exceptions/business.exception';
 import { PrismaService } from '../../../infrastructure/database/prisma.service';
 import { CategoriaEPI } from '../../../domain/enums/categoria-epi.enum';
+import { randomBytes } from 'crypto';
 
 export interface CriarTipoEpiInput {
   nomeEquipamento: string;
@@ -50,6 +51,7 @@ export class CriarTipoEpiUseCase {
     // Salvar no banco de dados
     const tipoEpi = await this.prisma.tipoEPI.create({
       data: {
+        id: randomBytes(3).toString('hex').toUpperCase(),
         nomeEquipamento: tipoEpiData.nomeEquipamento,
         numeroCa: tipoEpiData.numeroCa,
         categoria: tipoEpiData.categoria,

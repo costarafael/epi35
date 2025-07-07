@@ -12,6 +12,9 @@ import { NotasMovimentacaoController } from './presentation/controllers/notas-mo
 import { TiposEpiController } from './presentation/controllers/tipos-epi.controller';
 import { ConfiguracoesController } from './presentation/controllers/configuracoes.controller';
 import { UsuariosController } from './presentation/controllers/usuarios.controller';
+import { EntregasOtimizadasController } from './presentation/controllers/entregas/entregas-otimizadas.controller';
+import { DevolucoesOtimizadasController } from './presentation/controllers/devolucoes/devolucoes-otimizadas.controller';
+import { FichasOtimizadasController } from './presentation/controllers/fichas/fichas-otimizadas.controller';
 
 @Module({
   imports: [
@@ -31,6 +34,10 @@ import { UsuariosController } from './presentation/controllers/usuarios.controll
     TiposEpiController,
     ConfiguracoesController,
     UsuariosController,
+    // Novos controllers otimizados para reduzir complexidade do frontend
+    EntregasOtimizadasController,
+    DevolucoesOtimizadasController,
+    FichasOtimizadasController,
     // Os controllers de RelatoriosController e FichasEpiController foram refatorados
     // e agora estão nos módulos RelatoriosModule e FichasModule respectivamente
   ],

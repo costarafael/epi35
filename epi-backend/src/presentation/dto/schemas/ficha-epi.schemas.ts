@@ -505,3 +505,220 @@ export const AssinarEntregaUseCaseOutputSchema = z.object({
 export type AssinarEntregaRequest = z.infer<typeof AssinarEntregaSchema>;
 export type AssinarEntregaInput = z.infer<typeof AssinarEntregaUseCaseInputSchema>;
 export type AssinarEntregaOutput = z.infer<typeof AssinarEntregaUseCaseOutputSchema>;
+
+// ========================================
+// 🚀 NOVOS SCHEMAS PARA ENDPOINTS OTIMIZADOS
+// ========================================
+
+// Schema para display de status (cores semânticas para UI)
+export const StatusDisplaySchema = z.object({
+  cor: z.enum(['green', 'red', 'yellow', 'gray']),
+  label: z.string(),
+});
+
+// Schema para display de status de vencimento
+export const StatusVencimentoDisplaySchema = z.object({
+  texto: z.string(),
+  cor: z.enum(['green', 'yellow', 'red']),
+  diasRestantes: z.number(),
+  statusDetalhado: z.enum(['dentro_prazo', 'vencendo', 'vencido']),
+});
+
+// Schema para display de tipo (eventos de histórico)
+export const TipoDisplaySchema = z.object({
+  label: z.string(),
+  tipo: z.string(),
+  cor: z.enum(['green', 'orange', 'blue', 'red']),
+});
+
+// Schema para equipamento em posse (detalhado)
+export const EquipamentoEmPosseSchema = z.object({
+  id: IdSchema,
+  nomeEquipamento: z.string(),
+  numeroCA: z.string(),
+  categoria: z.string(),
+  dataEntrega: z.string(),
+  dataLimiteDevolucao: z.string().nullable(),
+  statusVencimento: z.enum(['dentro_prazo', 'vencendo', 'vencido']),
+  statusVencimentoDisplay: StatusVencimentoDisplaySchema,
+  diasParaVencimento: z.number(), // ← Campo necessário para sorting e cálculos
+  podeDevolver: z.boolean(),
+  entregaId: IdSchema,
+  itemEntregaId: IdSchema,
+});
+
+// Schema para histórico de ficha
+export const HistoricoFichaDetalhadoSchema = z.object({
+  id: IdSchema,
+  data: z.string(),
+  dataFormatada: z.string(), // ← Já formatado pelo backend (15/01/2024 às 10:30)
+  tipo: z.enum(['entrega', 'devolucao', 'assinatura', 'cancelamento']),
+  tipoDisplay: TipoDisplaySchema, // ← Display estruturado para UI
+  acao: z.string(), // ← Descrição da ação
+  responsavel: z.string().nullable(),
+  mudancaStatus: z.string().nullable(), // ← "Disponível → Com Colaborador" formatado pelo backend
+  detalhes: z.object({
+    resumo: z.string(), // ← "3x Capacete (CA 12345)" formatado pelo backend
+    dados: z.object({
+      quantidade: z.number().optional(),
+      equipamento: z.string().optional(),
+      numeroCA: z.string().optional(),
+      categoria: z.string().optional(),
+    }).optional(),
+  }).nullable(),
+});
+
+// Schema para estatísticas da ficha
+export const EstatisticasFichaOptimizedSchema = z.object({
+  totalEpisAtivos: z.number(),
+  totalEpisVencidos: z.number(),
+  proximoVencimento: z.string().nullable(),
+  diasProximoVencimento: z.number().nullable(),
+});
+
+// Schema para colaborador detalhado
+export const ColaboradorDetalhadoSchema = z.object({
+  id: IdSchema,
+  nome: z.string(),
+  cpf: z.string(),
+  cpfDisplay: z.string(), // CPF formatado/mascarado (123.456.***-01)
+  matricula: z.string().nullable(),
+  cargo: z.string().nullable(),
+  empresa: z.string().nullable(),
+  iniciais: z.string(), // Para avatar (ex: "AB")
+});
+
+// Schema para ficha completa (endpoint /complete)
+export const FichaCompletaSchema = z.object({
+  ficha: z.object({
+    id: IdSchema,
+    status: z.enum(['ativa', 'inativa', 'vencida', 'pendente_devolucao']),
+    statusDisplay: StatusDisplaySchema,
+    colaborador: ColaboradorDetalhadoSchema,
+  }),
+  equipamentosEmPosse: z.array(EquipamentoEmPosseSchema),
+  devolucoes: z.array(z.object({
+    id: IdSchema,
+    nomeEquipamento: z.string(),
+    numeroCA: z.string(),
+    categoria: z.string(),
+    quantidade: z.number().int().positive().default(1),
+    dataDevolucao: z.string(),
+    motivo: z.enum(['devolução padrão', 'danificado', 'troca']), // ← Atualizado conforme documentação
+    motivoDisplay: z.string(),
+    status: z.enum(['processada', 'cancelada']),
+    podeProcessar: z.boolean(),
+    podeCancelar: z.boolean(),
+  })),
+  entregas: z.array(z.object({
+    id: IdSchema,
+    numero: z.string(),
+    dataEntrega: z.string(),
+    status: z.enum(['pendente_assinatura', 'assinado', 'cancelado']),
+    statusDisplay: StatusDisplaySchema,
+    acoes: z.array(z.enum(['assinar', 'imprimir', 'editar'])),
+    itens: z.array(z.object({
+      id: IdSchema,
+      nomeEquipamento: z.string(),
+      numeroCA: z.string(),
+      categoria: z.string(),
+      quantidade: z.number().int().positive().default(1),
+    })),
+  })),
+  historico: z.array(HistoricoFichaDetalhadoSchema),
+  estatisticas: EstatisticasFichaOptimizedSchema,
+});
+
+// Schema para item da listagem de fichas
+export const FichaListItemSchema = z.object({
+  id: IdSchema,
+  colaborador: z.object({
+    nome: z.string(),
+    matricula: z.string().nullable(),
+    cargo: z.string().nullable(),
+    empresa: z.string().nullable(),
+  }),
+  status: z.enum(['ativa', 'inativa', 'vencida', 'pendente_devolucao']),
+  statusDisplay: StatusDisplaySchema, // ← Display estruturado
+  totalEpisAtivos: z.number(),
+  totalEpisVencidos: z.number(),
+  proximoVencimento: z.string().nullable(),
+  ultimaAtualizacao: z.string(),
+});
+
+// Schema para listagem paginada de fichas
+export const FichaListEnhancedSchema = z.object({
+  items: z.array(FichaListItemSchema),
+  pagination: z.object({
+    total: z.number(),
+    page: z.number(),
+    limit: z.number(),
+    totalPages: z.number(),
+  }),
+});
+
+// Schema para query parameters da listagem
+export const FichaListQuerySchema = z.object({
+  page: z.coerce.number().min(1).default(1),
+  limit: z.coerce.number().min(1).max(100).default(20),
+  search: z.string().optional(),
+  status: z.enum(['ativa', 'inativa', 'vencida', 'pendente_devolucao']).optional(),
+  cargo: z.string().optional(),
+  empresa: z.string().optional(),
+  vencimentoProximo: z.coerce.boolean().optional(),
+});
+
+// Schema para criação de entrega completa
+export const CriarEntregaCompletaSchema = z.object({
+  fichaEpiId: IdSchema,
+  responsavelId: IdSchema,
+  itens: z.array(z.object({
+    estoqueItemId: IdSchema,
+    quantidade: z.number().min(1),
+  })),
+  observacoes: z.string().optional(),
+});
+
+// Schema para resposta da criação de entrega
+export const EntregaCompletaResponseSchema = z.object({
+  entregaId: IdSchema,
+  itensIndividuais: z.array(z.object({
+    id: IdSchema,
+    nomeEquipamento: z.string(),
+    numeroCA: z.string(),
+    dataLimiteDevolucao: z.string().nullable(),
+  })),
+  totalItens: z.number(),
+  statusEntrega: z.enum(['pendente_assinatura', 'assinada', 'cancelada']),
+});
+
+// Schema para processamento de devoluções em lote
+export const ProcessarDevolucoesBatchSchema = z.object({
+  devolucoes: z.array(z.object({
+    equipamentoId: IdSchema,
+    motivo: z.enum(['devolução padrão', 'danificado', 'troca', 'outros']), // ← Atualizado conforme documentação
+    observacoes: z.string().optional(),
+  })),
+});
+
+// Schema para resposta do processamento de devoluções
+export const DevolucoesBatchResponseSchema = z.object({
+  processadas: z.number(),
+  erros: z.array(z.string()),
+  fichasAtualizadas: z.array(IdSchema),
+  estoqueAtualizado: z.boolean(),
+});
+
+// ✅ Tipos TypeScript derivados dos schemas
+export type EquipamentoEmPosse = z.infer<typeof EquipamentoEmPosseSchema>;
+export type HistoricoFichaDetalhado = z.infer<typeof HistoricoFichaDetalhadoSchema>;
+export type EstatisticasFichaOptimized = z.infer<typeof EstatisticasFichaOptimizedSchema>;
+export type ColaboradorDetalhado = z.infer<typeof ColaboradorDetalhadoSchema>;
+export type FichaCompleta = z.infer<typeof FichaCompletaSchema>;
+export type FichaListItem = z.infer<typeof FichaListItemSchema>;
+export type FichaListEnhanced = z.infer<typeof FichaListEnhancedSchema>;
+export type FichaListQuery = z.infer<typeof FichaListQuerySchema>;
+export type CriarEntregaCompleta = z.infer<typeof CriarEntregaCompletaSchema>;
+export type EntregaCompletaResponse = z.infer<typeof EntregaCompletaResponseSchema>;
+export type ProcessarDevolucoesBatch = z.infer<typeof ProcessarDevolucoesBatchSchema>;
+export type DevolucoesBatchResponse = z.infer<typeof DevolucoesBatchResponseSchema>;

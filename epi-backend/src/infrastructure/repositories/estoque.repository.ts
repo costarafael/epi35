@@ -4,6 +4,7 @@ import { EstoqueItem } from '../../domain/entities/estoque-item.entity';
 import { IEstoqueRepository } from '../../domain/interfaces/repositories/estoque-repository.interface';
 import { StatusEstoqueItem } from '../../domain/enums';
 import { BusinessError } from '../../domain/exceptions/business.exception';
+import { randomBytes } from 'crypto';
 import { 
   PaginationOptions, 
   PaginatedResult, 
@@ -64,6 +65,7 @@ export class EstoqueRepository implements IEstoqueRepository {
   async create(entity: Omit<EstoqueItem, 'id' | 'createdAt' | 'updatedAt'>): Promise<EstoqueItem> {
     const estoque = await this.prisma.estoqueItem.create({
       data: {
+        id: randomBytes(3).toString('hex').toUpperCase(),
         almoxarifadoId: entity.almoxarifadoId,
         tipoEpiId: entity.tipoEpiId,
         quantidade: entity.quantidade,
@@ -287,6 +289,7 @@ export class EstoqueRepository implements IEstoqueRepository {
       },
       update: { quantidade },
       create: {
+        id: randomBytes(3).toString('hex').toUpperCase(),
         almoxarifadoId,
         tipoEpiId,
         status: status as any,

@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client';
+import { randomBytes } from 'crypto';
 
 const prisma = new PrismaClient();
 
@@ -110,6 +111,7 @@ async function main() {
   const tiposEpi = await Promise.all([
     prisma.tipoEPI.create({
       data: {
+        id: randomBytes(3).toString('hex').toUpperCase(),
         nomeEquipamento: 'Capacete de Segurança',
         numeroCa: 'CA-12345',
         descricao: 'Capacete de segurança classe A',
@@ -119,6 +121,7 @@ async function main() {
     }),
     prisma.tipoEPI.create({
       data: {
+        id: randomBytes(3).toString('hex').toUpperCase(),
         nomeEquipamento: 'Óculos de Proteção',
         numeroCa: 'CA-23456',
         descricao: 'Óculos de proteção contra impactos',
@@ -128,6 +131,7 @@ async function main() {
     }),
     prisma.tipoEPI.create({
       data: {
+        id: randomBytes(3).toString('hex').toUpperCase(),
         nomeEquipamento: 'Luva de Segurança',
         numeroCa: 'CA-34567',
         descricao: 'Luva de segurança em couro',
@@ -145,6 +149,7 @@ async function main() {
     for (const tipo of tiposEpi) {
       const item = await prisma.estoqueItem.create({
         data: {
+          id: randomBytes(3).toString('hex').toUpperCase(),
           almoxarifadoId: almox.id,
           tipoEpiId: tipo.id,
           quantidade: Math.floor(Math.random() * 100) + 50, // Entre 50 e 150 unidades

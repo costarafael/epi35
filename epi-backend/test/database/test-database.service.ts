@@ -77,8 +77,9 @@ export class TestDatabaseService {
     try {
       console.log('🧹 Limpando banco de teste...');
       
-      // Limpar dados em ordem específica para respeitar FKs (schema v3.5)
-      // Usar $executeRaw para limpar directamente nas tabelas com nomes corretos
+      // Limpar dados em ordem específica para respeitar FKs (schema v3.5 - nomes corretos das tabelas)
+      // Usar $executeRaw para limpar diretamente nas tabelas
+      await this.prismaService.$executeRaw`TRUNCATE TABLE "historico_fichas" CASCADE`;
       await this.prismaService.$executeRaw`TRUNCATE TABLE "movimentacoes_estoque" CASCADE`;
       await this.prismaService.$executeRaw`TRUNCATE TABLE "entrega_itens" CASCADE`;
       await this.prismaService.$executeRaw`TRUNCATE TABLE "entregas" CASCADE`;
@@ -88,6 +89,7 @@ export class TestDatabaseService {
       await this.prismaService.$executeRaw`TRUNCATE TABLE "notas_movimentacao" CASCADE`;
       await this.prismaService.$executeRaw`TRUNCATE TABLE "tipos_epi" CASCADE`;
       await this.prismaService.$executeRaw`TRUNCATE TABLE "colaboradores" CASCADE`;
+      await this.prismaService.$executeRaw`TRUNCATE TABLE "contratadas" CASCADE`;
       await this.prismaService.$executeRaw`TRUNCATE TABLE "almoxarifados" CASCADE`;
       await this.prismaService.$executeRaw`TRUNCATE TABLE "unidades_negocio" CASCADE`;
       await this.prismaService.$executeRaw`TRUNCATE TABLE "usuarios" CASCADE`;

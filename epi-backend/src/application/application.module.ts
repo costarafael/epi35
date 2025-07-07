@@ -26,6 +26,8 @@ import { CriarFichaEpiUseCase } from './use-cases/fichas/criar-ficha-epi.use-cas
 import { CriarTipoEpiUseCase } from './use-cases/fichas/criar-tipo-epi.use-case';
 import { ObterHistoricoFichaUseCase } from './use-cases/fichas/obter-historico-ficha.use-case';
 import { ProcessarDevolucaoUseCase } from './use-cases/fichas/processar-devolucao.use-case';
+import { ObterFichaCompletaUseCase } from './use-cases/fichas/obter-ficha-completa.use-case';
+import { ListarFichasEnhancedUseCase } from './use-cases/fichas/listar-fichas-enhanced.use-case';
 
 // Query Use Cases
 import { ControleVencimentosUseCase } from './use-cases/queries/controle-vencimentos.use-case';
@@ -47,6 +49,12 @@ import { AtualizarConfiguracoesUseCase } from './use-cases/configuracoes/atualiz
 
 // Usuario Use Cases
 import { ListarUsuariosUseCase } from './use-cases/usuarios/listar-usuarios.use-case';
+
+// Entregas Otimizadas Use Cases
+import { CriarEntregaCompletaUseCase } from './use-cases/entregas/criar-entrega-completa.use-case';
+
+// Devoluções Otimizadas Use Cases
+import { ProcessarDevolucoesBatchUseCase } from './use-cases/devolucoes/processar-devolucoes-batch.use-case';
 
 @Module({
   imports: [RepositoryModule],
@@ -78,6 +86,8 @@ import { ListarUsuariosUseCase } from './use-cases/usuarios/listar-usuarios.use-
     CriarTipoEpiUseCase,
     ObterHistoricoFichaUseCase,
     ProcessarDevolucaoUseCase,
+    ObterFichaCompletaUseCase,
+    ListarFichasEnhancedUseCase,
     
     // Query Use Cases
     ControleVencimentosUseCase,
@@ -99,6 +109,12 @@ import { ListarUsuariosUseCase } from './use-cases/usuarios/listar-usuarios.use-
     
     // Usuario Use Cases
     ListarUsuariosUseCase,
+    
+    // Entregas Otimizadas Use Cases
+    CriarEntregaCompletaUseCase,
+    
+    // Devoluções Otimizadas Use Cases
+    ProcessarDevolucoesBatchUseCase,
   ],
   exports: [
     // Domain Services
@@ -128,6 +144,8 @@ import { ListarUsuariosUseCase } from './use-cases/usuarios/listar-usuarios.use-
     CriarTipoEpiUseCase,
     ObterHistoricoFichaUseCase,
     ProcessarDevolucaoUseCase,
+    ObterFichaCompletaUseCase,
+    ListarFichasEnhancedUseCase,
     
     // Query Use Cases
     ControleVencimentosUseCase,
@@ -149,6 +167,12 @@ import { ListarUsuariosUseCase } from './use-cases/usuarios/listar-usuarios.use-
     
     // Usuario Use Cases
     ListarUsuariosUseCase,
+    
+    // Entregas Otimizadas Use Cases
+    CriarEntregaCompletaUseCase,
+    
+    // Devoluções Otimizadas Use Cases
+    ProcessarDevolucoesBatchUseCase,
   ],
 })
 export class ApplicationModule {}

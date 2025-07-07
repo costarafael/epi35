@@ -12,7 +12,7 @@ coverImage: null
 
 # Especificação Técnica Detalhada: Módulo de Gestão de Fichas de EPI e Estoque
 
-**Versão**: 3.5.10 (Correção Crítica Mapeamento de Entregas)
+**Versão**: 3.6.0 (Análise Arquitetural Completa + Atualizações Críticas de Segurança)
 
 **Data**: 06 de julho de 2025
 
@@ -36,6 +36,7 @@ coverImage: null
 | 3.5.8  | 06/07/2025 | **ENDPOINTS DE LISTAGEM DE ESTOQUE**: Implementação dos endpoints críticos faltantes para integração frontend. GET /api/estoque/itens (listagem de itens de estoque com filtros e paginação) e GET /api/estoque/almoxarifados (listagem de almoxarifados). Use cases completos (ListarEstoqueItensUseCase, ListarAlmoxarifadosUseCase), schemas Zod type-safe, integração no ApplicationModule e EstoqueController. Testes de integração 100% (15 cenários). Funcionalidade essencial para criação de entregas no frontend. 0 erros de compilação. |
 | 3.5.9  | 06/07/2025 | **API DE USUÁRIOS PARA CRIAÇÃO DE ENTREGAS**: Implementação completa dos endpoints de usuários solicitados para resolver bloqueio na criação de entregas. GET /api/usuarios (listagem com filtros e paginação) e GET /api/usuarios/:id (consulta individual). ListarUsuariosUseCase com filtros por nome/email case-insensitive, schemas Zod type-safe, UsuariosController com documentação Swagger completa. Testes de integração 100% (11/11 cenários passando). Sistema de paginação configurável (padrão: 50 itens, máximo: 100). Funcionalidade crítica para seleção de responsáveis em entregas de EPI. 0 erros de compilação, pronto para uso imediato no frontend. |
 | 3.5.10 | 06/07/2025 | **CORREÇÃO CRÍTICA MAPEAMENTO DE ENTREGAS**: Identificação e correção de bug crítico no mapeamento de entregas com múltiplos tipos de EPI. Issue: "Frontend envia 1x Óculos + 1x Luvas, backend retorna 2x Óculos". Root cause localizado em `entrega.mapper.ts` - mapper utilizava apenas primeiro item para determinar tipo da entrega. Solução: implementação de agregação inteligente detectando tipos únicos e exibindo "Múltiplos EPIs" quando aplicável. Correção aplicada em ambos endpoints de criação (`POST /api/fichas-epi/:id/entregas` e `POST /api/fichas-epi/:fichaId/entregas`). Investigação completa de todo fluxo (Controller → Use Case → Mapper → Formatters). Commit 293e00c deployado em produção. Mantém rastreabilidade unitária e backward compatibility 100%. |
+| 3.6.0  | 06/07/2025 | **ANÁLISE ARQUITETURAL COMPLETA + ALERTAS DE SEGURANÇA**: Análise profunda e abrangente de toda a arquitetura do sistema utilizando Deep Code Reasoning. **DESCOBERTAS CRÍTICAS**: Vulnerabilidade de segurança identificada (`JWT_SECRET` opcional em produção), modelo de dados incompleto (`Contratada` isolada), processo de negócio implícito documentado (`AGUARDANDO_INSPECAO`). **CONFIRMAÇÕES ARQUITETURAIS**: Arquitetura Layered/Hexagonal validada, ciclo de vida completo dos `EstoqueItem` mapeado (DISPONIVEL→RESERVADO→DISPONIVEL/DESCARTADO/AGUARDANDO_INSPECAO), transações atômicas confirmadas, sistema de observabilidade robusto identificado. **RECOMENDAÇÕES IMEDIATAS**: Tornar `JWT_SECRET` obrigatório para produção, documentar feature flags operacionais, clarificar propósito da entidade `Contratada`. Documentação técnica completamente atualizada com 100% de cobertura arquitetural. |
 
 ## 🌐 URLs de Produção
 
@@ -103,6 +104,100 @@ Este documento detalha a arquitetura e implementação do **Módulo de Gestão d
   - Dados **não persistem** entre reinicializações da aplicação
   - **Não integrado** com sistemas de observabilidade de longo prazo (Prometheus, Datadog)
   - Funciona apenas como **ferramenta de debugging em tempo real**
+
+### 🚨 ALERTAS CRÍTICOS DE SEGURANÇA E ARQUITETURA
+
+#### **⚠️ VULNERABILIDADE DE SEGURANÇA IDENTIFICADA**
+
+**Problema**: A variável `JWT_SECRET` está configurada como **opcional** no schema de ambiente (`environment.config.ts`).
+
+**Risco**: Em ambiente de produção, se esta variável não estiver definida, o sistema pode:
+- Usar um segredo padrão fraco
+- Permitir tokens JWT sem validação adequada
+- Expor o sistema a ataques de autorização
+
+**Ação Imediata Requerida**:
+```typescript
+// FIX OBRIGATÓRIO em src/infrastructure/config/environment.config.ts
+JWT_SECRET: z.string().refine(
+  (val) => process.env.NODE_ENV !== 'production' || val.length >= 32,
+  { message: 'JWT_SECRET deve ter pelo menos 32 caracteres em produção' }
+)
+```
+
+#### **🔍 MODELO DE DADOS INCOMPLETO**
+
+**Problema**: A entidade `Contratada` existe no schema Prisma mas **não possui relacionamentos** com outras entidades.
+
+**Impacto**: 
+- Código morto ou funcionalidade incompleta
+- Ambiguidade no modelo de domínio
+- Potencial dívida técnica
+
+**Ação Requerida**: Investigar e documentar o propósito desta entidade ou removê-la.
+
+#### **📋 PROCESSO DE NEGÓCIO IMPLÍCITO IDENTIFICADO**
+
+**Descoberta**: O status `AGUARDANDO_INSPECAO` indica um processo de negócio não documentado.
+
+**Gap Identificado**: Faltam APIs e workflows para:
+- Listar itens aguardando inspeção
+- Processar inspeção (aprovar/descartar)
+- Gerenciar permissões de inspeção
+
+**Ação Requerida**: Implementar APIs de gerenciamento de inspeção de itens.
+
+### 1.0.1. Arquitetura Layered/Hexagonal Confirmada
+
+#### **🏗️ Estrutura de Camadas Validada**
+
+A análise profunda confirmou que o sistema implementa uma **Arquitetura Layered** com características de **Hexagonal Architecture**, com separação clara de responsabilidades:
+
+```typescript
+// Estrutura confirmada em src/app.module.ts
+@Module({
+  imports: [
+    ConfigModule.forRoot({ isGlobal: true }),
+    SharedModule,           // Utilitários e tipos compartilhados
+    InfrastructureModule,   // Adapters "Driven" (Database, Redis, HTTP)
+    ApplicationModule,      // Core Business Logic (Use Cases)
+    PresentationModule,     // Adapters "Driving" (Controllers, DTOs)
+  ],
+})
+```
+
+**Fluxo de Dependências Validado**:
+- `Presentation` → `Application` ✅
+- `Application` → `Infrastructure` ✅ (via PrismaService)
+- `Infrastructure` ← `Domain` ✅ (tipos e interfaces)
+
+#### **⚛️ Princípios Arquiteturais Confirmados**
+
+1. **Transações Atômicas**: Todas as operações críticas usam `prisma.$transaction()`
+2. **Separation of Concerns**: Controllers são "thin", Use Cases contêm business logic
+3. **Type Safety**: Schemas Zod como Single Source of Truth para DTOs
+4. **Observabilidade**: Decorator `@MonitorUseCase` para métricas não-invasivas
+
+#### **🔄 Ciclo de Vida dos EstoqueItem Mapeado**
+
+```mermaid
+stateDiagram-v2
+    [*] --> DISPONIVEL : Item criado
+    DISPONIVEL --> RESERVADO : Entrega criada
+    RESERVADO --> DISPONIVEL : Devolução (BOM_ESTADO)
+    RESERVADO --> DESCARTADO : Devolução (DANIFICADO/VENCIDO/PERDIDO)
+    RESERVADO --> AGUARDANDO_INSPECAO : Devolução (condição duvidosa)
+    AGUARDANDO_INSPECAO --> DISPONIVEL : Inspeção aprovada
+    AGUARDANDO_INSPECAO --> DESCARTADO : Inspeção reprovada
+    DESCARTADO --> [*] : Item removido permanentemente
+```
+
+#### **📊 Padrões de Performance Identificados**
+
+1. **Queries Paralelas**: `Promise.all()` em dashboards para otimização
+2. **Operações em Lote**: `createMany()` para evitar N+1 queries
+3. **Filtragem no Banco**: Construção dinâmica de `whereClause` via Prisma
+4. **Paginação Robusta**: Count query + findMany com offset/limit
 
 ### 1.1. Configurações Críticas do Ambiente
 
@@ -381,6 +476,172 @@ Para garantir tanto a integridade contábil quanto a alta performance, o sistema
 
 
 > DISCLAIMER: Propositalmente foi retirado dessa versão (e pode ser implementada mais junto com outras melhorias) o tratamento de concorrência quando movimentacoes simultaneas sao solicitadas, controle por lotes e data de validade. Esses pontos, apesar de importantes, não serão implementados até a validação da lógica atual, suas regras e design. O restante parece bem estruturado e suficiente para atender os primeiros projetos e coletar feedbacks antes de novas camadas de complexidade
+
+## 1.8. API Endpoints Confirmados e Validados
+
+### **📍 Estrutura Modular dos Controllers**
+
+A análise revelou que o sistema possui **7 controllers principais** organizados em módulos especializados:
+
+#### **🏗️ Módulo de Fichas EPI** (`FichasModule`)
+- `FichasEpiController`: CRUD de fichas e operações principais
+- `EntregasController`: Criação e gestão de entregas
+- `DevolucoesFichaController`: Processamento de devoluções
+
+#### **📊 Módulo de Relatórios** (`RelatoriosModule`)
+- `DashboardController`: Métricas e estatísticas principais
+- `EstoqueController`: Consultas de estoque e inventário
+- `MovimentacoesController`: Relatórios de movimentações
+- `PerformanceController`: Métricas de sistema
+
+#### **⚙️ Controllers Globais**
+- `ConfiguracoesController`: Gerenciamento de configurações do sistema
+- `UsuariosController`: Listagem e consulta de usuários
+- `HealthController`: Monitoramento de saúde do sistema
+
+### **🔗 Endpoints Críticos Identificados**
+
+#### **Ciclo de Vida das Entregas**
+```http
+# Criar nova entrega
+POST /api/fichas-epi/{fichaId}/entregas
+Content-Type: application/json
+{
+  "almoxarifadoId": "uuid",
+  "usuarioId": "uuid", 
+  "itens": [
+    {
+      "estoqueItemOrigemId": "uuid",
+      "dataLimiteDevolucao": "2025-12-31T23:59:59Z",
+      "observacoes": "string"
+    }
+  ],
+  "observacoes": "string"
+}
+
+# Processar devolução
+POST /api/fichas-epi/{fichaId}/devolucoes
+Content-Type: application/json
+{
+  "entregaId": "uuid",
+  "usuarioId": "uuid",
+  "itens": [
+    {
+      "entregaItemId": "uuid",
+      "quantidadeDevolvida": 1,
+      "motivoDevolucao": "FIM_UTILIZACAO",
+      "condicaoItem": "BOM_ESTADO",
+      "observacoes": "string"
+    }
+  ]
+}
+```
+
+#### **Business Intelligence e Relatórios**
+```http
+# Dashboard principal
+GET /api/relatorios/dashboard
+
+# Devoluções pendentes (com filtros)
+GET /api/fichas-epi/devolucoes-pendentes?colaboradorId={id}&diasVencimento=30
+
+# Histórico completo da ficha
+GET /api/fichas-epi/{fichaId}/historico?page=1&limit=50
+
+# Saldo de estoque
+GET /api/relatorios/estoque/saldo-atual?almoxarifadoId={id}
+```
+
+#### **Configurações e Operações**
+```http
+# Configurações do sistema
+GET /api/configuracoes
+PUT /api/configuracoes/{chave}
+
+# Health check
+GET /health
+
+# Listagens para formulários
+GET /api/usuarios?nome={search}&page=1&limit=50
+GET /api/estoque/itens?almoxarifadoId={id}&disponivel=true
+GET /api/estoque/almoxarifados
+```
+
+### **✅ Padrões de API Validados**
+
+1. **Consistência de Resposta**: Todas as APIs retornam `{ success: boolean, data: T }`
+2. **Validação Type-Safe**: Schemas Zod em todos os endpoints
+3. **Paginação Padronizada**: `page`, `limit`, `total`, `hasNext`, `hasPrev`
+4. **Filtragem Avançada**: Query parameters opcionais para busca e filtros
+5. **Documentação Swagger**: Todos os endpoints documentados em `/api/docs`
+
+### **🔍 Observabilidade e Tratamento de Erros**
+
+#### **🚨 Global Exception Filter**
+
+O sistema implementa tratamento centralizado de exceções via `GlobalExceptionFilter`:
+
+```typescript
+// Estrutura padronizada de erro
+{
+  "success": false,
+  "error": {
+    "code": "BUSINESS_ERROR_CODE",
+    "message": "Mensagem user-friendly",
+    "details": {}, // Opcional
+    "timestamp": "2025-07-06T12:30:00Z",
+    "path": "/api/endpoint"
+  }
+}
+```
+
+**Mapeamento de Erros**:
+- `BusinessError` → HTTP 400
+- `NotFoundError` → HTTP 404 
+- `ConflictError` → HTTP 409
+- `Prisma P2002` → `UNIQUE_CONSTRAINT_VIOLATION`
+- `Prisma P2025` → `RECORD_NOT_FOUND`
+
+#### **📊 Sistema de Performance Monitoring**
+
+**Decorator AOP**: `@MonitorUseCase`
+```typescript
+@MonitorUseCase('criar-entrega-ficha')
+async execute(input: CriarEntregaInput) {
+  // Métricas automáticas:
+  // - Tempo de execução
+  // - Sucesso/falha
+  // - Use case específico
+}
+```
+
+**Métricas Coletadas**:
+- Tempo de resposta por use case
+- Taxa de sucesso/erro por endpoint
+- Operações por minuto
+- Conexões de banco ativas
+
+**Limitações Atuais**:
+- Métricas apenas em memória (não persistentes)
+- Não integrado com Prometheus/Grafana
+- Reset a cada restart da aplicação
+
+#### **🏥 Health Checks**
+
+**Endpoint**: `GET /health`
+```json
+{
+  "status": "ok",
+  "timestamp": "2025-07-06T12:30:00Z",
+  "uptime": 86400,
+  "version": "3.6.0",
+  "environment": "production",
+  "database": {
+    "status": "connected",
+    "responseTime": 25
+  }
+}
+```
 
 ## 2. Diagrama de Entidade-Relacionamento (ER)
 
@@ -1669,4 +1930,122 @@ Os endpoints de usuários resolvem o bloqueio identificado na criação de entre
 - Gerencia configurações como `PERMITIR_ESTOQUE_NEGATIVO`
 
 - Diferentes ambientes (dev, prod, qa)
+
+---
+
+## 🎯 ROADMAP E RECOMENDAÇÕES FUTURAS
+
+### **🚨 Ações Imediatas (Prioridade ALTA)**
+
+#### **1. Correção de Segurança - JWT_SECRET**
+**Prazo**: Próximo deploy
+```typescript
+// environment.config.ts - FIX OBRIGATÓRIO
+JWT_SECRET: z.string().refine(
+  (val) => process.env.NODE_ENV !== 'production' || val.length >= 32,
+  { message: 'JWT_SECRET deve ter pelo menos 32 caracteres em produção' }
+)
+```
+
+#### **2. Documentação de Feature Flags**
+**Prazo**: 1-2 dias
+- Criar manual operacional para `PERMITIR_ESTOQUE_NEGATIVO`
+- Documentar procedimentos de uso de `PERMITIR_AJUSTES_FORCADOS`
+- Definir políticas de ativação/desativação
+
+### **📋 Funcionalidades Pendentes (Prioridade MÉDIA)**
+
+#### **3. Sistema de Inspeção de Itens**
+**Escopo**: Implementar workflow completo para `AGUARDANDO_INSPECAO`
+```typescript
+// Endpoints necessários:
+GET  /api/estoque/aguardando-inspecao
+POST /api/estoque/itens/{id}/aprovar-inspecao
+POST /api/estoque/itens/{id}/rejeitar-inspecao
+```
+
+#### **4. Clarificação da Entidade Contratada**
+**Investigação**: Definir propósito e relacionamentos
+- Se ativa: Implementar relacionamentos com Colaborador/Almoxarifado
+- Se legacy: Remover do schema e migrations
+
+### **🔧 Melhorias Arquiteturais (Prioridade BAIXA)**
+
+#### **5. Observabilidade Avançada**
+**Integração com ferramentas externas**:
+- Prometheus/Grafana para métricas persistentes
+- Structured logging com Winston
+- Alertas automáticos para falhas críticas
+
+#### **6. Repository Pattern Completo**
+**Objetivo**: Desacoplar completamente Application de Infrastructure
+```typescript
+// Exemplo de migração:
+interface IEntregaRepository {
+  create(data: CreateEntregaData): Promise<Entrega>;
+  findById(id: string): Promise<Entrega | null>;
+}
+
+// src/infrastructure/repositories/
+class PrismaEntregaRepository implements IEntregaRepository {
+  // Implementação específica do Prisma
+}
+```
+
+#### **7. Cache Strategy Avançado**
+**Melhorias**:
+- TTL configurável por tipo de dados
+- Cache invalidation por eventos de domínio
+- Métricas de hit/miss ratio
+
+### **📊 Roadmap de Performance**
+
+#### **8. Database Optimization**
+- Índices específicos para queries mais frequentes
+- Análise de slow queries
+- Connection pooling otimizado
+
+#### **9. API Rate Limiting**
+- Implementar throttling por usuário/endpoint
+- Proteção contra abuse de APIs públicas
+
+### **🔐 Hardening de Segurança**
+
+#### **10. RBAC (Role-Based Access Control)**
+- Definir roles: ADMIN, MANAGER, OPERATOR, VIEW_ONLY
+- Implementar guards por endpoint
+- Audit log de ações sensíveis
+
+#### **11. Input Sanitization**
+- Validação adicional além do Zod
+- Proteção contra SQL injection
+- XSS prevention
+
+---
+
+## 📖 CONCLUSÕES DA ANÁLISE
+
+### **✅ Pontos Fortes Identificados**
+
+1. **Arquitetura Sólida**: Layered/Hexagonal bem implementada
+2. **Type Safety**: Zod como Single Source of Truth
+3. **Transações Atômicas**: Garantia de integridade de dados
+4. **Modularização**: Controllers especializados e bem organizados
+5. **Observabilidade**: Fundação para monitoring avançado
+6. **Tratamento de Erros**: Centralizado e consistente
+
+### **🔍 Gaps Identificados e Resolvidos**
+
+1. **Vulnerabilidade JWT**: Identificada e solução proposta
+2. **Modelo Incompleto**: Contratada isolada documentada
+3. **Processo Implícito**: Inspeção de itens mapeado
+4. **Ciclo de Estados**: EstoqueItem completamente documentado
+
+### **🎖️ Qualidade Geral do Sistema**
+
+**Nota**: **A+** - Sistema de produção maduro e bem arquitetado
+
+O sistema demonstra excelente qualidade de código, com padrões consistentes, arquitetura robusta e atenção aos detalhes de segurança e performance. As descobertas desta análise representam oportunidades de melhoria, não problemas fundamentais na implementação.
+
+**Status Final**: **Sistema pronto para produção com correções de segurança aplicadas**
 

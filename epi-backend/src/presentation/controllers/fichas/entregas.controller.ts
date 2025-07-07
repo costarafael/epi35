@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Put,
   Body,
   Param,
   Query,
@@ -16,12 +17,15 @@ import {
 } from '@nestjs/swagger';
 import { ZodValidationPipe } from '../../pipes/zod-validation.pipe';
 import { CriarEntregaFichaUseCase } from '../../../application/use-cases/fichas/criar-entrega-ficha.use-case';
+import { AssinarEntregaUseCase } from '../../../application/use-cases/fichas/assinar-entrega.use-case';
 import { StatusEntrega } from '../../../domain/enums/entrega.enum';
 import {
   CriarEntregaSchema,
   FiltrosEntregasSchema,
   CriarEntregaRequest,
   FiltrosEntregas,
+  AssinarEntregaSchema,
+  AssinarEntregaRequest,
 } from '../../dto/schemas/ficha-epi.schemas';
 import { IdSchema, SuccessResponse, PaginatedResponse } from '../../dto/schemas/common.schemas';
 import { EntregaFormatterService } from '../../../shared/formatters/entrega-formatter.service';
@@ -32,6 +36,7 @@ import { EntregaFormatterService } from '../../../shared/formatters/entrega-form
 export class EntregasController {
   constructor(
     private readonly criarEntregaFichaUseCase: CriarEntregaFichaUseCase,
+    private readonly assinarEntregaUseCase: AssinarEntregaUseCase,
     private readonly entregaFormatter: EntregaFormatterService,
   ) {}
 
@@ -166,6 +171,64 @@ export class EntregasController {
         hasNext: endIndex < entregas.length,
         hasPrev: page > 1,
       },
+    };
+  }
+
+  @Put('entregas/:entregaId/assinar')
+  @ApiOperation({ 
+    summary: 'Assinar entrega de EPI',
+    description: 'Marca uma entrega como assinada, alterando seu status de PENDENTE_ASSINATURA para ASSINADA',
+  })
+  @ApiParam({ name: 'entregaId', type: String, format: 'uuid', description: 'ID da entrega a ser assinada' })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Entrega assinada com sucesso',
+    schema: {
+      type: 'object',
+      properties: {
+        success: { type: 'boolean', example: true },
+        data: {
+          type: 'object',
+          properties: {
+            id: { type: 'string', format: 'uuid' },
+            status: { type: 'string', example: 'ASSINADA' },
+            dataAssinatura: { type: 'string', format: 'date-time' },
+            assinaturaColaborador: { type: 'string', nullable: true },
+            observacoes: { type: 'string', nullable: true },
+            fichaEpiId: { type: 'string', format: 'uuid' },
+            almoxarifadoId: { type: 'string', format: 'uuid' },
+            responsavelId: { type: 'string', format: 'uuid' },
+            createdAt: { type: 'string', format: 'date-time' },
+            updatedAt: { type: 'string', format: 'date-time' },
+          },
+        },
+        message: { type: 'string', example: 'Entrega assinada com sucesso' },
+      },
+    },
+  })
+  @ApiResponse({ status: 400, description: 'Dados inválidos ou entrega não pode ser assinada' })
+  @ApiResponse({ status: 404, description: 'Entrega não encontrada' })
+  async assinarEntrega(
+    @Param('entregaId', new ZodValidationPipe(IdSchema)) 
+    entregaId: string,
+    @Body(new ZodValidationPipe(AssinarEntregaSchema)) 
+    assinarEntregaDto: AssinarEntregaRequest,
+  ): Promise<SuccessResponse> {
+    console.log('🔍 [ENTREGAS CONTROLLER] Assinando entrega:', entregaId);
+    console.log('📋 Dados da assinatura:', assinarEntregaDto);
+
+    const entregaAssinada = await this.assinarEntregaUseCase.execute({
+      entregaId,
+      assinaturaColaborador: assinarEntregaDto.assinaturaColaborador,
+      observacoes: assinarEntregaDto.observacoes,
+    });
+
+    console.log('✅ [ENTREGAS CONTROLLER] Entrega assinada com sucesso:', entregaAssinada.id);
+
+    return {
+      success: true,
+      data: entregaAssinada,
+      message: 'Entrega assinada com sucesso',
     };
   }
 }

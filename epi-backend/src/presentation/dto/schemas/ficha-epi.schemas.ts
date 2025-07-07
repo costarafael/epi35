@@ -475,3 +475,33 @@ export type FichaFilters = z.infer<typeof FichaFiltersSchema>;
 export type FiltrosHistoricoFicha = z.infer<typeof FiltrosHistoricoFichaSchema>;
 export type ItemHistoricoFicha = z.infer<typeof ItemHistoricoFichaSchema>;
 export type HistoricoFichaResponse = z.infer<typeof HistoricoFichaResponseSchema>;
+
+// ✅ NEW: Schemas para Assinatura de Entrega
+export const AssinarEntregaSchema = z.object({
+  assinaturaColaborador: z.string().optional(),
+  observacoes: z.string().max(500).optional(),
+});
+
+export const AssinarEntregaUseCaseInputSchema = z.object({
+  entregaId: IdSchema,
+  assinaturaColaborador: z.string().optional(),
+  observacoes: z.string().max(500).optional(),
+});
+
+export const AssinarEntregaUseCaseOutputSchema = z.object({
+  id: IdSchema,
+  status: z.literal('ASSINADA'),
+  dataAssinatura: z.date(),
+  assinaturaColaborador: z.string().optional(),
+  observacoes: z.string().optional(),
+  fichaEpiId: IdSchema,
+  almoxarifadoId: IdSchema,
+  responsavelId: IdSchema,
+  dataEntrega: z.date(),
+  linkAssinatura: z.string().optional(),
+});
+
+// ✅ NEW: Assinatura de Entrega types from Zod schemas
+export type AssinarEntregaRequest = z.infer<typeof AssinarEntregaSchema>;
+export type AssinarEntregaInput = z.infer<typeof AssinarEntregaUseCaseInputSchema>;
+export type AssinarEntregaOutput = z.infer<typeof AssinarEntregaUseCaseOutputSchema>;

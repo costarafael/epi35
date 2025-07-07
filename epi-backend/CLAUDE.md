@@ -1,1109 +1,300 @@
-# Backend do Módulo de Gestão de EPI v3.5.5
+Absolutamente. Aqui está o documento reestruturado para ser um guia conciso e instrutivo, ideal para orientar agentes de IA em tarefas de codificação e arquitetura, mantendo os padrões e a precisão técnica do projeto.
 
-## ✅ CORREÇÃO DE HISTÓRICO DE ENTREGAS COM MÚLTIPLOS TIPOS DE EPI (06/07/2025)
+-----
 
-**STATUS**: ✅ Correção completa implementada e testada
-**ISSUE ORIGINAL**: "Histórico mostra '2 item(ns) de Capacete de Segurança' para entrega de 1 Capacete + 1 Luva"
-**ROOT CAUSE**: Bug na descrição do histórico usando apenas o primeiro tipo de EPI
-**CORREÇÃO**: ✅ Aplicada e commitada (commit 86d1c6a)
+# **Guia de Desenvolvimento e Arquitetura: Módulo de Gestão de EPI v3.5**
 
-### 🔍 Investigação Detalhada
+Este documento serve como a fonte central da verdade para o desenvolvimento do backend do Módulo de Gestão de EPI. Ele estabelece os princípios de arquitetura, padrões de código, comandos essenciais e guias de implementação que devem ser seguidos para garantir a qualidade, manutenibilidade e performance do sistema.
 
-#### **Problema Identificado**
-O sistema de histórico estava gerando descrições incorretas para entregas com múltiplos tipos de EPI:
-- **Frontend reportou**: Histórico mostrando "2 item(ns) de Capacete de Segurança" para entrega mista
-- **Situação real**: 1x Capacete + 1x Luva sendo processados corretamente pelo backend
-- **Root cause**: Histórico usava apenas `entrega.itens[0]` para determinar descrição
+## 1\. Guia Rápido e Padrões Essenciais
 
-#### **Root Cause Analysis**
-**Local do Bug**: `src/application/use-cases/fichas/obter-historico-ficha.use-case.ts:179`
-```typescript
-// ❌ ANTES: Usava apenas o primeiro item da entrega
-descricao: `Entrega realizada - ${entrega.itens.length} item(ns) de ${entrega.itens[0]?.estoqueItem.tipoEpi.nomeEquipamento || 'EPI'}`,
-```
+### 1.1. Fontes da Verdade
 
-#### **Solução Implementada**
-**✅ Histórico corrigido para detectar múltiplos tipos únicos**:
-```typescript
-// ✅ DEPOIS: Detecção inteligente de tipos únicos
-const tiposUnicos = new Set<string>();
-const nomesEquipamentos: string[] = [];
-
-entrega.itens.forEach(item => {
-  const tipoEpiId = item.estoqueItem?.tipoEpi?.nomeEquipamento;
-  if (tipoEpiId && !tiposUnicos.has(tipoEpiId)) {
-    tiposUnicos.add(tipoEpiId);
-    nomesEquipamentos.push(tipoEpiId);
-  }
-});
-
-const descricaoTipos = nomesEquipamentos.length > 1 
-  ? `Múltiplos EPIs (${nomesEquipamentos.join(', ')})` 
-  : (nomesEquipamentos[0] || 'EPI');
-
-descricao: `Entrega realizada - ${entrega.itens.length} item(ns) de ${descricaoTipos}`,
-```
-
-### 🎯 Resultados da Correção
-**Antes**: "Entrega realizada - 2 item(ns) de Capacete de Segurança"
-**Depois**: "Entrega realizada - 2 item(ns) de Múltiplos EPIs (Capacete de Segurança, Luva de Segurança)"
-
-### ✅ Validação Completa
-- **Build**: ✅ 0 erros de compilação
-- **Testes**: ✅ 6/6 testes de histórico passando
-- **Commit**: ✅ `86d1c6a` - "fix(historico): Correct delivery history description for multiple EPI types"
-- **Deploy**: ✅ Pronto para deploy automático via GitHub → Render
-
-## ✅ ANÁLISE E CORREÇÃO DE MAPEAMENTO DE ENTREGAS (06/07/2025) - RESOLVIDO
-
-**STATUS**: ✅ Investigação completa e correção aplicada
-**ISSUE ORIGINAL**: "Frontend envia 1x Óculos + 1x Luvas, backend retorna 2x Óculos"
-**ROOT CAUSE**: Bug no mapper de entregas agrupando incorretamente múltiplos tipos de EPI
-**CORREÇÃO**: ✅ Aplicada e deployada (commit 293e00c)
-
-### 🔍 Investigação Detalhada
-
-#### **Problema Identificado**
-O sistema estava agrupando incorretamente entregas com múltiplos tipos de EPI:
-- **Frontend enviava**: 1x Óculos + 1x Luvas (estoqueItemOrigemId diferentes)
-- **Backend retornava**: 2x Óculos (mapper usava apenas o primeiro item para determinar tipo)
-
-#### **Root Cause Analysis**
-**Local do Bug**: `src/infrastructure/mapping/entrega.mapper.ts:93-101`
-```typescript
-// ❌ ANTES: Mapper usava apenas o primeiro item
-tipoEpi: {
-  nome: primeiroItem?.estoqueItem?.tipoEpi?.nomeEquipamento || 'N/A',
-  // ... sempre o mesmo tipo para toda a entrega
-}
-```
-
-#### **Solução Implementada**
-**✅ Mapper corrigido para detectar múltiplos tipos**:
-```typescript
-// ✅ DEPOIS: Agregação inteligente de tipos únicos
-const tiposUnicos = new Set();
-const nomesEquipamentos: string[] = [];
-
-entrega.itens.forEach((item: any) => {
-  const tipoEpiId = item.estoqueItem?.tipoEpiId;
-  const nomeEquipamento = item.estoqueItem?.tipoEpi?.nomeEquipamento;
-  
-  if (tipoEpiId && !tiposUnicos.has(tipoEpiId)) {
-    tiposUnicos.add(tipoEpiId);
-    if (nomeEquipamento) {
-      nomesEquipamentos.push(nomeEquipamento);
-    }
-  }
-});
-
-// Resultado final
-tipoEpi: {
-  nome: nomesEquipamentos.length > 1 
-    ? `Múltiplos EPIs (${nomesEquipamentos.join(', ')})` 
-    : (primeiroItem?.estoqueItem?.tipoEpi?.nomeEquipamento || 'N/A'),
-  // ...
-}
-```
-
-### 🎯 Endpoints Corrigidos
-**Ambos endpoints de criação de entrega foram corrigidos**:
-1. **`POST /api/fichas-epi/:id/entregas`** (FichasController)
-2. **`POST /api/fichas-epi/:fichaId/entregas`** (EntregasController)
-
-### 🔧 Análise de Fluxo Completa
-**Investigação realizada em todos os pontos**:
-- ✅ **Controller Layer**: Debug logging implementado
-- ✅ **Use Case Layer**: Validações unitárias mantidas
-- ✅ **Mapper Layer**: ✅ **BUG ENCONTRADO E CORRIGIDO**
-- ✅ **Possession Endpoint**: Confirmado funcionamento correto (grouping intencional)
-- ✅ **Formatter Services**: Analisados - não utilizados no fluxo de criação
-
-### 📊 Status da Correção
-- **Commit**: `293e00c` - "fix(entregas): Correct multiple EPI types delivery mapping"
-- **Deploy**: ✅ Aplicado em produção
-- **Testes**: ✅ Mantém rastreabilidade unitária (1 movimentação = 1 item físico)
-- **Backward Compatibility**: ✅ 100% preservada
-- **API Response**: ✅ Agora mostra corretamente múltiplos tipos de EPI
-
-### 🚨 Debugging Guide para Usuário
-Se o problema persistir:
-1. **Limpar cache do browser** (Ctrl+F5)
-2. **Verificar endpoint usado pelo frontend** 
-3. **Testar diretamente na API docs**: https://epi-backend-s14g.onrender.com/api/docs
-4. **Verificar logs do frontend** para confirmar response do backend
-
-## ✅ API DE USUÁRIOS PARA CRIAÇÃO DE ENTREGAS (06/07/2025)
-
-**STATUS**: ✅ Implementação 100% completa com testes validados
-**BUILD**: ✅ 0 erros de compilação
-**TESTES**: ✅ 11/11 testes de integração passando (100%)
-**FUNCIONALIDADE**: ✅ Bloqueio na criação de entregas resolvido
-
-### 🎯 Implementação Completa
-- **GET /api/usuarios**: Lista usuários com filtros e paginação
-- **GET /api/usuarios/:id**: Consulta usuário por ID  
-- **Use Case**: `ListarUsuariosUseCase` com business logic completa
-- **Controller**: `UsuariosController` com validações Zod
-- **Testes**: 11 cenários de integração (100% passando)
-- **Documentação**: Swagger UI completo com exemplos
-
-### 📋 Funcionalidades Técnicas
-- **Filtros Inteligentes**: Busca por nome/email case-insensitive
-- **Paginação Eficiente**: Padrão 50 itens, máximo 100 por página
-- **Type Safety**: Single Source of Truth com Zod schemas
-- **Error Handling**: Respostas apropriadas (404, 400, etc.)
-- **Performance**: Queries otimizadas com índices
-
-### 🔧 Arquivos Implementados
-- **Schemas**: `src/presentation/dto/schemas/usuarios.schemas.ts`
-- **Use Case**: `src/application/use-cases/usuarios/listar-usuarios.use-case.ts`
-- **Controller**: `src/presentation/controllers/usuarios.controller.ts`
-- **Testes**: `test/integration/usuarios/listar-usuarios.integration.spec.ts`
-- **Módulos**: Registrado em ApplicationModule e AppModule
-
-### 🚀 Integração com Entregas
-**Problema Resolvido**: Frontend agora tem acesso completo aos dados de usuários para:
-1. **Seleção de Responsáveis**: Lista todos os usuários disponíveis
-2. **Busca Rápida**: Filtros por nome/email para encontrar usuário específico
-3. **Validação**: Verificação de existência antes de criar entrega
-4. **Performance**: Paginação para listas grandes de usuários
-
-### ✅ Status de Qualidade
-- **Build**: ✅ 0 erros TypeScript
-- **Testes**: ✅ 11/11 cenários passando (listagem, filtros, paginação, individual, validações)
-- **Type Safety**: ✅ Schemas Zod com z.infer para tipos derivados
-- **API Docs**: ✅ Swagger completo com query parameters documentados
-- **Clean Architecture**: ✅ Separação de camadas respeitada
-
-## ✅ ENDPOINTS DE ESTOQUE IMPLEMENTADOS (06/07/2025)
-
-**STATUS**: ✅ Implementação completa dos endpoints faltantes
-**BUILD**: ✅ 0 erros de compilação
-**TESTES**: ✅ Testes de integração criados e validados
-**FUNCIONALIDADE**: ✅ Frontend pode listar itens de estoque e almoxarifados
-
-### 🎯 Endpoints Implementados
-- **GET /api/estoque/itens**: Lista itens de estoque com filtros e paginação
-- **GET /api/estoque/almoxarifados**: Lista almoxarifados disponíveis
-- **Use Cases**: `ListarEstoqueItensUseCase` e `ListarAlmoxarifadosUseCase`
-- **Integração**: Registrados no ApplicationModule e EstoqueController
-
-## ✅ REFATORAÇÃO DE CONTROLLERS COMPLETA (06/07/2025)
-
-**STATUS**: ✅ Refatoração concluída com sucesso e documentada
-**BUILD**: ✅ 0 erros de compilação
-**API COMPATIBILITY**: ✅ 100% preservada (zero breaking changes)
-**DOCUMENTAÇÃO**: ✅ Atualizada em backend-modeuleEPI-documentation.md
-
-### 🎯 Refatoração Implementada
-- **RelatoriosController**: 673 linhas → Modularizado em 4 controllers específicos
-- **FichasEpiController**: 630 linhas → Refatorado em 3 controllers especializados
-- **Compatibilidade API**: 100% preservada (mesmas rotas)
-- **Clean Architecture**: Use cases intocados, apenas camada de apresentação refatorada
-
-### ✅ Implementação e Validação Completas
-1. **Fase 1**: ✅ Services de formatação criados (5 formatters)
-2. **Fase 2**: ✅ RelatoriosModule criado com 4 controllers 
-3. **Fase 3**: ✅ FichasModule criado com 3 controllers
-4. **Fase 4**: ✅ Testes de compatibilidade e validação
-5. **Validação**: ✅ Code review, performance e estrutura aprovados
-
-### 📁 Nova Estrutura de Controllers
-```
-src/presentation/
-├── modules/
-│   ├── relatorios.module.ts      # Organiza controllers de relatórios
-│   └── fichas.module.ts          # Organiza controllers de fichas
-├── controllers/
-│   ├── relatorios/               # Controllers de relatórios
-│   │   ├── dashboard.controller.ts      # Dashboard principal
-│   │   ├── relatorio-descartes.controller.ts
-│   │   ├── relatorio-saude.controller.ts
-│   │   └── index.ts
-│   └── fichas/                   # Controllers de fichas
-│       ├── fichas.controller.ts         # CRUD de fichas
-│       ├── entregas.controller.ts       # Gestão de entregas
-│       ├── devolucoes.controller.ts     # Gestão de devoluções  
-│       └── index.ts
-└── shared/formatters/            # Services de formatação
-    ├── dashboard-formatter.service.ts
-    ├── relatorio-formatter.service.ts  
-    ├── ficha-formatter.service.ts
-    ├── entrega-formatter.service.ts
-    ├── devolucao-formatter.service.ts
-    └── index.ts
-```
-
-### 🎯 Benefícios Alcançados
-- **Manutenibilidade**: Controllers menores e focados
-- **Single Responsibility**: Cada controller tem responsabilidade específica
-- **Formatters Centralizados**: Lógica de formatação separada do negócio
-- **Módulos Organizados**: Estrutura clara para diferentes domínios
-- **API Compatibility**: Todas as rotas existentes preservadas
-
-### 📊 Métricas de Sucesso
-- **Redução de Linhas**: 1303 → 6 controllers especializados (redução de ~726 linhas)
-- **Build**: ✅ 0 erros de compilação
-- **Rotas Registradas**: ✅ 12 novas rotas funcionando
-- **Performance**: ✅ Startup mais rápido, menos dependency injection
-- **Code Quality**: ✅ Single Source of Truth com Zod, imports limpos
-
-### 🏁 STATUS FINAL
-**✅ REFATORAÇÃO CONCLUÍDA COM SUCESSO**
-- Todas as validações passaram
-- ✅ CORS configurado para frontend (portas 5175, 5156, 5157)
-- Sistema pronto para uso
-- ✅ Commit autorizado e executado
-
-### 🌐 CORS Configuration
-**Frontend Development Support**:
-- `http://localhost:5175` - Vite dev server principal
-- `http://localhost:5156` - Porta alternativa de desenvolvimento  
-- `http://localhost:5157` - Porta adicional de desenvolvimento
-- `http://localhost:3000` - Desenvolvimento local tradicional
-
-**Headers permitidos**: Content-Type, Authorization, Accept, X-Requested-With
-**Métodos**: GET, POST, PUT, DELETE, PATCH, OPTIONS
-**Credentials**: Habilitado para autenticação
-
-## 🌐 PRODUÇÃO ATIVA
-**URL**: https://epi-backend-s14g.onrender.com
-**Status**: ✅ 100% Operacional e Funcional (Deploy: 05/07/2025 21:32 UTC-3)
-**Health Check**: https://epi-backend-s14g.onrender.com/health
-**API Docs**: https://epi-backend-s14g.onrender.com/api/docs
-**Commit Live**: `e9ed781` - User management API for delivery creation
-**Endpoints**: 52 endpoints ativos (7 controllers incluindo UsuariosController)
-**Database**: ✅ Migrations + Seed executados, dados funcionais carregados
-**Dashboard**: ✅ 5 fichas ativas, 6 itens em estoque, dados reais
-
-## Fonte da Verdade
-📋 **Documentação Oficial**: `/docs-building/backend-modeuleEPI-documentation.md`
-🐳 **Containers**: `epi_db_dev_v35:5435`, `epi_db_test_v35:5436` (**reset automático**), `epi_redis:6379`
-
-## Princípios Fundamentais
-
-### Rastreabilidade Individual
-- **EntregaItens**: 1 registro = 1 unidade (rastreabilidade atômica)
-- **EstoqueItens**: Agregado por tipo+status (performance)
-- **MovimentacoesEstoque**: Livro-razão imutável (fonte da verdade)
-
-### Transações Atômicas
-```typescript
-pattern: BEGIN → INSERT movimentação → UPDATE saldo → COMMIT
-use: await prisma.$transaction()
-```
-
-### Separação de Contextos
-- **Notas**: Operações de estoque (entrada/transferência/descarte)
-- **Entregas**: Operações com colaboradores
-
-## Configurações Críticas
-- `PERMITIR_ESTOQUE_NEGATIVO`: Boolean para saldos negativos
-- `PERMITIR_AJUSTES_FORCADOS`: Boolean para ajustes diretos
-- `ESTOQUE_MINIMO_EQUIPAMENTO`: Valor global para estoque mínimo (padrão: 10)
-
-## 📋 MUDANÇAS ESTRUTURAIS CRÍTICAS (Schema v3.4 → v3.5)
-
-### ✅ **MIGRAÇÃO E DEPLOY 100% CONCLUÍDOS**
-- **Status**: 0 erros de compilação ✅
-- **Migrations**: Todas executadas em produção ✅
-  - `20250702120000_schema_inicial_documentacao_oficial`
-  - `20250704153610_add_categoria_epi` 
-  - `20250704181029_add_contratada_entity`
-- **Database**: PostgreSQL totalmente configurado ✅
-- **APIs**: Rotas corrigidas (removido prefixo duplo /api/api/) ✅
-- **Dados**: Contratadas e estrutura básica criadas ✅
-
-### 🔄 **Principais Mudanças Estruturais**
-
-#### **FichaEPI: Múltiplas → Uma por Colaborador**
-```typescript
-// ANTES: Múltiplas fichas por colaborador+tipo+almoxarifado
-// AGORA: Uma ficha por colaborador (UNIQUE constraint)
-const ficha = await prisma.fichaEPI.findUnique({ where: { colaboradorId } });
-```
-
-#### **MovimentacaoEstoque: Relacionamento Direto → EstoqueItem**
-```typescript
-// ANTES: almoxarifadoId, tipoEpiId, quantidade
-// AGORA: estoqueItemId, quantidadeMovida
-const movimentacao = await prisma.movimentacaoEstoque.create({
-  data: { estoqueItemId, quantidadeMovida, tipoMovimentacao: 'ENTRADA_NOTA' }
-});
-```
-
-#### **TiposEPI: Campos Renomeados**
-```typescript
-// ANTES: nome, codigo, ca, validadeMeses, ativo
-// AGORA: nomeEquipamento, numeroCa, vidaUtilDias, status
-const tipo = await prisma.tipoEPI.findFirst({ where: { numeroCa } });
-```
-
-#### **Enums Reformulados**
-```typescript
-// TipoMovimentacao: ENTRADA → ENTRADA_NOTA, SAIDA → SAIDA_ENTREGA
-// StatusEntregaItem: ENTREGUE → COM_COLABORADOR
-// StatusFicha: string → StatusFichaEnum (ATIVA, INATIVA)
-```
-
-### 🚨 **Conceitos Importantes**
-- **`responsavel_id`**: Usuário do sistema que executa operação
-- **`colaborador_id`**: Pessoa física que recebe EPIs
-- **`contratada_id`**: Empresa contratada que emprega o colaborador (opcional)
-- **EstoqueItem**: Agregação por almoxarifado+tipo+status
-- **EntregaItem**: Rastreamento unitário (1 registro = 1 unidade)
-
-### 🏢 **Entidade Contratada (v3.5.4)**
-```typescript
-// Nova entidade para identificação de empresas contratadas
-interface Contratada {
-  id: string;
-  nome: string;          // Nome da empresa
-  cnpj: string;          // CNPJ (armazenado sem formatação)
-  createdAt: Date;
-}
-
-// CRUD completo implementado
-const contratada = await contratadaRepository.create({
-  nome: 'Empresa Contratada LTDA',
-  cnpj: '11.222.333/0001-81'  // Validação matemática rigorosa
-});
-```
-
-## ✅ MISSÃO CRÍTICA CONCLUÍDA (04/07/2025)
-
-### 🎯 **STATUS FINAL**: Backend 100% Funcional + Otimizações Implementadas
-
-#### **🚀 OTIMIZAÇÕES COMPLETAS - Todas as Fases Implementadas**
-- **Fase 1**: Deep Code Reasoning analysis - Identificação de anti-patterns ✅
-- **Fase 2**: Refatorações principais - Single Source of Truth ✅
-- **Fase 3**: Code cleanup e Performance Monitoring ✅
-- **Resultado**: Sistema otimizado, limpo e pronto para produção ✅
-
-### 🎯 **STATUS ATUAL**: Backend 100% Funcional + Otimizado + Testes 100% Operacionais
-
-#### **Infraestrutura e Base de Código** ✅
-- **Compilação**: 0 erros TypeScript ✅
-- **Schema v3.5**: 100% implementado e validado ✅
-- **Configurações**: Sistema completo (PERMITIR_ESTOQUE_NEGATIVO, etc.) ✅
-- **Clean Architecture**: Separação correta de camadas ✅
-- **Containers Docker**: Totalmente operacionais ✅
-
-#### **UC-FICHA-01: Rastreabilidade Unitária** ✅
-**Implementação Correta**: Sistema cria 1 movimentação por unidade física
-```typescript
-// ✅ Movimentações unitárias para rastreabilidade atômica
-for (const itemInput of input.itens) {
-  await tx.movimentacaoEstoque.create({
-    data: {
-      estoqueItemId: itemInput.estoqueItemOrigemId,
-      tipoMovimentacao: 'SAIDA_ENTREGA',
-      quantidadeMovida: 1, // ✅ SEMPRE 1 para rastreabilidade unitária
-      responsavelId: input.usuarioId,
-      entregaId: entregaId,
-    },
-  });
-}
-```
-
-#### **UC-FICHA-02: Validação de Assinatura** ✅
-**Correção Crítica**: Devoluções só permitidas para entregas assinadas
-```typescript
-// ✅ Validação obrigatória implementada
-if (entrega.status !== 'ASSINADA') {
-  throw new BusinessError('A entrega deve estar assinada para permitir devolução');
-}
-```
-
-#### **Validações de Estoque Agregadas** ✅
-**Correção Crítica**: Sistema valida estoque por estoqueItem com agregação
-```typescript
-// ✅ Validação agregada implementada
-for (const [estoqueItemId, quantidadeSolicitada] of estoqueAgrupado) {
-  if (estoqueItem.quantidade < quantidadeSolicitada) {
-    const permitirEstoqueNegativo = await this.configuracaoService.permitirEstoqueNegativo();
-    if (!permitirEstoqueNegativo) {
-      throw new BusinessError(`Estoque insuficiente para ${estoqueItem.tipoEpi?.nomeEquipamento}`);
-    }
-  }
-}
-```
-
-#### **🐛 BUG CRÍTICO RESOLVIDO: Contaminação de Dados do Test Seed**
-**Problema**: Test seed criava movimentações que interferiam com testes
-**Solução**: Removida criação de entregas/movimentações do seed
-```typescript
-// ❌ ANTES: Seed criava dados que contaminavam testes
-await createSampleDeliveries(prisma, usuarios[0], fichas, almoxarifados, tiposEpi);
-
-// ✅ AGORA: Seed cria apenas dados básicos necessários
-// await createSampleDeliveries(prisma, usuarios[0], fichas, almoxarifados, tiposEpi);
-```
-
-### 📊 **Status Final dos Testes (04/07/2025)**
-
-#### **✅ Sistema Principal 100% Funcional**:
-- `criar-ficha-epi.integration.spec.ts`: **15/15** ✅
-- `processar-devolucao.integration.spec.ts`: **11/11** ✅
-- `criar-entrega-ficha.integration.spec.ts`: **5/5** ✅
-- `relatorio-saldo-estoque.integration.spec.ts`: **13/13** ✅
-- `relatorio-descartes.integration.spec.ts`: **7/7** ✅
-- `relatorio-posicao-estoque.integration.spec.ts`: **16/16** ✅
-
-#### **⚠️ Funcionalidade Adicional (65% Funcional)**:
-- `contratada-crud.integration.spec.ts`: **13/20** ⚠️ (7 testes com conflitos CNPJ)
-
-#### **🎯 Resumo Geral**:
-- **Testes Core Business**: **51/51** (100%) ✅
-- **Testes Totais**: **64/71** (90%) ✅  
-- **Status**: Sistema EPI principal 100% pronto para produção 🚀
-
-#### **🎯 Otimizações Implementadas**:
-1. **Zod Single Source of Truth**: Eliminadas ~80% das interfaces duplicadas usando `z.infer`
-2. **Custom Mapper System**: Sistema de mapeamento centralizado e type-safe criado
-3. **Validações Consolidadas**: Removidas validações redundantes entre Zod e use cases
-4. **Performance Monitoring**: Infraestrutura completa de métricas implementada
-5. **Code Cleanup**: Magic numbers extraídos para constantes, código limpo
-6. **Batch Operations**: Otimizações N+1 implementadas mantendo rastreabilidade unitária
-
-#### **🔧 Infraestrutura de Otimização Criada**:
-- **`system.constants.ts`**: Constantes centralizadas do sistema
-- **`performance.service.ts`**: Serviço de monitoramento de performance
-- **`monitor-performance.decorator.ts`**: Decorators para timing automático
-- **Custom Mappers**: Sistema de mapeamento lightweight e type-safe
-
-## Comandos Essenciais
-
-### Build & Test
-- `npm run build`: Build do projeto (✅ 0 erros confirmado)
-- `npm run test:integration`: Executar testes de integração (✅ 100% passando)
-- `npm run docker:test`: Iniciar containers de teste (db_test:5436)
-- `npm run prisma:test:reset`: Reset banco de teste
-- `npm run lint`: Validações de código
-
-### Claude-Flow
-- `./claude-flow start --ui`: Iniciar sistema com interface
-- `./claude-flow sparc "<task>"`: Executar modo SPARC
-- `./claude-flow memory store <key> <data>`: Armazenar informações
-
-### Deploy & Produção
-- **Render.com**: Deploy automático via GitHub (main branch)
-- **Health Check**: `/health` endpoint para monitoramento
-- **Environment**: PostgreSQL + Redis (Upstash) + Node.js 22.16.0
-- **Auto-deploy**: Ativado para commits na branch main
-- **Logs**: Monitoramento contínuo via Render Dashboard
-
-## Validações Obrigatórias
-
-### Antes de Commit
-1. `npm run build` → 0 erros ✅
-2. `npm run docker:test` → Containers ativos ✅
-3. `npm run test:integration` → Core Business 100% passando ✅
-4. Validar regras de negócio vs documentação ✅
-
-### Testes Críticos (Devem passar 100%)
-- Criar Ficha EPI: Rastreabilidade unitária
-- Processar Devolução: Validação de assinatura obrigatória  
-- Relatórios de Estoque: Saldos e movimentações
-- Relatórios de Descarte: Filtros e estatísticas
-
-### Code Style
-- TypeScript obrigatório
-- Zod para validação (não class-validator) - ✅ Single Source of Truth implementado
-- Transações Prisma para operações críticas
-- Clean Architecture (Domain → Application → Infrastructure → Presentation)
-- **README.md**: Documentação principal criada
-- **JSDoc**: Adicionado aos use cases principais
-- **Lint**: 0 erros (81 → 0 corrigidos)
-- **Performance Monitoring**: Decorators e serviços implementados
-- **Constants**: Magic numbers centralizados em `system.constants.ts`
-
-## Stack Tecnológica
-- **Framework**: NestJS
-- **Database**: PostgreSQL + Prisma ORM
-- **Validation**: Zod (Single Source of Truth implementado)
-- **Testing**: Vitest
-- **Containers**: Docker (dev:5435, test:5436, redis:6379)
-- **Performance**: Custom monitoring service + decorators
-- **Mapping**: Custom lightweight mapper system
-
-## 🏗️ Arquitetura de Otimização Implementada
-
-### **📁 Estrutura de Arquivos Criados**
-```
-src/
-├── shared/
-│   ├── constants/
-│   │   └── system.constants.ts          # ✅ Constantes centralizadas
-│   ├── monitoring/
-│   │   └── performance.service.ts       # ✅ Serviço de métricas
-│   └── decorators/
-│       └── monitor-performance.decorator.ts # ✅ Decorators de timing
-├── infrastructure/
-│   └── mapping/
-│       ├── mapper.util.ts               # ✅ Utilitários de mapeamento
-│       ├── entrega.mapper.ts            # ✅ Mapper centralizado de entregas
-│       └── ficha-epi.mapper.ts          # ✅ Mapper centralizado de fichas
-└── presentation/
-    └── dto/schemas/
-        └── ficha-epi.schemas.ts         # ✅ Single Source of Truth com z.infer
-```
-
-### **🔧 Padrões de Otimização Utilizados**
-
-#### **1. Zod Single Source of Truth**
-```typescript
-// ✅ Tipos derivados dos schemas Zod
-export type CriarEntregaInput = z.infer<typeof CriarEntregaUseCaseInputSchema>;
-export type EntregaOutput = z.infer<typeof EntregaUseCaseOutputSchema>;
-```
-
-#### **2. Custom Mapper System**
-```typescript
-// ✅ Mapeamento type-safe e centralizado
-export const mapEntregaToOutput = (entrega: any): EntregaOutput => 
-  mapTo(entrega, (source) => ({
-    id: source.id,
-    fichaEpiId: source.fichaEpiId,
-    // ... mapeamento completo
-  }));
-```
-
-#### **3. Performance Monitoring**
-```typescript
-// ✅ Decorators para monitoramento automático
-@MonitorUseCase('criar-entrega')
-async execute(input: CriarEntregaInput): Promise<EntregaOutput> {
-  // Timing automático registrado
-}
-```
-
-#### **4. Constantes Centralizadas**
-```typescript
-// ✅ Magic numbers eliminados
-quantidadeMovida: ESTOQUE.QUANTIDADE_UNITARIA, // Em vez de 1
-utilizacaoCpu: METRICS.UTILIZACAO_CPU_PERCENT, // Em vez de 25
-```
-
-## 🎯 Padrões de Migração (Referência Rápida)
-
-### Fichas EPI (Nova Lógica)
-```typescript
-// ANTES: Múltiplas fichas
-const ficha = await prisma.fichaEPI.findFirst({
-  where: { colaboradorId, tipoEpiId, almoxarifadoId }
-});
-
-// AGORA: Uma ficha por colaborador
-const ficha = await prisma.fichaEPI.findUnique({
-  where: { colaboradorId }
-});
-```
-
-### MovimentacaoEstoque (Nova Referência)
-```typescript
-// ANTES: Campos diretos
-await prisma.movimentacaoEstoque.create({
-  data: { almoxarifadoId, tipoEpiId, quantidade }
-});
-
-// AGORA: Relacionamento EstoqueItem
-await prisma.movimentacaoEstoque.create({
-  data: { estoqueItemId, quantidadeMovida }
-});
-```
-
-### Campos Renomeados
-```typescript
-// TipoEPI
-nome → nomeEquipamento
-ca → numeroCa
-validadeMeses → vidaUtilDias
-ativo → status
-
-// MovimentacaoEstoque
-quantidade → quantidadeMovida
-
-// NotaMovimentacao
-numero → numeroDocumento
-tipo → tipoNota
-```
-
-### Enum Values
-```typescript
-// TipoMovimentacao
-ENTRADA → ENTRADA_NOTA
-SAIDA → SAIDA_ENTREGA
-TRANSFERENCIA → SAIDA_TRANSFERENCIA
-
-// StatusEntregaItem
-ENTREGUE → COM_COLABORADOR
-```
-
-## ⚠️ Conceitos Fundamentais
-
-**Responsável vs Colaborador**:
-- `responsavel_id`: Usuário do sistema que faz entrega
-- `colaborador_id`: Pessoa física que recebe EPIs
-
-**Rastreabilidade Unitária**:
-- Cada `entrega_itens` = 1 unidade física de EPI
-- Sistema cria N registros para quantidade N
-
-**Validação de Assinatura**:
-- Devoluções só permitidas para entregas `ASSINADA`
-- Status `PENDENTE_ASSINATURA` bloqueia devoluções
-
----
-
-## 🏆 Lições Aprendidas: Resolução de Bug Complexo
-
-### 🐛 **Caso: "Movimentações Fantasma" nos Testes**
-**Sintoma**: Testes criavam 2 movimentações unitárias, mas consulta retornava 1 movimentação com quantidade 2.
-
-### 🔍 **Metodologia de Investigação**
-1. **Hipóteses Sistemáticas**: Trigger DB → Constraint Unique → Transação → **Test Data Pollution** ✅
-2. **Prisma Query Logs**: Confirmaram 2 INSERTs distintos sendo executados  
-3. **Script Standalone**: Provou que banco/Prisma funcionavam corretamente
-4. **Deep-code-reasoning**: Análise colaborativa eliminou hipóteses falsas
-5. **Investigação Forense**: Test seed identificado como contaminante
-
-### 📋 **Princípios para Debug Complexo**
-- **Isolar variáveis**: Testar componentes independentemente
-- **Logs granulares**: Verificar cada camada da stack  
-- **Hipóteses falsificáveis**: Eliminar sistematicamente possibilidades
-- **Pair debugging**: Usar ferramentas de análise avançada quando necessário
-- **Test isolation**: Garantir que testes não interferem entre si
-
-### 🛡️ **Prevenção**
-- **Test seeds minimalistas**: Apenas dados estruturais, nunca transacionais
-- **Limpeza de dados isolada**: Cada teste cria seus próprios dados de negócio
-- **Logs de debug temporários**: Ativar quando necessário, remover após resolução
-
-## 🚀 DEPLOY EM PRODUÇÃO (05/07/2025)
-
-### ✅ **STATUS**: Backend 100% Operacional no Render.com
-
-#### **🌐 URLs de Produção**
-- **Main**: https://epi-backend-s14g.onrender.com
-- **Health Check**: https://epi-backend-s14g.onrender.com/health
-- **API Documentation**: https://epi-backend-s14g.onrender.com/api/docs
-
-#### **🔧 Infraestrutura de Produção**
-- **Platform**: Render.com (Free Tier)
-- **Database**: PostgreSQL managed by Render (1GB, 90 days retention)
-- **Cache**: Redis via Upstash
-- **Runtime**: Node.js 22.16.0
-- **Build**: NestJS + TypeScript + Prisma
-
-#### **📊 Configurações de Deploy**
-```yaml
-# render.yaml
-buildCommand: cd epi-backend && npm ci && npm run build && npx prisma generate
-startCommand: cd epi-backend && node dist/src/main.js
-healthCheckPath: /health
-```
-
-#### **🎯 Problemas Resolvidos Durante Deploy**
-1. **Dependencies Conflict**: Movido `class-validator`, `reflect-metadata` para dependencies
-2. **Package Lock Sync**: Atualizado package-lock.json para compatibilidade com npm ci
-3. **Health Check Routing**: Global prefix exclusion para endpoint `/health`
-4. **Timeout Configuration**: Server keepAliveTimeout + headersTimeout = 120s
-5. **Missing Use Cases**: Adicionados todos os use cases faltantes no ApplicationModule
-6. **Dependency Injection**: Corrigidos erros de DI em controllers
-
-#### **📋 Controllers em Produção (50 endpoints)**
-- **HealthController**: `/health` (1 endpoint)
-- **ContratadaController**: `/api/contratadas` (7 endpoints) 
-- **EstoqueController**: `/api/estoque` (11 endpoints)
-- **FichasEpiController**: `/api/fichas-epi` (17 endpoints)
-- **NotasMovimentacaoController**: `/api/notas-movimentacao` (12 endpoints)
-- **RelatoriosController**: `/api/relatorios` (8 endpoints)
-
-#### **🔧 Correções de Produção (05/07/2025)**
-1. **API Routes Fixed**: Removido prefixo duplo `/api/api/` → `/api/`
-2. **Database Deployed**: Migrations executadas + Seed com dados funcionais
-3. **Sample Data**: 3 contratadas, 5 colaboradores, 6 itens estoque criados
-4. **CNPJ Validation**: Implementada validação matemática rigorosa
-5. **Dashboard Funcionando**: Corrigido bug em estatísticas que retornava zeros
-6. **Seed Production**: Script JavaScript compilado para compatibilidade
-
-#### **⚡ Health Check Implementation**
-```typescript
-// Global prefix exclusion
-app.setGlobalPrefix('api', { exclude: ['health'] });
-
-// Health endpoint at /health (no database dependency)
-@Controller('health')
-export class HealthController {
-  @Get()
-  checkHealth(@Res() res: Response) {
-    return res.status(HttpStatus.OK).json({
-      status: 'ok',
-      timestamp: new Date().toISOString(),
-      service: 'epi-backend',
-      version: '3.5.0'
-    });
-  }
-}
-```
-
-#### **🔧 Correções Críticas de Deploy**
-```typescript
-// ApplicationModule - Todos os use cases registrados
-@Module({
-  imports: [RepositoryModule],
-  providers: [
-    ConfiguracaoService,
-    // Estoque Use Cases
-    GerenciarNotaRascunhoUseCase,
-    CancelarNotaMovimentacaoUseCase,
-    ConcluirNotaMovimentacaoUseCase,
-    // Relatórios Use Cases
-    RelatorioDescartesUseCase,
-    // ... todos os demais use cases
-  ],
-  exports: [/* mesma lista */]
-})
-```
-
-#### **📈 Monitoramento**
-- **Health Checks**: A cada 5 segundos (comportamento normal do Render)
-- **Auto-Deploy**: Ativado para commits na branch main
-- **Logs**: Console.log com emojis 🟢 para fácil identificação
-- **Últimos Deploys**: 
-  - `57db0dd` (05/07/2025 21:32): ✅ Dashboard fix and production ready - LIVE
-  - `c1680ee` (05/07/2025 21:24): ✅ Manual seed endpoint for production
-  - `23275fb` (05/07/2025 20:15): ✅ Production fixes and database deployment
-
-#### **🔄 CI/CD Pipeline**
-1. **Push to main** → GitHub webhook → Render auto-deploy
-2. **Build**: npm ci → nest build → prisma generate
-3. **Deploy**: Health check → Traffic routing
-4. **Monitoring**: Continuous health checks + application logs
-
-#### **🎯 Status Final**
-- ✅ **Build**: Sucesso (0 erros TypeScript)
-- ✅ **Deploy**: Live e operacional
-- ✅ **Health Check**: Respondendo corretamente
-- ✅ **API Docs**: Todos os endpoints visíveis
-- ✅ **Controllers**: 50 endpoints registrados
-- ✅ **Dependencies**: Todas as injeções funcionando
-
-## ✅ OTIMIZAÇÕES COMPLETAMENTE IMPLEMENTADAS (04/07/2025)
-
-### **🚀 Performance Críticas Implementadas**
-- **✅ Anti-Pattern N+1 Writes Resolvido**: Batch operations implementadas em `processar-devolucao.use-case.ts` e `criar-entrega-ficha.use-case.ts`
-- **✅ Rastreabilidade Preservada**: Sistema mantém 1 movimentação por item físico usando batch operations
-- **✅ Magic Numbers Eliminados**: Constantes centralizadas em `system.constants.ts`
-
-### **✅ Refatorações de Código Implementadas**
-- **✅ Zod Single Source of Truth**: 80% das interfaces duplicadas eliminadas usando `z.infer`
-- **✅ Custom Mapper System**: Sistema lightweight criado substituindo AutoMapper
-- **✅ Validações Consolidadas**: Validações redundantes removidas dos use cases
-- **✅ Dashboard Otimizado**: Queries em paralelo implementadas no controller
-
-### **✅ Padrão de Otimização Implementado**
-```typescript
-// ✅ IMPLEMENTADO: BATCH UNITÁRIO - Mantém rastreabilidade + Performance
-const movimentacoesData = input.itens.map(itemInput => ({
-  estoqueItemId: itemInput.estoqueItemOrigemId,
-  quantidadeMovida: ESTOQUE.QUANTIDADE_UNITARIA, // ✅ SEMPRE 1 - rastreabilidade preservada
-  tipoMovimentacao: 'SAIDA_ENTREGA',
-  responsavelId: input.usuarioId,
-  entregaId: entregaId,
-}));
-
-// 3. Criar todas as movimentações em batch
-await tx.movimentacaoEstoque.createMany({
-  data: movimentacoesData,
-});
-```
-
-### **📈 Resultados Alcançados**
-- **Manutenibilidade**: 85% redução de código duplicado
-- **Type Safety**: Single source of truth com Zod
-- **Performance**: Batch operations eliminando N+1 queries
-- **Monitoramento**: Infraestrutura completa para métricas em produção
-- **Code Quality**: Código limpo sem magic numbers ou comentários desnecessários
-
-**✅ Todas as otimizações de `analise-optimization.md` foram implementadas com sucesso**
-
----
-
-## 🚀 DEPLOY EM PRODUÇÃO (04/07/2025)
-
-### ✅ **STATUS**: Preparado para Deploy no Render + GitHub
-
-#### **🔗 Repositório GitHub**
-- **URL**: https://github.com/costarafael/epi35
-- **Branch Principal**: `main`
-- **Deploy Automático**: Configurado via `render.yaml`
-
-#### **🌐 Arquitetura de Deploy**
-```
-GitHub (main) → Render Web Service + PostgreSQL + Redis (Upstash)
-│
-├── 🗄️ Database: Render PostgreSQL (Free: 1GB / Paid: $7/mês)
-├── 🔄 Redis: Upstash (Free: 10K commands/dia)
-├── 🚀 Backend: Render Web Service (Free: 512MB / Paid: $7/mês)
-└── 📊 Monitoramento: Health checks + Logs estruturados
-```
-
-#### **📋 Arquivos de Deploy Criados**
-- ✅ **`.env.example`**: Template completo de variáveis de ambiente
-- ✅ **`render.yaml`**: Configuração automática do Render
-- ✅ **`DEPLOYMENT.md`**: Guia completo de deploy
-- ✅ **`.github/workflows/deploy.yml`**: CI/CD com GitHub Actions
-- ✅ **`Dockerfile.production`**: Container otimizado (opcional)
-
-#### **🔧 Variáveis de Ambiente Críticas**
-```bash
-# Produção
-DATABASE_URL=postgresql://username:password@host:port/database
-REDIS_URL=redis://username:password@upstash-host:port
-JWT_SECRET=generated-by-render
-NODE_ENV=production
-PERMITIR_ESTOQUE_NEGATIVO=false
-PERMITIR_AJUSTES_FORCADOS=false
-```
-
-#### **📊 Custos Estimados**
-| Tier | Custo/Mês | Recursos | Status |
-|------|-----------|----------|---------|
-| **Free** | $0 | 512MB RAM, Sleep 15min, 1GB DB | ✅ Desenvolvimento |
-| **Starter** | ~$15 | Sempre ativo, 512MB RAM, Backups | ⭐ Produção |
-
-#### **🎯 Próximos Passos para Deploy**
-1. **Push para GitHub**: `git push origin main`
-2. **Conectar Render**: Dashboard → New Blueprint → epi35 repo
-3. **Configurar Redis**: Criar conta Upstash (free)
-4. **Deploy Automático**: Render detecta `render.yaml` automaticamente
-5. **Verificar Health**: `https://epi-backend.onrender.com/health`
-
-#### **🏥 Monitoramento**
-- **Health Check**: `/health` endpoint configurado
-- **Logs**: Estruturados JSON via Render Dashboard
-- **Performance**: Métricas implementadas com decorators
-- **CI/CD**: Testes automáticos antes de cada deploy
-
-## 📋 IMPLEMENTAÇÃO DE HISTÓRICO GERAL DE FICHAS EPI (06/07/2025)
-
-### ✅ **STATUS**: Implementação Completa - Deploy Realizado em Produção
-
-#### **🎯 Funcionalidade Implementada**
-**Nova funcionalidade**: Histórico completo e detalhado de fichas de EPI com rastreabilidade total de todas as operações realizadas na ficha de um colaborador.
-
-#### **📁 Arquivos Criados/Modificados**
-
-##### **✅ Schemas Zod (Single Source of Truth)**
-- **Arquivo**: `src/presentation/dto/schemas/ficha-epi.schemas.ts`
-- **Novos schemas**:
-  - `FiltrosHistoricoFichaSchema`: Filtros para consulta de histórico
-  - `ItemHistoricoFichaSchema`: Estrutura de um evento do histórico  
-  - `HistoricoFichaResponseSchema`: Response completo com estatísticas
-- **Tipos derivados**: `FiltrosHistoricoFicha`, `ItemHistoricoFicha`, `HistoricoFichaResponse`
-
-##### **✅ Use Case Principal**
-- **Arquivo**: `src/application/use-cases/fichas/obter-historico-ficha.use-case.ts`
-- **Classe**: `ObterHistoricoFichaUseCase`
-- **Funcionalidades**:
-  - Histórico construído a partir de múltiplas fontes de dados
-  - Filtros por tipo de ação, período e paginação
-  - Estatísticas consolidadas automáticas
-  - Ordenação cronológica (mais recente primeiro)
-
-##### **✅ Endpoint REST API**
-- **Controller**: `src/presentation/controllers/fichas/fichas.controller.ts`
-- **Endpoint**: `GET /api/fichas-epi/:fichaId/historico`
-- **Query Params**: `tipoAcao`, `dataInicio`, `dataFim`, `page`, `limit`
-- **Documentação**: Swagger completo implementado
-
-##### **✅ Configuração de Módulos**
-- **ApplicationModule**: `ObterHistoricoFichaUseCase` registrado nos providers
-- **FichasController**: Injeção de dependência configurada
-
-##### **✅ Testes de Integração**
-- **Arquivo**: `test/integration/fichas/obter-historico-ficha.integration.spec.ts`
-- **Cobertura**: 6 cenários de teste completos
-- **Casos testados**: Criação, filtros, paginação, validações, erros
-
-#### **🔍 Tipos de Eventos Rastreados**
-
-| Tipo de Ação | Descrição | Fonte dos Dados |
-|---------------|-----------|-----------------|
-| **CRIACAO** | Ficha criada para colaborador | `FichaEPI.createdAt` |
-| **ENTREGA** | EPI entregue ao colaborador | `Entrega` + `EntregaItem` |
-| **DEVOLUCAO** | EPI devolvido pelo colaborador | `MovimentacaoEstoque` (ENTRADA_DEVOLUCAO) |
-| **CANCELAMENTO** | Entrega/devolução cancelada | `MovimentacaoEstoque` (ESTORNO_*) |
-| **ALTERACAO_STATUS** | Ficha ativada/inativada | `HistoricoFicha` + registros automáticos |
-| **ITEM_VENCIDO** | Item com prazo vencido | `EntregaItem.dataLimiteDevolucao` |
-| **EDICAO** | Alterações diversas (assinaturas, etc) | `HistoricoFicha` + eventos específicos |
-
-#### **🌐 Uso da API**
-
-##### **Obter histórico completo**
-```bash
-GET /api/fichas-epi/{fichaId}/historico
-```
-
-##### **Filtrar por tipo de ação**
-```bash
-GET /api/fichas-epi/{fichaId}/historico?tipoAcao=ENTREGA
-```
-
-##### **Filtrar por período**
-```bash
-GET /api/fichas-epi/{fichaId}/historico?dataInicio=2025-01-01&dataFim=2025-12-31
-```
-
-##### **Com paginação**
-```bash
-GET /api/fichas-epi/{fichaId}/historico?page=1&limit=20
-```
-
-#### **✅ Deploy Concluído com Sucesso**
-
-##### **🚀 Status de Produção**
-1. **Commit**: `6ce2577` deployado em produção
-2. **Endpoint**: `GET /api/fichas-epi/:id/historico` ativo
-3. **Testes**: 6/6 testes de integração passando (100%)
-4. **API Docs**: Documentação Swagger atualizada
-
-##### **🧪 Validação Completa**
-1. **Build**: ✅ 0 erros de compilação
-2. **Testes**: ✅ 6/6 testes passando
-3. **API**: ✅ Endpoint funcional e documentado
-4. **Docker**: ✅ Problemas resolvidos, containers funcionando
-
-##### **🌐 Ambiente de Produção**
-- **URL**: https://epi-backend-s14g.onrender.com/api/fichas-epi/{fichaId}/historico
-- **Swagger**: https://epi-backend-s14g.onrender.com/api/docs
-- **Health**: https://epi-backend-s14g.onrender.com/health
-
-#### **🎯 Benefícios Alcançados**
-
-1. **Rastreabilidade Total**: Cada ação na ficha fica registrada
-2. **Auditoria Completa**: Histórico imutável de todas as operações
-3. **UI/UX Melhorado**: Frontend terá visibilidade total do ciclo de vida
-4. **Filtros Avançados**: Consultas específicas por tipo e período
-5. **Performance Otimizada**: Queries otimizadas com paginação
-6. **Estatísticas**: Resumo automático de métricas importantes
-
-**✅ Implementação de Histórico Geral de Fichas EPI 100% Concluída**
-- **Core**: 100% implementado e funcional
-- **Registros Automáticos**: 100% implementado e testado
-- **Testes**: 6/6 passando (100% cobertura)
-- **Deploy**: Em produção desde commit `6ce2577`
-
-## 📋 SISTEMA DE GERENCIAMENTO DE CONFIGURAÇÕES (06/07/2025)
-
-### ✅ **STATUS**: Implementação Completa - Sistema de Configurações 100% Funcional
-
-#### **🎯 Funcionalidade Implementada**
-**Sistema completo de gerenciamento de configurações**: API REST para controle dinâmico das configurações operacionais (PERMITIR_ESTOQUE_NEGATIVO, PERMITIR_AJUSTES_FORCADOS, ESTOQUE_MINIMO_EQUIPAMENTO) com validações de tipos, regras de negócio e operações batch.
-
-#### **📁 Arquivos Criados/Modificados**
-
-##### **✅ Schemas Zod (Single Source of Truth)**
-- **Arquivo**: `src/presentation/dto/schemas/configuracoes.schemas.ts`
-- **Implementação completa**:
-  - `ChaveConfiguracaoSchema`: Enum das configurações suportadas
-  - `ConfiguracaoMetadataSchema`: Metadados e validações por tipo
-  - `ConfiguracaoOutputSchema`: Response padronizado com valorParsed
-  - `AtualizarConfiguracaoRequestSchema`: Request para atualizações
-  - `AtualizarConfiguracoesLoteRequestSchema`: Batch operations
-- **Tipos derivados**: `ChaveConfiguracao`, `ConfiguracaoOutput`, etc.
-
-##### **✅ Use Cases Principais**
-- **Arquivo**: `src/application/use-cases/configuracoes/obter-configuracoes.use-case.ts`
-- **Funcionalidades**:
-  - `listarTodasConfiguracoes()`: Lista com auto-criação de padrões
-  - `obterConfiguracao()`: Consulta individual
-  - `obterStatusSistema()`: Status consolidado do sistema
-
-- **Arquivo**: `src/application/use-cases/configuracoes/atualizar-configuracoes.use-case.ts`
-- **Funcionalidades**:
-  - `atualizarConfiguracao()`: Atualização com validações
-  - `atualizarConfiguracoesBolean()`: Helper para booleanos
-  - `atualizarConfiguracaoNumerica()`: Helper para números
-  - `atualizarConfiguracoesLote()`: Operações batch
-  - `resetarConfiguracoesPadrao()`: Reset completo
-  - `validarRegrasNegocio()`: Validações específicas
-
-##### **✅ Controller REST API**
-- **Arquivo**: `src/presentation/controllers/configuracoes.controller.ts`
-- **8 Endpoints implementados**:
-  - `GET /api/configuracoes` (listar todas)
-  - `GET /api/configuracoes/status` (status do sistema)
-  - `GET /api/configuracoes/:chave` (consulta individual)
-  - `PUT /api/configuracoes/:chave` (atualização genérica)
-  - `PATCH /api/configuracoes/:chave/boolean` (atualização booleana simplificada)
-  - `PATCH /api/configuracoes/:chave/number` (atualização numérica simplificada)
-  - `POST /api/configuracoes/batch` (atualização em lote)
-  - `POST /api/configuracoes/reset` (reset para padrão)
-- **Documentação**: Swagger completo implementado
-
-##### **✅ Configuração de Módulos**
-- **AppModule**: `ConfiguracoesController` registrado
-- **ApplicationModule**: `ObterConfiguracoesUseCase` e `AtualizarConfiguracoesUseCase` registrados
-
-##### **✅ Testes de Integração**
-- **Arquivo**: `test/integration/configuracoes/configuracoes-api.integration.spec.ts`
-- **Cobertura**: 20 cenários de teste completos (100% coverage)
-- **Casos testados**: 
-  - Listagem e auto-criação de configurações
-  - Consultas individuais e status do sistema
-  - Atualizações (simples, booleana, numérica)
-  - Operações batch com validação de falhas
-  - Reset para valores padrão
-  - Validações de tipos e regras de negócio
-  - Integração com ConfiguracaoService
-
-#### **🔧 Configurações Gerenciadas**
-
-| Chave | Tipo | Padrão | Validações |
-|-------|------|--------|------------|
-| `PERMITIR_ESTOQUE_NEGATIVO` | Boolean | `false` | Verifica itens com saldo negativo |
-| `PERMITIR_AJUSTES_FORCADOS` | Boolean | `false` | Sem validações específicas |
-| `ESTOQUE_MINIMO_EQUIPAMENTO` | Number | `10` | Faixa: 0 a 999.999 |
-
-#### **📊 Benefícios Implementados**
-
-1. **Controle Dinâmico**: Configurações alteráveis sem redeploy
-2. **Type Safety**: Single Source of Truth com schemas Zod
-3. **Validações Rigorosas**: Tipos e regras de negócio específicas
-4. **Operações Batch**: Atualização múltipla com tratamento de falhas
-5. **Auto-criação**: Configurações criadas automaticamente se não existirem
-6. **Auditoria**: Histórico de valores anteriores em atualizações
-7. **APIs Simples**: Endpoints específicos para tipos comuns (boolean/number)
-8. **Reset Seguro**: Restauração para valores padrão
-9. **Integração Imediata**: Mudanças refletidas instantaneamente no sistema
-10. **Documentação Completa**: Swagger com exemplos de uso
-
-#### **🎯 Status de Deploy**
-- ✅ **Build**: 0 erros de compilação
-- ✅ **Testes**: 20/20 testes de integração passando
-- ✅ **Produção**: Deploy realizado (commit `a2ce7a5`)
-- ✅ **Funcionalidade**: Sistema 100% operacional
-- ✅ **Endpoints**: 8 novos endpoints adicionados (total: 59 endpoints)
-
-**✅ Sistema de Gerenciamento de Configurações 100% Concluído e Operacional**
-
----
-
-# Você deve usar a ferramenta MCP (Model Context Protocol server) `deep-code-reasoning` quando necessário - ele já está configurado com voce, e é um pair developer com maior memória.
-
-# Guia Rápido: Comandos Especiais do Deep Code Reasoning
-
-Esta é uma referência rápida para os comandos especiais para ativar as ferramentas de análise avançada do servidor `deep-code-reasoning`.
-
-| Comando (Ferramenta) | Cenário Ideal no Projeto EPI | Exemplo de Solicitação ao Claude |
+| Recurso | Localização | Descrição |
 | :--- | :--- | :--- |
-| **`escalate_analysis`** | Quando um teste de integração falha de forma inesperada após as mudanças no schema e a causa não é óbvia, envolvendo múltiplos repositórios e casos de uso. | > "O teste em `concluir-nota-movimentacao.integration.spec.ts` está falhando com um erro de violação de constraint. Já revisei o teste e o use case, mas não vejo o problema. Use **`escalate_analysis`** para analisar o fluxo completo, desde o controller até o repositório, e encontrar a causa da falha." |
-| **`trace_execution_path`** | Para entender como a nova lógica de devolução (que cria um item em `AGUARDANDO_INSPECAO`) funciona do início ao fim, desde a chamada da API até a criação da nova movimentação de estoque. | > "Preciso documentar o novo fluxo de devolução. Use **`trace_execution_path`** a partir do método `processarDevolucao` no `FichasController` e mapeie todas as chamadas de serviço, validações de domínio e operações de banco de dados até o `COMMIT` final da transação." |
-| **`cross_system_impact`** | Antes de alterar a entidade `EstoqueItem` para adicionar um novo campo (ex: `custoMedio`), para garantir que nenhum dos 202 erros de compilação restantes será agravado e para saber quais relatórios serão afetados. | > "Estou planejando adicionar o campo `custoMedio` à entidade `EstoqueItem`. Antes de alterar o `schema.prisma`, use **`cross_system_impact`** para listar todos os arquivos (casos de uso, DTOs, relatórios e testes) que seriam diretamente impactados por essa mudança." |
-| **`performance_bottleneck`** | Quando o novo `relatorio-posicao-estoque.use-case.ts` está lento em produção, e você suspeita que o join para buscar o `almoxarifadoId` e `tipoEpiId` a partir do `estoqueItemId` em cada movimentação está causando um N+1 query. | > "O relatório de posição de estoque está demorando demais. Suspeito de um problema de performance na forma como buscamos os dados das movimentações. Use **`performance_bottleneck`** para analisar o `relatorio-posicao-estoque.use-case.ts` e confirmar se estamos com um problema de N+1 query." |
-| **`hypothesis_test`** | Para validar a teoria de que os erros restantes de compilação no padrão "`MovimentacaoEstoque` Filters" são todos causados pela falta de um `include` do relacionamento `estoqueItem` nas chamadas do Prisma. | > "Minha hipótese é que os erros de filtro em `relatorio-estornos.use-case.ts` podem ser resolvidos substituindo o `where` direto por um `where` dentro de um `include: { estoqueItem: { ... } }`. Use **`hypothesis_test`** para validar se essa mudança de padrão no Prisma resolveria o erro de schema naquele arquivo." |
-| **`start_conversation`** | Para resolver o problema mais crítico e fundamental: a reescrita da lógica de `FichaEPI` (de múltiplas fichas para uma por colaborador), que afeta dezenas de arquivos e requer uma estratégia de migração passo a passo. | > "Vamos resolver a migração das Fichas de EPI. Use **`start_conversation`** para uma análise interativa. Minha primeira pergunta é: 'Baseado no novo schema onde `FichaEPI` tem `colaboradorId` como chave única, qual é a melhor estratégia para refatorar o `criar-entrega-ficha.use-case.ts` para que ele primeiro encontre ou crie a ficha única e depois adicione os itens de entrega?'" |
+| **Produção** | `https://epi-backend-s14g.onrender.com` | URL base da API em produção. |
+| **Documentação API** | `/api/docs` | Swagger UI com todos os endpoints e schemas. |
+| **Health Check** | `/health` | Endpoint de monitoramento do status da aplicação. |
+| **Repositório** | `https://github.com/costarafael/epi35` | Repositório principal do projeto (branch `main`). |
+| **Containers** | `epi_db_dev_v35:5435` (Dev), `epi_db_test_v35:5436` (Teste) | Nomes e portas dos containers Docker. |
+
+### 1.2. Validações Obrigatórias (Checklist Pré-Commit)
+
+Antes de cada `commit`, o agente deve executar e validar os seguintes passos:
+
+1.  **Compilar o Projeto**:
+
+    ```bash
+    npm run build
+    ```
+
+      * **Critério de Aceite**: 0 erros de compilação do TypeScript.
+
+2.  **Iniciar Ambiente de Teste**:
+
+    ```bash
+    npm run docker:test
+    ```
+
+      * **Critério de Aceite**: Containers Docker de teste (`db_test`, `redis`) devem estar ativos e sem erros.
+
+3.  **Resetar o Banco de Testes**:
+
+    ```bash
+    npm run prisma:test:reset
+    ```
+
+      * **Critério de Aceite**: Garante um ambiente limpo para testes, evitando contaminação de dados.
+
+4.  **Executar Testes de Integração**:
+
+    ```bash
+    npm run test:integration
+    ```
+
+      * **Critério de Aceite**: 100% de aprovação nos testes do Core Business (Fichas, Entregas, Devoluções, Estoque).
+
+5.  **🚨 Validação de Dados Reais**:
+
+      * **Critério de Aceite**: Confirmar que NENHUM mock foi introduzido no código (exceto headers da aplicação).
+      * **Verificação**: Todos os dados devem vir de fontes reais (PostgreSQL, Redis).
+      * **Ação em caso de falha**: Identificar e corrigir problemas de conectividade ou consulta na fonte.
+
+### 1.3. Stack Tecnológica
+
+| Componente | Tecnologia | Padrão de Uso |
+| :--- | :--- | :--- |
+| **Framework** | NestJS | Estrutura principal da aplicação. |
+| **Linguagem** | TypeScript | Tipagem estrita obrigatória. |
+| **Banco de Dados** | PostgreSQL | Persistência dos dados relacionais. |
+| **ORM** | Prisma | Interface com o banco de dados. |
+| **Validação** | Zod | Single Source of Truth para DTOs e tipos. |
+| **Testes** | Vitest | Framework para testes unitários e de integração. |
+| **Cache** | Redis (Upstash) | Cache para configurações e sessões. |
+| **Containers** | Docker | Padronização dos ambientes de dev e teste. |
+
+## 2\. Arquitetura e Princípios de Design
+
+A arquitetura do sistema segue os princípios da **Clean Architecture**, com uma separação clara de responsabilidades em camadas: `Presentation` -\> `Application` -\> `Domain` -\> `Infrastructure`.
+
+### 2.1. Princípios Fundamentais
+
+  * **Rastreabilidade Unitária Atômica**: Cada item físico de EPI movimentado deve corresponder a um único registro na tabela `EntregaItens`. Para entregas de N itens, devem ser criados N registros em `MovimentacaoEstoque`.
+
+      * **Diretiva**: Operações de saída devem ter `quantidadeMovida: 1` para preservar a rastreabilidade. Use operações em lote (`createMany`) para performance.
+
+  * **Single Source of Truth (SSoT) com Zod**: Interfaces e tipos de DTOs não devem ser definidos manualmente. Eles devem ser derivados dos schemas Zod.
+
+    ```typescript
+    // ✅ CORRETO: Tipo derivado do schema
+    import { z } from 'zod';
+    import { CriarEntregaUseCaseInputSchema } from '...';
+
+    export type CriarEntregaInput = z.infer<typeof CriarEntregaUseCaseInputSchema>;
+    ```
+
+  * **Transações Atômicas**: Todas as operações que alteram o estado do banco (e.g., criar entrega, processar devolução) **devem** ser encapsuladas em uma transação Prisma para garantir a consistência dos dados.
+
+    ```typescript
+    // ✅ PADRÃO: Uso obrigatório de transações para operações de escrita
+    await prisma.$transaction(async (tx) => {
+      // 1. Validar estoque
+      // 2. Criar movimentação
+      // 3. Atualizar saldo
+    });
+    ```
+
+### 2.2. Migrações de Schema (v3.4 -\> v3.5)
+
+Mudanças estruturais críticas foram implementadas e devem ser compreendidas:
+
+  * **Ficha de EPI Única**: Agora existe apenas **uma ficha por colaborador**, com `colaboradorId` como `UNIQUE`. A lógica de negócio deve primeiro buscar a ficha existente ou criá-la se não existir.
+  * **Relacionamento de Movimentação**: `MovimentacaoEstoque` agora se relaciona diretamente com `EstoqueItem` (`estoqueItemId`) em vez de usar `almoxarifadoId` e `tipoEpiId`.
+  * **Renomeação de Campos**: Diversos campos foram renomeados para maior clareza (e.g., `TipoEPI.nome` -\> `nomeEquipamento`, `TipoEPI.ca` -\> `numeroCa`). Consulte o `schema.prisma` para a lista completa.
+
+## 3\. Ambiente de Desenvolvimento e Comandos
+
+### 3.1. Comandos Essenciais
+
+| Comando | Descrição |
+| :--- | :--- |
+| `npm run build` | Compila o projeto TypeScript. |
+| `npm run docker:dev` | Inicia os containers Docker para o ambiente de desenvolvimento. |
+| `npm run docker:test` | Inicia os containers Docker para o ambiente de testes. |
+| `npm run prisma:test:reset` | **(Importante)** Reseta e popula o banco de dados de teste. |
+| `npm run test:integration` | Executa todos os testes de integração. |
+| `npm run lint` | Analisa o código em busca de erros de estilo e padrões. |
+| `./claude-flow start --ui` | Inicia o sistema de agentes com interface. |
+
+### 3.2. Deploy e Produção
+
+O deploy é automatizado via GitHub Actions para o Render.com a cada `commit` na branch `main`.
+
+  * **Configuração de Build**:
+    ```yaml
+    # render.yaml
+    buildCommand: cd epi-backend && npm ci && npm run build && npx prisma generate
+    startCommand: cd epi-backend && node dist/src/main.js
+    healthCheckPath: /health
+    ```
+  * **Variáveis de Ambiente**: As variáveis críticas (`DATABASE_URL`, `REDIS_URL`, `JWT_SECRET`) são gerenciadas pelo Render. As configurações operacionais (`PERMITIR_ESTOQUE_NEGATIVO`, etc.) são gerenciadas via API de Configurações.
+
+## 4\. Padrões de Código e Guia de Implementação
+
+### 4.1. Otimização de Performance
+
+  * **Padrão de Batch Unitário**: Para evitar o anti-padrão N+1 em escritas, utilize `createMany` para criar múltiplos registros de movimentação de uma só vez, mantendo a rastreabilidade unitária.
+
+    ```typescript
+    // ✅ PADRÃO OBRIGATÓRIO: Performance com rastreabilidade
+    const movimentacoesData = itens.map(item => ({
+      estoqueItemId: item.estoqueItemOrigemId,
+      quantidadeMovida: 1, // Sempre 1 para rastreabilidade
+      tipoMovimentacao: 'SAIDA_ENTREGA',
+      responsavelId: input.usuarioId,
+      entregaId: entrega.id,
+    }));
+
+    await tx.movimentacaoEstoque.createMany({
+      data: movimentacoesData,
+    });
+    ```
+
+  * **Mapeadores Customizados (Mappers)**: Para conversões de DTOs, utilize o sistema de mapeamento customizado, que é type-safe e centralizado. Evite lógicas de mapeamento complexas dentro dos controllers ou use cases.
+
+  * **Monitoramento de Performance**: Use o decorator `@MonitorUseCase` em métodos de use case para registrar automaticamente o tempo de execução.
+
+    ```typescript
+    // ✅ PADRÃO: Monitoramento de performance
+    import { MonitorUseCase } from 'src/shared/decorators/monitor-performance.decorator';
+
+    @MonitorUseCase('criar-entrega')
+    async execute(input: CriarEntregaInput): Promise<EntregaOutput> {
+      // ... lógica do use case
+    }
+    ```
+
+### 4.2. Estrutura de Módulos e Controllers
+
+A aplicação é modularizada para promover o **Princípio da Responsabilidade Única (SRP)**.
+
+  * **Estrutura**: Controllers massivos foram refatorados em módulos e controllers específicos por domínio.
+    ```
+    src/presentation/
+    ├── modules/
+    │   ├── relatorios.module.ts
+    │   └── fichas.module.ts
+    ├── controllers/
+    │   ├── relatorios/
+    │   │   ├── dashboard.controller.ts
+    │   │   └── ...
+    │   └── fichas/
+    │       ├── fichas.controller.ts
+    │       ├── entregas.controller.ts
+    │       └── ...
+    ```
+  * **Diretiva**: Novas funcionalidades devem ser organizadas em seus respectivos módulos e controllers, mantendo-os pequenos e focados.
+
+## 5\. Política de Dados Reais e Produção
+
+### 5.1. **🚨 PROIBIÇÃO ABSOLUTA DE MOCKS**
+
+**DIRETIVA CRÍTICA**: O sistema está sendo preparado para **produção real**. Por isso:
+
+- **❌ JAMAIS criar mocks de dados** (exceto os headers da aplicação)
+- **❌ JAMAIS simular respostas** de banco de dados ou APIs
+- **❌ JAMAIS usar dados fictícios** em place de consultas reais
+
+### 5.2. **✅ PADRÃO OBRIGATÓRIO: Dados Reais**
+
+**Todos os dados devem vir de fontes reais**:
+- **Database**: PostgreSQL via Prisma
+- **Cache**: Redis para configurações
+- **APIs**: Endpoints reais com validação completa
+
+### 5.3. **🔧 Resolução de Problemas de Dados**
+
+**Quando há dificuldade para obter dados reais**, a ação correta é:
+
+1. **Identificar a causa raiz**:
+   ```bash
+   # Verificar conexão com banco
+   npm run prisma:studio
+   
+   # Testar queries específicas
+   npm run test:integration -- --grep "nome-do-teste"
+   
+   # Verificar logs do container
+   docker logs epi_db_dev_v35
+   ```
+
+2. **Corrigir na fonte**:
+   - **Schema Problem**: Ajustar `schema.prisma` e rodar migration
+   - **Query Problem**: Corrigir use case ou repository
+   - **Connection Problem**: Verificar `DATABASE_URL` e containers
+   - **Data Problem**: Usar seed script ou criar dados via API
+
+3. **Nunca mascarar com mocks**:
+   ```typescript
+   // ❌ PROIBIDO
+   const mockData = { id: 'fake-123', nome: 'Mock User' };
+   
+   // ✅ CORRETO
+   const realData = await this.prisma.user.findUnique({ where: { id } });
+   if (!realData) {
+     throw new NotFoundError('User', id);
+   }
+   ```
+
+### 5.4. **🎯 Preparação para Produção Real**
+
+**Todas as implementações devem considerar**:
+- **Dados reais de colaboradores, EPIs e movimentações**
+- **Volumes de produção** (milhares de registros)
+- **Cenários de erro reais** (conexão perdida, dados inconsistentes)
+- **Performance com dados reais** (não dados de teste pequenos)
+
+**PRINCÍPIO**: Se não funciona com dados reais, não está pronto para produção.
+
+## 6\. Análise Avançada com Deep Code Reasoning
+
+Para investigações complexas que excedem a análise de código padrão, utilize o servidor **MCP (Model Context Protocol)** `deep-code-reasoning`. Ele atua como um pair developer com memória e capacidade de análise aprofundada.
+
+**Diretiva**: Invoque essas ferramentas apenas quando a causa de um problema não for imediatamente aparente após a análise inicial e a execução de testes.
+
+| Comando da Ferramenta | Cenário de Uso Ideal no Projeto | Exemplo de Solicitação |
+| :--- | :--- | :--- |
+| **`escalate_analysis`** | Um teste de integração falha com um erro de banco de dados (e.g., violação de constraint) e a causa não é óbvia no código do teste ou do use case. | \> "O teste em `criar-entrega-ficha.spec.ts` está falhando com um erro de chave estrangeira. Use **`escalate_analysis`** para inspecionar o fluxo completo, desde o controller até as operações do Prisma, e identificar a inconsistência." |
+| **`trace_execution_path`** | Para documentar ou depurar um fluxo de negócio complexo, como o processo de devolução, que envolve múltiplas validações e operações de escrita. | \> "Preciso entender o fluxo de devolução de EPI. Use **`trace_execution_path`** a partir do endpoint de devolução e mapeie todas as chamadas de serviço, validações e operações de DB até o `COMMIT` da transação." |
+| **`cross_system_impact`** | Antes de realizar uma mudança estrutural no `schema.prisma` (e.g., adicionar um campo a uma tabela importante como `EstoqueItem`). | \> "Planejo adicionar o campo `localizacao` à entidade `Almoxarifado`. Use **`cross_system_impact`** para listar todos os arquivos (use cases, DTOs, testes, relatórios) que serão afetados por esta mudança." |
+| **`performance_bottleneck`** | Um relatório ou endpoint está lento em produção, e há suspeita de um problema de N+1 query ou computação ineficiente. | \> "O `relatorio-saldo-estoque` está lento. Use **`performance_bottleneck`** para analisar o use case e as queries do Prisma para identificar a causa da lentidão." |
+| **`hypothesis_test`** | Para validar uma teoria de correção de bug sem implementar o código completo. | \> "Minha hipótese é que o bug no cálculo de saldo pode ser resolvido alterando a ordem das movimentações no `groupBy` do Prisma. Use **`hypothesis_test`** para validar se essa mudança na query corrige o resultado no `relatorio-saldo-estoque.use-case.ts`." |
+| **`start_conversation`** | Para abordar um problema de refatoração fundamental e complexo, como a migração de uma lógica de negócio central. | \> "Vamos resolver a migração das Fichas de EPI. Use **`start_conversation`** para uma análise interativa. Minha primeira pergunta é: 'Qual a melhor estratégia para refatorar o `criar-entrega-ficha.use-case.ts` para que ele encontre ou crie a ficha única antes de adicionar os itens?'" |
+
+-----
+
+## Anexo: Log de Mudanças Recentes (v3.5.x)
+
+  * **`06/07/2025`**:
+
+      * **Correção**: Descrição do histórico para entregas com múltiplos tipos de EPI foi corrigida para exibir todos os tipos corretamente.
+      * **Correção**: Mapeamento de entregas com múltiplos tipos de EPI foi corrigido para não agrupar itens diferentes sob o mesmo tipo.
+      * **Feature**: API de Usuários (`/api/usuarios`) implementada com filtros e paginação para suportar a criação de entregas.
+      * **Feature**: Endpoints de Estoque (`/api/estoque/itens`, `/api/estoque/almoxarifados`) implementados.
+      * **Feature**: Implementação do Histórico Geral de Fichas EPI (`/api/fichas-epi/:fichaId/historico`), rastreando todas as ações.
+      * **Feature**: Implementação do Sistema de Gerenciamento de Configurações (`/api/configuracoes`) para controle dinâmico de regras de negócio.
+      * **Refatoração**: Controllers `RelatoriosController` e `FichasEpiController` foram modularizados para melhorar a manutenibilidade, sem breaking changes.
+
+  * **`05/07/2025`**:
+
+      * **Deploy**: Backend implantado em produção no Render.com com todos os endpoints e configurações validados.
+      * **Correção**: Rotas da API corrigidas para remover prefixo duplicado (`/api/api/` -\> `/api/`).
+      * **Correção**: Validação matemática de CNPJ implementada na entidade `Contratada`.
+
+  * **`04/07/2025`**:
+
+      * **Otimização**: Anti-padrão N+1 resolvido com operações de batch (`createMany`) em entregas e devoluções.
+      * **Otimização**: Implementado SSoT com Zod, eliminando \~80% de interfaces duplicadas.
+      * **Correção**: Resolvido bug crítico de contaminação de dados nos testes, removendo dados transacionais do script de seed.
+      * **Validação**: Testes do core business atingiram 100% de cobertura e aprovação.
+      * **📋 Política**: Implementada **PROIBIÇÃO ABSOLUTA DE MOCKS** para preparação de produção real - todos os dados devem vir de fontes reais (PostgreSQL/Redis).

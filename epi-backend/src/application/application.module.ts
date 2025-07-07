@@ -18,6 +18,7 @@ import { ListarEstoqueItensUseCase } from './use-cases/estoque/listar-estoque-it
 import { ListarAlmoxarifadosUseCase } from './use-cases/estoque/listar-almoxarifados.use-case';
 
 // Fichas Use Cases
+import { AssinarEntregaUseCase } from './use-cases/fichas/assinar-entrega.use-case';
 import { CancelarDevolucaoUseCase } from './use-cases/fichas/cancelar-devolucao.use-case';
 import { CancelarEntregaUseCase } from './use-cases/fichas/cancelar-entrega.use-case';
 import { CriarEntregaFichaUseCase } from './use-cases/fichas/criar-entrega-ficha.use-case';
@@ -69,6 +70,7 @@ import { ListarUsuariosUseCase } from './use-cases/usuarios/listar-usuarios.use-
     ListarAlmoxarifadosUseCase,
     
     // Fichas Use Cases
+    AssinarEntregaUseCase,
     CancelarDevolucaoUseCase,
     CancelarEntregaUseCase,
     CriarEntregaFichaUseCase,
@@ -118,6 +120,7 @@ import { ListarUsuariosUseCase } from './use-cases/usuarios/listar-usuarios.use-
     ListarAlmoxarifadosUseCase,
     
     // Fichas Use Cases
+    AssinarEntregaUseCase,
     CancelarDevolucaoUseCase,
     CancelarEntregaUseCase,
     CriarEntregaFichaUseCase,

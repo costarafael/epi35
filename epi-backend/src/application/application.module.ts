@@ -50,6 +50,10 @@ import { AtualizarConfiguracoesUseCase } from './use-cases/configuracoes/atualiz
 // Usuario Use Cases
 import { ListarUsuariosUseCase } from './use-cases/usuarios/listar-usuarios.use-case';
 
+// Colaborador Use Cases
+import { CriarColaboradorUseCase } from './use-cases/colaboradores/criar-colaborador.use-case';
+import { ListarColaboradoresUseCase } from './use-cases/colaboradores/listar-colaboradores.use-case';
+
 // Entregas Otimizadas Use Cases
 import { CriarEntregaCompletaUseCase } from './use-cases/entregas/criar-entrega-completa.use-case';
 
@@ -110,6 +114,10 @@ import { ProcessarDevolucoesBatchUseCase } from './use-cases/devolucoes/processa
     // Usuario Use Cases
     ListarUsuariosUseCase,
     
+    // Colaborador Use Cases
+    CriarColaboradorUseCase,
+    ListarColaboradoresUseCase,
+    
     // Entregas Otimizadas Use Cases
     CriarEntregaCompletaUseCase,
     
@@ -167,6 +175,10 @@ import { ProcessarDevolucoesBatchUseCase } from './use-cases/devolucoes/processa
     
     // Usuario Use Cases
     ListarUsuariosUseCase,
+    
+    // Colaborador Use Cases
+    CriarColaboradorUseCase,
+    ListarColaboradoresUseCase,
     
     // Entregas Otimizadas Use Cases
     CriarEntregaCompletaUseCase,

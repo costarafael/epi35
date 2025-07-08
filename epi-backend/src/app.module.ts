@@ -12,6 +12,7 @@ import { NotasMovimentacaoController } from './presentation/controllers/notas-mo
 import { TiposEpiController } from './presentation/controllers/tipos-epi.controller';
 import { ConfiguracoesController } from './presentation/controllers/configuracoes.controller';
 import { UsuariosController } from './presentation/controllers/usuarios.controller';
+import { ColaboradoresController } from './presentation/controllers/colaboradores.controller';
 import { EntregasOtimizadasController } from './presentation/controllers/entregas/entregas-otimizadas.controller';
 import { DevolucoesOtimizadasController } from './presentation/controllers/devolucoes/devolucoes-otimizadas.controller';
 import { FichasOtimizadasController } from './presentation/controllers/fichas/fichas-otimizadas.controller';
@@ -34,6 +35,7 @@ import { FichasOtimizadasController } from './presentation/controllers/fichas/fi
     TiposEpiController,
     ConfiguracoesController,
     UsuariosController,
+    ColaboradoresController,
     // Novos controllers otimizados para reduzir complexidade do frontend
     EntregasOtimizadasController,
     DevolucoesOtimizadasController,

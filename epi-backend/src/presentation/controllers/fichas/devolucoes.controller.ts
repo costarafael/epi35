@@ -100,8 +100,8 @@ export class DevolucoesController {
   async obterHistoricoDevolucoes(
     @Param('fichaId') 
     fichaId: string,
-    @Query(new ZodValidationPipe(FiltrosHistoricoDevolucaoSchema)) 
-    filtros: FiltrosHistoricoDevolucao,
+    @Query() 
+    filtros: any,
   ): Promise<PaginatedResponse> {
     // Por simplicidade, retornamos uma estrutura básica
     // Em implementação completa, criaria método específico no use case

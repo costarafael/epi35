@@ -133,9 +133,9 @@ export class FichasEpiController {
   })
   @ApiQuery({ name: 'page', required: false, type: Number, description: 'Página (padrão: 1)' })
   @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Itens por página (padrão: 10, máx: 100)' })
-  @ApiQuery({ name: 'colaboradorId', required: false, type: String, format: 'uuid' })
-  @ApiQuery({ name: 'tipoEpiId', required: false, type: String, format: 'uuid' })
-  @ApiQuery({ name: 'almoxarifadoId', required: false, type: String, format: 'uuid' })
+  @ApiQuery({ name: 'colaboradorId', required: false, type: String, description: 'ID do colaborador (UUID ou ID customizado)' })
+  @ApiQuery({ name: 'tipoEpiId', required: false, type: String, description: 'ID do tipo de EPI (UUID ou ID customizado)' })
+  @ApiQuery({ name: 'almoxarifadoId', required: false, type: String, description: 'ID do almoxarifado (UUID ou ID customizado)' })
   @ApiQuery({ name: 'status', required: false, enum: ['ATIVA', 'INATIVA', 'SUSPENSA'] })
   @ApiQuery({ name: 'colaboradorNome', required: false, type: String })
   @ApiQuery({ name: 'tipoEpiNome', required: false, type: String })
@@ -200,7 +200,7 @@ export class FichasEpiController {
     summary: 'Estatísticas das fichas de EPI',
     description: 'Retorna estatísticas gerais das fichas por almoxarifado',
   })
-  @ApiQuery({ name: 'almoxarifadoId', required: false, type: String, format: 'uuid' })
+  @ApiQuery({ name: 'almoxarifadoId', required: false, type: String, description: 'ID do almoxarifado (UUID ou ID customizado)' })
   @ApiResponse({ status: 200, description: 'Estatísticas obtidas com sucesso' })
   async obterEstatisticas(
     @Query('almoxarifadoId') _almoxarifadoId?: string,
@@ -213,12 +213,73 @@ export class FichasEpiController {
     };
   }
 
+  @Get('devolucoes/historico')
+  @ApiOperation({ 
+    summary: 'Histórico de devoluções',
+    description: 'Lista o histórico de devoluções com filtros opcionais',
+  })
+  @ApiQuery({ name: 'colaboradorId', required: false, type: String, description: 'ID do colaborador (UUID ou ID customizado)' })
+  @ApiQuery({ name: 'tipoEpiId', required: false, type: String, description: 'ID do tipo de EPI (UUID ou ID customizado)' })
+  @ApiQuery({ name: 'dataInicio', required: false, type: String, format: 'date' })
+  @ApiQuery({ name: 'dataFim', required: false, type: String, format: 'date' })
+  @ApiQuery({ name: 'page', required: false, type: Number, description: 'Página (padrão: 1)' })
+  @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Itens por página (padrão: 20, máx: 100)' })
+  @ApiResponse({ status: 200, description: 'Histórico de devoluções obtido' })
+  async obterHistoricoDevolucoes(
+    @Query() filtros: any,
+  ): Promise<SuccessResponse> {
+    // Aplicar defaults aos filtros
+    const page = parseInt(filtros.page) || 1;
+    const limit = Math.min(parseInt(filtros.limit) || 20, 100);
+    
+    const historico = await this.processarDevolucaoUseCase.obterHistoricoDevolucoes(
+      filtros.colaboradorId,
+      filtros.tipoEpiId,
+      filtros.dataInicio ? new Date(filtros.dataInicio) : undefined,
+      filtros.dataFim ? new Date(filtros.dataFim) : undefined,
+    );
+
+    return {
+      success: true,
+      data: historico,
+    };
+  }
+
+  @Get('devolucoes/cancelamentos/historico')
+  @ApiOperation({ 
+    summary: 'Histórico de cancelamentos de devolução',
+    description: 'Lista o histórico de cancelamentos de devolução',
+  })
+  @ApiQuery({ name: 'colaboradorId', required: false, type: String, description: 'ID do colaborador (UUID ou ID customizado)' })
+  @ApiQuery({ name: 'tipoEpiId', required: false, type: String, description: 'ID do tipo de EPI (UUID ou ID customizado)' })
+  @ApiQuery({ name: 'dataInicio', required: false, type: String, format: 'date' })
+  @ApiQuery({ name: 'dataFim', required: false, type: String, format: 'date' })
+  @ApiResponse({ status: 200, description: 'Histórico de cancelamentos obtido' })
+  async obterHistoricoCancelamentosDevolucao(
+    @Query('colaboradorId') colaboradorId?: string,
+    @Query('tipoEpiId') tipoEpiId?: string,
+    @Query('dataInicio') dataInicio?: string,
+    @Query('dataFim') dataFim?: string,
+  ): Promise<SuccessResponse> {
+    const historico = await this.cancelarDevolucaoUseCase.obterHistoricoCancelamentosDevolucao(
+      colaboradorId,
+      tipoEpiId,
+      dataInicio ? new Date(dataInicio) : undefined,
+      dataFim ? new Date(dataFim) : undefined,
+    );
+
+    return {
+      success: true,
+      data: historico,
+    };
+  }
+
   @Get(':id')
   @ApiOperation({ 
     summary: 'Buscar ficha por ID',
     description: 'Retorna os detalhes completos de uma ficha de EPI',
   })
-  @ApiParam({ name: 'id', type: 'string', format: 'uuid', description: 'ID da ficha' })
+  @ApiParam({ name: 'id', type: 'string', description: 'ID da ficha (UUID ou ID customizado)' })
   @ApiResponse({ status: 200, description: 'Ficha encontrada' })
   @ApiResponse({ status: 404, description: 'Ficha não encontrada' })
   async obterFicha(
@@ -237,7 +298,7 @@ export class FichasEpiController {
     summary: 'Ativar ficha de EPI',
     description: 'Ativa uma ficha que estava inativa ou suspensa',
   })
-  @ApiParam({ name: 'id', type: 'string', format: 'uuid' })
+  @ApiParam({ name: 'id', type: 'string', description: 'ID da ficha (UUID ou ID customizado)' })
   @ApiResponse({ status: 200, description: 'Ficha ativada com sucesso' })
   @ApiResponse({ status: 400, description: 'Ficha já está ativa' })
   async ativarFicha(
@@ -257,7 +318,7 @@ export class FichasEpiController {
     summary: 'Inativar ficha de EPI',
     description: 'Inativa uma ficha que não possui entregas ativas',
   })
-  @ApiParam({ name: 'id', type: 'string', format: 'uuid' })
+  @ApiParam({ name: 'id', type: 'string', description: 'ID da ficha (UUID ou ID customizado)' })
   @ApiResponse({ status: 200, description: 'Ficha inativada com sucesso' })
   @ApiResponse({ status: 400, description: 'Ficha possui entregas ativas' })
   async inativarFicha(
@@ -277,7 +338,7 @@ export class FichasEpiController {
     summary: 'Suspender ficha de EPI',
     description: 'Suspende uma ficha temporariamente com motivo opcional',
   })
-  @ApiParam({ name: 'id', type: 'string', format: 'uuid' })
+  @ApiParam({ name: 'id', type: 'string', description: 'ID da ficha (UUID ou ID customizado)' })
   @ApiResponse({ status: 200, description: 'Ficha suspensa com sucesso' })
   async suspenderFicha(
     @Param('id', new ZodValidationPipe(IdSchema)) id: string,
@@ -298,7 +359,7 @@ export class FichasEpiController {
     summary: 'Criar nova entrega',
     description: 'Registra uma nova entrega de EPI para uma ficha específica',
   })
-  @ApiParam({ name: 'id', type: 'string', format: 'uuid', description: 'ID da ficha' })
+  @ApiParam({ name: 'id', type: 'string', description: 'ID da ficha (UUID ou ID customizado)' })
   @ApiResponse({ 
     status: 201, 
     description: 'Entrega criada com sucesso',
@@ -379,7 +440,7 @@ export class FichasEpiController {
     summary: 'Listar entregas da ficha',
     description: 'Lista todas as entregas realizadas para uma ficha específica',
   })
-  @ApiParam({ name: 'id', type: 'string', format: 'uuid' })
+  @ApiParam({ name: 'id', type: 'string', description: 'ID da ficha (UUID ou ID customizado)' })
   @ApiResponse({ status: 200, description: 'Lista de entregas recuperada' })
   async listarEntregasFicha(
     @Param('id', new ZodValidationPipe(IdSchema)) fichaEpiId: string,
@@ -397,7 +458,7 @@ export class FichasEpiController {
     summary: 'Listar entregas do colaborador',
     description: 'Lista todas as entregas de um colaborador específico',
   })
-  @ApiParam({ name: 'colaboradorId', type: 'string', format: 'uuid' })
+  @ApiParam({ name: 'colaboradorId', type: 'string', description: 'ID do colaborador (UUID ou ID customizado)' })
   @ApiQuery({ name: 'status', required: false, enum: ['ATIVA', 'DEVOLVIDA_PARCIAL', 'DEVOLVIDA_TOTAL', 'CANCELADA'] })
   @ApiResponse({ status: 200, description: 'Lista de entregas do colaborador' })
   async listarEntregasColaborador(
@@ -420,7 +481,7 @@ export class FichasEpiController {
     summary: 'Posse atual do colaborador',
     description: 'Retorna todos os EPIs atualmente em posse do colaborador',
   })
-  @ApiParam({ name: 'colaboradorId', type: 'string', format: 'uuid' })
+  @ApiParam({ name: 'colaboradorId', type: 'string', description: 'ID do colaborador (UUID ou ID customizado)' })
   @ApiQuery({ name: 'incluirVencidos', required: false, type: Boolean })
   @ApiQuery({ name: 'incluirProximosVencimento', required: false, type: Boolean })
   @ApiResponse({ status: 200, description: 'Posse atual do colaborador' })
@@ -451,7 +512,7 @@ export class FichasEpiController {
     summary: 'Processar devolução de itens',
     description: 'Processa a devolução de um ou mais itens de uma entrega',
   })
-  @ApiParam({ name: 'entregaId', type: 'string', format: 'uuid' })
+  @ApiParam({ name: 'entregaId', type: 'string', description: 'ID da entrega (UUID ou ID customizado)' })
   @ApiResponse({ 
     status: 200, 
     description: 'Devolução processada com sucesso',
@@ -503,7 +564,7 @@ export class FichasEpiController {
     summary: 'Validar se devolução é permitida',
     description: 'Verifica se os itens podem ser devolvidos',
   })
-  @ApiParam({ name: 'entregaId', type: 'string', format: 'uuid' })
+  @ApiParam({ name: 'entregaId', type: 'string', description: 'ID da entrega (UUID ou ID customizado)' })
   @ApiResponse({ status: 200, description: 'Validação realizada' })
   async validarDevolucao(
     @Param('entregaId', new ZodValidationPipe(IdSchema)) entregaId: string,
@@ -525,7 +586,7 @@ export class FichasEpiController {
     summary: 'Cancelar devolução de itens',
     description: 'Cancela uma devolução recente (até 72 horas) reverterendo o status',
   })
-  @ApiParam({ name: 'entregaId', type: 'string', format: 'uuid' })
+  @ApiParam({ name: 'entregaId', type: 'string', description: 'ID da entrega (UUID ou ID customizado)' })
   @ApiResponse({ status: 200, description: 'Cancelamento de devolução processado' })
   async cancelarDevolucao(
     @Param('entregaId', new ZodValidationPipe(IdSchema)) entregaId: string,
@@ -554,7 +615,7 @@ export class FichasEpiController {
     summary: 'Validar cancelamento de devolução',
     description: 'Verifica se uma devolução pode ser cancelada (prazo, status)',
   })
-  @ApiParam({ name: 'entregaId', type: 'string', format: 'uuid' })
+  @ApiParam({ name: 'entregaId', type: 'string', description: 'ID da entrega (UUID ou ID customizado)' })
   @ApiResponse({ status: 200, description: 'Validação de cancelamento realizada' })
   async validarCancelamentoDevolucao(
     @Param('entregaId', new ZodValidationPipe(IdSchema)) entregaId: string,
@@ -568,64 +629,6 @@ export class FichasEpiController {
     return {
       success: true,
       data: validacao,
-    };
-  }
-
-  @Get('devolucoes/historico')
-  @ApiOperation({ 
-    summary: 'Histórico de devoluções',
-    description: 'Lista o histórico de devoluções com filtros opcionais',
-  })
-  @ApiQuery({ name: 'colaboradorId', required: false, type: String, format: 'uuid' })
-  @ApiQuery({ name: 'tipoEpiId', required: false, type: String, format: 'uuid' })
-  @ApiQuery({ name: 'dataInicio', required: false, type: String, format: 'date' })
-  @ApiQuery({ name: 'dataFim', required: false, type: String, format: 'date' })
-  @ApiResponse({ status: 200, description: 'Histórico de devoluções obtido' })
-  async obterHistoricoDevolucoes(
-    @Query('colaboradorId') colaboradorId?: string,
-    @Query('tipoEpiId') tipoEpiId?: string,
-    @Query('dataInicio') dataInicio?: string,
-    @Query('dataFim') dataFim?: string,
-  ): Promise<SuccessResponse> {
-    const historico = await this.processarDevolucaoUseCase.obterHistoricoDevolucoes(
-      colaboradorId,
-      tipoEpiId,
-      dataInicio ? new Date(dataInicio) : undefined,
-      dataFim ? new Date(dataFim) : undefined,
-    );
-
-    return {
-      success: true,
-      data: historico,
-    };
-  }
-
-  @Get('devolucoes/cancelamentos/historico')
-  @ApiOperation({ 
-    summary: 'Histórico de cancelamentos de devolução',
-    description: 'Lista o histórico de cancelamentos de devolução',
-  })
-  @ApiQuery({ name: 'colaboradorId', required: false, type: String, format: 'uuid' })
-  @ApiQuery({ name: 'tipoEpiId', required: false, type: String, format: 'uuid' })
-  @ApiQuery({ name: 'dataInicio', required: false, type: String, format: 'date' })
-  @ApiQuery({ name: 'dataFim', required: false, type: String, format: 'date' })
-  @ApiResponse({ status: 200, description: 'Histórico de cancelamentos obtido' })
-  async obterHistoricoCancelamentosDevolucao(
-    @Query('colaboradorId') colaboradorId?: string,
-    @Query('tipoEpiId') tipoEpiId?: string,
-    @Query('dataInicio') dataInicio?: string,
-    @Query('dataFim') dataFim?: string,
-  ): Promise<SuccessResponse> {
-    const historico = await this.cancelarDevolucaoUseCase.obterHistoricoCancelamentosDevolucao(
-      colaboradorId,
-      tipoEpiId,
-      dataInicio ? new Date(dataInicio) : undefined,
-      dataFim ? new Date(dataFim) : undefined,
-    );
-
-    return {
-      success: true,
-      data: historico,
     };
   }
 }

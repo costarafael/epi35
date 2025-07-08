@@ -299,11 +299,165 @@ GET /api/usuarios/:id
 
 ---
 
-## **5. Tipos de EPI Controller**
+## **5. Colaboradores Controller**
+
+**Base Route:** `/api/colaboradores`
+
+### **5.1. Criar Colaborador**
+```http
+POST /api/colaboradores
+```
+
+**Descrição:** Cria um novo colaborador vinculado a uma contratada.
+
+**Body:**
+```json
+{
+  "nome": "João da Silva",
+  "cpf": "12345678901",
+  "matricula": "MAT001",
+  "cargo": "Técnico",
+  "setor": "Manutenção",
+  "contratadaId": "uuid",
+  "unidadeNegocioId": "uuid",
+  "ativo": true
+}
+```
+
+**Campos Obrigatórios:**
+- `nome` (string): Nome completo do colaborador
+- `cpf` (string): CPF do colaborador (11 dígitos)
+- `contratadaId` (string, UUID): ID da empresa contratada
+- `unidadeNegocioId` (string, UUID): ID da unidade de negócio
+
+**Campos Opcionais:**
+- `matricula` (string): Matrícula do colaborador
+- `cargo` (string): Cargo do colaborador
+- `setor` (string): Setor de trabalho
+- `ativo` (boolean): Status ativo (padrão: true)
+
+**Resposta:**
+```json
+{
+  "success": true,
+  "data": {
+    "id": "uuid",
+    "nome": "João da Silva",
+    "cpf": "12345678901",
+    "cpfFormatado": "123.456.789-01",
+    "matricula": "MAT001",
+    "cargo": "Técnico",
+    "setor": "Manutenção",
+    "ativo": true,
+    "contratadaId": "uuid",
+    "unidadeNegocioId": "uuid",
+    "createdAt": "2025-07-08T10:00:00.000Z",
+    "contratada": {
+      "id": "uuid",
+      "nome": "Empresa Contratada LTDA",
+      "cnpj": "12345678000190"
+    }
+  }
+}
+```
+
+**Códigos de Status:**
+- **201:** Colaborador criado com sucesso
+- **400:** Dados inválidos
+- **404:** Contratada não encontrada
+- **409:** CPF já cadastrado
+
+### **5.2. Listar Colaboradores**
+```http
+GET /api/colaboradores
+```
+
+**Descrição:** Lista colaboradores com filtros opcionais e paginação.
+
+**Query Parameters:**
+- `nome`: Filtro por nome (string, opcional)
+- `cpf`: Filtro por CPF (string, opcional)
+- `contratadaId`: Filtro por contratada (string UUID, opcional)
+- `cargo`: Filtro por cargo (string, opcional)
+- `setor`: Filtro por setor (string, opcional)
+- `ativo`: Filtro por status ativo (boolean, opcional)
+- `page`: Página (number, padrão: 1)
+- `limit`: Itens por página (number, padrão: 10, máximo: 100)
+
+**Resposta:**
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "uuid",
+      "nome": "João da Silva",
+      "cpf": "12345678901",
+      "cpfFormatado": "123.456.789-01",
+      "matricula": "MAT001",
+      "cargo": "Técnico",
+      "setor": "Manutenção",
+      "ativo": true,
+      "contratada": {
+        "nome": "Empresa Contratada LTDA",
+        "cnpj": "12345678000190"
+      }
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 10,
+    "total": 50,
+    "totalPages": 5,
+    "hasNext": true,
+    "hasPrev": false
+  }
+}
+```
+
+### **5.3. Obter Colaborador por ID**
+```http
+GET /api/colaboradores/:id
+```
+
+**Descrição:** Retorna os detalhes de um colaborador específico.
+
+**Parâmetros:**
+- `id`: ID do colaborador (UUID)
+
+**Resposta:**
+```json
+{
+  "success": true,
+  "data": {
+    "id": "uuid",
+    "nome": "João da Silva",
+    "cpf": "12345678901",
+    "cpfFormatado": "123.456.789-01",
+    "matricula": "MAT001",
+    "cargo": "Técnico",
+    "setor": "Manutenção",
+    "ativo": true,
+    "contratada": {
+      "id": "uuid",
+      "nome": "Empresa Contratada LTDA",
+      "cnpj": "12345678000190"
+    }
+  }
+}
+```
+
+**Códigos de Status:**
+- **200:** Colaborador encontrado
+- **404:** Colaborador não encontrado
+
+---
+
+## **6. Tipos de EPI Controller**
 
 **Base Route:** `/api/tipos-epi`
 
-### **5.1. Criar Tipo de EPI**
+### **6.1. Criar Tipo de EPI**
 ```http
 POST /api/tipos-epi
 ```
@@ -330,7 +484,7 @@ POST /api/tipos-epi
 - `vidaUtilDias` (number, em dias)
 - `status` (enum: ATIVO, DESCONTINUADO, padrão: ATIVO)
 
-### **5.2. Listar Tipos de EPI**
+### **6.2. Listar Tipos de EPI**
 ```http
 GET /api/tipos-epi
 ```
@@ -343,17 +497,17 @@ GET /api/tipos-epi
 - `page`: Página (number)
 - `limit`: Itens por página (number)
 
-### **5.3. Obter Tipo de EPI por ID**
+### **6.3. Obter Tipo de EPI por ID**
 ```http
 GET /api/tipos-epi/:id
 ```
 
-### **5.4. Atualizar Tipo de EPI**
+### **6.4. Atualizar Tipo de EPI**
 ```http
 PUT /api/tipos-epi/:id
 ```
 
-### **5.5. Ativar Tipo de EPI**
+### **6.5. Ativar Tipo de EPI**
 ```http
 PATCH /api/tipos-epi/:id/ativar
 ```
@@ -365,7 +519,7 @@ PATCH /api/tipos-epi/:id/ativar
 }
 ```
 
-### **5.6. Inativar Tipo de EPI**
+### **6.6. Inativar Tipo de EPI**
 ```http
 PATCH /api/tipos-epi/:id/inativar
 ```
@@ -377,7 +531,7 @@ PATCH /api/tipos-epi/:id/inativar
 }
 ```
 
-### **5.7. Estatísticas do Tipo**
+### **6.7. Estatísticas do Tipo**
 ```http
 GET /api/tipos-epi/:id/estatisticas
 ```
@@ -396,14 +550,14 @@ GET /api/tipos-epi/:id/estatisticas
 }
 ```
 
-### **5.8. Estatísticas por Categoria**
+### **6.8. Estatísticas por Categoria**
 ```http
 GET /api/tipos-epi/estatisticas/por-categoria
 ```
 
 ---
 
-## **6. Estoque Controller**
+## **7. Estoque Controller**
 
 **Base Route:** `/api/estoque`
 
@@ -684,14 +838,16 @@ GET /api/estoque/almoxarifados
 
 ---
 
-## **7. Contratadas Controller**
+## **8. Contratadas Controller**
 
 **Base Route:** `/api/contratadas`
 
-### **7.1. Criar Contratada**
+### **8.1. Criar Contratada**
 ```http
 POST /api/contratadas
 ```
+
+**Descrição:** Cria uma nova empresa contratada no sistema.
 
 **Body:**
 ```json
@@ -701,22 +857,158 @@ POST /api/contratadas
 }
 ```
 
-**Validações:**
-- `nome`: Obrigatório, máximo 255 caracteres
-- `cnpj`: Obrigatório, 14 dígitos, único, com validação matemática
+**Campos Obrigatórios:**
+- `nome` (string): Nome da empresa contratada (máximo 255 caracteres)
+- `cnpj` (string): CNPJ da empresa (14 dígitos, único, com validação matemática)
 
-### **7.2. Listar Contratadas**
+**Resposta:**
+```json
+{
+  "success": true,
+  "data": {
+    "id": "uuid",
+    "nome": "Empresa Alpha Serviços LTDA",
+    "cnpj": "12345678000195",
+    "cnpjFormatado": "12.345.678/0001-95",
+    "createdAt": "2025-07-08T10:00:00.000Z"
+  }
+}
+```
+
+**Códigos de Status:**
+- **201:** Contratada criada com sucesso
+- **400:** Dados inválidos
+- **409:** CNPJ já cadastrado
+
+### **8.2. Listar Contratadas**
 ```http
 GET /api/contratadas
 ```
+
+**Descrição:** Lista todas as contratadas com filtros opcionais.
 
 **Query Parameters:**
 - `nome`: Filtro por nome (string, opcional)
 - `cnpj`: Filtro por CNPJ (string, opcional)
 
-### **7.3. Estatísticas de Contratadas**
+**Resposta:**
+```json
+{
+  "success": true,
+  "data": {
+    "contratadas": [
+      {
+        "id": "uuid",
+        "nome": "Empresa Alpha Serviços LTDA",
+        "cnpj": "12345678000195",
+        "cnpjFormatado": "12.345.678/0001-95",
+        "createdAt": "2025-07-08T10:00:00.000Z"
+      }
+    ],
+    "total": 25
+  }
+}
+```
+
+### **8.3. Estatísticas de Contratadas**
 ```http
 GET /api/contratadas/estatisticas
+```
+
+**Descrição:** Retorna estatísticas gerais das contratadas e colaboradores vinculados.
+
+**Resposta:**
+```json
+{
+  "success": true,
+  "data": {
+    "total": 15,
+    "colaboradoresVinculados": 245,
+    "colaboradoresSemContratada": 8,
+    "topContratadas": [
+      {
+        "contratada": {
+          "id": "uuid",
+          "nome": "Empresa Alpha LTDA",
+          "cnpjFormatado": "12.345.678/0001-95"
+        },
+        "totalColaboradores": 45
+      }
+    ]
+  }
+}
+```
+
+### **8.4. Buscar Contratadas por Nome**
+```http
+GET /api/contratadas/buscar
+```
+
+**Descrição:** Busca contratadas por nome (limitado a 10 resultados).
+
+**Query Parameters:**
+- `nome`: Nome para busca (string, obrigatório)
+
+**Resposta:**
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "uuid",
+      "nome": "Empresa Alpha Serviços LTDA",
+      "cnpj": "12345678000195",
+      "cnpjFormatado": "12.345.678/0001-95",
+      "createdAt": "2025-07-08T10:00:00.000Z"
+    }
+  ]
+}
+```
+
+### **8.5. Obter Contratada por ID**
+```http
+GET /api/contratadas/:id
+```
+
+**Descrição:** Retorna os dados de uma contratada específica.
+
+**Parâmetros:**
+- `id`: ID da contratada (UUID)
+
+**Resposta:**
+```json
+{
+  "success": true,
+  "data": {
+    "id": "uuid",
+    "nome": "Empresa Alpha Serviços LTDA",
+    "cnpj": "12345678000195",
+    "cnpjFormatado": "12.345.678/0001-95",
+    "createdAt": "2025-07-08T10:00:00.000Z"
+  }
+}
+```
+
+**Códigos de Status:**
+- **200:** Contratada encontrada
+- **404:** Contratada não encontrada
+
+### **8.6. Atualizar Contratada**
+```http
+PUT /api/contratadas/:id
+```
+
+**Descrição:** Atualiza os dados de uma contratada existente.
+
+**Parâmetros:**
+- `id`: ID da contratada (UUID)
+
+**Body:**
+```json
+{
+  "nome": "Empresa Alpha Serviços LTDA - Atualizada",
+  "cnpj": "12345678000195"
+}
 ```
 
 **Resposta:**
@@ -724,48 +1016,51 @@ GET /api/contratadas/estatisticas
 {
   "success": true,
   "data": {
-    "totalContratadas": 15,
-    "totalColaboradores": 245,
-    "contratratadasAtivas": 12,
-    "porContratada": [
-      {
-        "nome": "Empresa Alpha",
-        "totalColaboradores": 45,
-        "colaboradoresAtivos": 42,
-        "fichasAtivas": 40
-      }
-    ]
+    "id": "uuid",
+    "nome": "Empresa Alpha Serviços LTDA - Atualizada",
+    "cnpj": "12345678000195",
+    "cnpjFormatado": "12.345.678/0001-95",
+    "createdAt": "2025-07-08T10:00:00.000Z"
   }
 }
 ```
 
-### **7.4. Buscar Contratadas**
-```http
-GET /api/contratadas/buscar?nome=Alpha
-```
+**Códigos de Status:**
+- **200:** Contratada atualizada com sucesso
+- **400:** Dados inválidos
+- **404:** Contratada não encontrada
+- **409:** CNPJ já cadastrado
 
-### **7.5. Obter Contratada por ID**
-```http
-GET /api/contratadas/:id
-```
-
-### **7.6. Atualizar Contratada**
-```http
-PUT /api/contratadas/:id
-```
-
-### **7.7. Deletar Contratada**
+### **8.7. Excluir Contratada**
 ```http
 DELETE /api/contratadas/:id
 ```
 
+**Descrição:** Exclui uma contratada do sistema (apenas se não houver colaboradores vinculados).
+
+**Parâmetros:**
+- `id`: ID da contratada (UUID)
+
+**Resposta:**
+```json
+{
+  "success": true,
+  "message": "Contratada excluída com sucesso"
+}
+```
+
+**Códigos de Status:**
+- **200:** Contratada excluída com sucesso
+- **400:** Não é possível excluir contratada com colaboradores vinculados
+- **404:** Contratada não encontrada
+
 ---
 
-## **8. Notas de Movimentação Controller**
+## **9. Notas de Movimentação Controller**
 
 **Base Route:** `/api/notas-movimentacao`
 
-### **8.1. Criar Nota de Movimentação**
+### **9.1. Criar Nota de Movimentação**
 ```http
 POST /api/notas-movimentacao
 ```
@@ -1052,7 +1347,7 @@ GET /api/notas-movimentacao/resumo
 
 **Base Route:** `/api/fichas-epi`
 
-### **9.1. Criar Ficha de EPI**
+### **8.1. Criar Ficha de EPI**
 ```http
 POST /api/fichas-epi
 ```
@@ -1070,7 +1365,7 @@ POST /api/fichas-epi
 - `colaboradorId` deve ser único
 - `status` padrão é ATIVA
 
-### **9.2. Criar ou Ativar Ficha**
+### **8.2. Criar ou Ativar Ficha**
 ```http
 POST /api/fichas-epi/criar-ou-ativar
 ```
@@ -1085,7 +1380,7 @@ POST /api/fichas-epi/criar-ou-ativar
 
 **Descrição:** Cria nova ficha ou ativa ficha existente inativa.
 
-### **9.3. Listar Fichas de EPI**
+### **8.3. Listar Fichas de EPI**
 ```http
 GET /api/fichas-epi
 ```
@@ -1147,7 +1442,7 @@ GET /api/fichas-epi
 }
 ```
 
-### **9.4. Estatísticas de Fichas**
+### **8.4. Estatísticas de Fichas**
 ```http
 GET /api/fichas-epi/estatisticas
 ```
@@ -1180,22 +1475,22 @@ GET /api/fichas-epi/estatisticas
 }
 ```
 
-### **9.5. Obter Ficha por ID**
+### **8.5. Obter Ficha por ID**
 ```http
 GET /api/fichas-epi/:id
 ```
 
-### **9.6. Ativar Ficha**
+### **8.6. Ativar Ficha**
 ```http
 PUT /api/fichas-epi/:id/ativar
 ```
 
-### **9.7. Inativar Ficha**
+### **8.7. Inativar Ficha**
 ```http
 PUT /api/fichas-epi/:id/inativar
 ```
 
-### **9.8. Suspender Ficha**
+### **8.8. Suspender Ficha**
 ```http
 PUT /api/fichas-epi/:id/suspender
 ```
@@ -1207,7 +1502,7 @@ PUT /api/fichas-epi/:id/suspender
 }
 ```
 
-### **9.9. Histórico da Ficha**
+### **8.9. Histórico da Ficha**
 ```http
 GET /api/fichas-epi/:id/historico
 ```

@@ -74,16 +74,16 @@ export class FichasEpiController {
           properties: {
             id: { type: 'string', format: 'uuid' },
             colaboradorId: { type: 'string', format: 'uuid' },
-            tipoEpiId: { type: 'string', format: 'uuid' },
-            almoxarifadoId: { type: 'string', format: 'uuid' },
-            status: { type: 'string', enum: ['ATIVA', 'INATIVA', 'SUSPENSA'] },
+            status: { type: 'string', enum: ['ATIVA', 'INATIVA'] },
+            dataEmissao: { type: 'string', format: 'date' },
+            createdAt: { type: 'string', format: 'date-time' },
           },
         },
       },
     },
   })
   @ApiResponse({ status: 400, description: 'Dados inválidos' })
-  @ApiResponse({ status: 409, description: 'Ficha já existe para esta combinação' })
+  @ApiResponse({ status: 409, description: 'Ficha já existe para este colaborador' })
   async criarFicha(
     @Body(new ZodValidationPipe(CriarFichaEpiSchema)) 
     criarFichaDto: CriarFichaEpiRequest,
@@ -134,11 +134,8 @@ export class FichasEpiController {
   @ApiQuery({ name: 'page', required: false, type: Number, description: 'Página (padrão: 1)' })
   @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Itens por página (padrão: 10, máx: 100)' })
   @ApiQuery({ name: 'colaboradorId', required: false, type: String, description: 'ID do colaborador (UUID ou ID customizado)' })
-  @ApiQuery({ name: 'tipoEpiId', required: false, type: String, description: 'ID do tipo de EPI (UUID ou ID customizado)' })
-  @ApiQuery({ name: 'almoxarifadoId', required: false, type: String, description: 'ID do almoxarifado (UUID ou ID customizado)' })
-  @ApiQuery({ name: 'status', required: false, enum: ['ATIVA', 'INATIVA', 'SUSPENSA'] })
+  @ApiQuery({ name: 'status', required: false, enum: ['ATIVA', 'INATIVA'] })
   @ApiQuery({ name: 'colaboradorNome', required: false, type: String })
-  @ApiQuery({ name: 'tipoEpiNome', required: false, type: String })
   @ApiQuery({ name: 'ativo', required: false, type: Boolean })
   @ApiQuery({ name: 'devolucaoPendente', required: false, type: Boolean, description: 'Filtrar fichas com devolução em atraso' })
   @ApiResponse({ status: 200, description: 'Lista de fichas recuperada com sucesso' })
@@ -149,11 +146,8 @@ export class FichasEpiController {
     const resultado = await this.criarFichaEpiUseCase.listarFichas(
       {
         colaboradorId: filtros.colaboradorId,
-        // tipoEpiId: filtros.tipoEpiId, // Removed - FichaEPI v3.5 one per colaborador
-        // almoxarifadoId: filtros.almoxarifadoId, // Removed - FichaEPI v3.5 one per colaborador
         status: filtros.status as any,
         colaboradorNome: filtros.colaboradorNome,
-        // tipoEpiNome: filtros.tipoEpiNome, // Removed - FichaEPI v3.5 one per colaborador
         ativo: filtros.ativo,
         devolucaoPendente: filtros.devolucaoPendente, // ✅ NOVO FILTRO
       },
@@ -200,11 +194,8 @@ export class FichasEpiController {
     summary: 'Estatísticas das fichas de EPI',
     description: 'Retorna estatísticas gerais das fichas por almoxarifado',
   })
-  @ApiQuery({ name: 'almoxarifadoId', required: false, type: String, description: 'ID do almoxarifado (UUID ou ID customizado)' })
   @ApiResponse({ status: 200, description: 'Estatísticas obtidas com sucesso' })
-  async obterEstatisticas(
-    @Query('almoxarifadoId') _almoxarifadoId?: string,
-  ): Promise<SuccessResponse> {
+  async obterEstatisticas(): Promise<SuccessResponse> {
     const estatisticas = await this.criarFichaEpiUseCase.obterEstatisticas();
 
     return {

@@ -10,8 +10,6 @@ import {
 // EPI Card schemas
 export const CriarFichaEpiSchema = z.object({
   colaboradorId: IdSchema,
-  tipoEpiId: IdSchema,
-  almoxarifadoId: IdSchema,
   status: StatusFichaEPISchema.optional(),
 });
 
@@ -66,12 +64,9 @@ export const AtualizarStatusFichaSchema = z.object({
 
 export const FiltrosFichaEpiSchema = z.object({
   colaboradorId: IdSchema.optional(),
-  tipoEpiId: IdSchema.optional(),
-  almoxarifadoId: IdSchema.optional(),
   contratadaId: IdSchema.optional(),
   status: StatusFichaEPISchema.optional(),
   colaboradorNome: z.string().optional(),
-  tipoEpiNome: z.string().optional(),
   devolucaoPendente: z.boolean().optional(), // ✅ NOVO FILTRO: para API controller
 }).merge(SearchSchema).merge(PaginationSchema);
 
@@ -263,24 +258,25 @@ export const HistoricoFichaResponseSchema = z.object({
 export const FichaEpiResponseSchema = z.object({
   id: IdSchema,
   colaboradorId: IdSchema,
-  tipoEpiId: IdSchema,
-  almoxarifadoId: IdSchema,
   status: StatusFichaEPISchema,
+  dataEmissao: z.date(),
   createdAt: z.date(),
-  updatedAt: z.date(),
   colaborador: z.object({
     nome: z.string(),
     cpf: z.string(),
     matricula: z.string().optional(),
   }),
-  tipoEpi: z.object({
-    nome: z.string(),
-    codigo: z.string(),
-    exigeAssinaturaEntrega: z.boolean(),
-  }),
-  almoxarifado: z.object({
-    nome: z.string(),
-    codigo: z.string(),
+  devolucaoPendente: z.boolean(),
+  episInfo: z.object({
+    totalEpisComColaborador: z.number(),
+    episExpirados: z.number(),
+    proximaDataVencimento: z.date().optional(),
+    diasAteProximoVencimento: z.number().optional(),
+    tiposEpisAtivos: z.array(z.object({
+      tipoEpiId: IdSchema,
+      tipoEpiNome: z.string(),
+      quantidade: z.number(),
+    })),
   }),
 });
 

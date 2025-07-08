@@ -77,23 +77,32 @@ export class TestDatabaseService {
     try {
       console.log('🧹 Limpando banco de teste...');
       
-      // Limpar dados em ordem específica para respeitar FKs (schema v3.5 - nomes corretos das tabelas)
-      // Usar $executeRaw para limpar diretamente nas tabelas
-      await this.prismaService.$executeRaw`TRUNCATE TABLE "historico_fichas" CASCADE`;
-      await this.prismaService.$executeRaw`TRUNCATE TABLE "movimentacoes_estoque" CASCADE`;
-      await this.prismaService.$executeRaw`TRUNCATE TABLE "entrega_itens" CASCADE`;
-      await this.prismaService.$executeRaw`TRUNCATE TABLE "entregas" CASCADE`;
-      await this.prismaService.$executeRaw`TRUNCATE TABLE "fichas_epi" CASCADE`;
-      await this.prismaService.$executeRaw`TRUNCATE TABLE "estoque_itens" CASCADE`;
-      await this.prismaService.$executeRaw`TRUNCATE TABLE "nota_movimentacao_itens" CASCADE`;
-      await this.prismaService.$executeRaw`TRUNCATE TABLE "notas_movimentacao" CASCADE`;
-      await this.prismaService.$executeRaw`TRUNCATE TABLE "tipos_epi" CASCADE`;
-      await this.prismaService.$executeRaw`TRUNCATE TABLE "colaboradores" CASCADE`;
-      await this.prismaService.$executeRaw`TRUNCATE TABLE "contratadas" CASCADE`;
-      await this.prismaService.$executeRaw`TRUNCATE TABLE "almoxarifados" CASCADE`;
-      await this.prismaService.$executeRaw`TRUNCATE TABLE "unidades_negocio" CASCADE`;
-      await this.prismaService.$executeRaw`TRUNCATE TABLE "usuarios" CASCADE`;
-      await this.prismaService.$executeRaw`TRUNCATE TABLE "configuracoes" CASCADE`;
+      // Limpar dados em ordem específica para respeitar FKs (schema v3.5)
+      // Usar CASCADE para lidar com dependências automaticamente
+      // Limpar tabelas dependentes primeiro, depois as principais
+      
+      // 1. Limpar tabelas de relacionamento/histórico
+      await this.prismaService.$executeRaw`TRUNCATE TABLE "movimentacoes_estoque" RESTART IDENTITY CASCADE`;
+      await this.prismaService.$executeRaw`TRUNCATE TABLE "entrega_itens" RESTART IDENTITY CASCADE`;
+      await this.prismaService.$executeRaw`TRUNCATE TABLE "historico_fichas" RESTART IDENTITY CASCADE`;
+      
+      // 2. Limpar tabelas de processo/transação
+      await this.prismaService.$executeRaw`TRUNCATE TABLE "entregas" RESTART IDENTITY CASCADE`;
+      await this.prismaService.$executeRaw`TRUNCATE TABLE "nota_movimentacao_itens" RESTART IDENTITY CASCADE`;
+      await this.prismaService.$executeRaw`TRUNCATE TABLE "notas_movimentacao" RESTART IDENTITY CASCADE`;
+      
+      // 3. Limpar tabelas de entidades principais
+      await this.prismaService.$executeRaw`TRUNCATE TABLE "fichas_epi" RESTART IDENTITY CASCADE`;
+      await this.prismaService.$executeRaw`TRUNCATE TABLE "estoque_itens" RESTART IDENTITY CASCADE`;
+      await this.prismaService.$executeRaw`TRUNCATE TABLE "colaboradores" RESTART IDENTITY CASCADE`;
+      
+      // 4. Limpar tabelas de configuração/mestre
+      await this.prismaService.$executeRaw`TRUNCATE TABLE "tipos_epi" RESTART IDENTITY CASCADE`;
+      await this.prismaService.$executeRaw`TRUNCATE TABLE "contratadas" RESTART IDENTITY CASCADE`;
+      await this.prismaService.$executeRaw`TRUNCATE TABLE "almoxarifados" RESTART IDENTITY CASCADE`;
+      await this.prismaService.$executeRaw`TRUNCATE TABLE "unidades_negocio" RESTART IDENTITY CASCADE`;
+      await this.prismaService.$executeRaw`TRUNCATE TABLE "usuarios" RESTART IDENTITY CASCADE`;
+      await this.prismaService.$executeRaw`TRUNCATE TABLE "configuracoes" RESTART IDENTITY CASCADE`;
 
       console.log('✅ Banco de teste limpo');
     } catch (error) {

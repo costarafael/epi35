@@ -1,8 +1,10 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { PrismaService } from '@infrastructure/database/prisma.service';
 import { TestDatabaseService } from '../database/test-database.service';
+import { DatabaseModule } from '../../src/infrastructure/database/database.module';
+import { RepositoryModule } from '../../src/infrastructure/repositories/repository.module';
 import { beforeAll, afterAll } from 'vitest';
 
 export class IntegrationTestSetup {
@@ -29,6 +31,8 @@ export class IntegrationTestSetup {
           isGlobal: true,
           envFilePath: '.env.test',
         }),
+        DatabaseModule, // Incluir módulo de banco completo
+        RepositoryModule, // Incluir módulo de repositórios
         ...(moduleMetadata.imports || []),
       ],
       controllers: moduleMetadata.controllers || [],
@@ -36,6 +40,21 @@ export class IntegrationTestSetup {
         {
           provide: PrismaService,
           useValue: this.testDb.prismaService,
+        },
+        {
+          provide: ConfigService,
+          useValue: {
+            get: (key: string, defaultValue?: any) => {
+              const config = {
+                DATABASE_URL: 'postgresql://postgres:postgres@localhost:5436/epi_test_db_v35?schema=public',
+                NODE_ENV: 'test',
+                PERMITIR_ESTOQUE_NEGATIVO: 'false',
+                PERMITIR_AJUSTES_FORCADOS: 'true',
+                ESTOQUE_MINIMO_EQUIPAMENTO: '10',
+              };
+              return config[key] || defaultValue;
+            },
+          },
         },
         ...(moduleMetadata.providers || []),
       ],
@@ -183,4 +202,11 @@ async function waitForDatabase(maxAttempts: number = 30): Promise<void> {
       await new Promise(resolve => setTimeout(resolve, 2000));
     }
   }
+}
+
+// Export direto da função createTestSetup para backward compatibility
+export async function createTestSetup(moduleMetadata: any = {}): Promise<IntegrationTestSetup> {
+  const setup = new IntegrationTestSetup();
+  await setup.setupTestEnvironment(moduleMetadata);
+  return setup;
 }

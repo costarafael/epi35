@@ -81,14 +81,14 @@ async function bootstrap() {
     preflightContinue: false,
   });
 
-  // Global pipes - Use only ValidationPipe, Zod validation is handled locally
-  app.useGlobalPipes(
-    new ValidationPipe({
-      transform: true,
-      whitelist: true,
-      forbidNonWhitelisted: true,
-    }),
-  );
+  // Global pipes - Temporarily disabled to test UUID validation issue
+  // app.useGlobalPipes(
+  //   new ValidationPipe({
+  //     transform: true,
+  //     whitelist: true,
+  //     forbidNonWhitelisted: true,
+  //   }),
+  // );
 
   // Global filters
   app.useGlobalFilters(new HttpExceptionFilter());

@@ -19,9 +19,8 @@
 - **Health Check:** `/health`
 
 ### **1.2. Autenticação**
-- **Tipo:** Bearer Token (JWT)
-- **Header:** `Authorization: Bearer <token>`
-- **Aplicação:** Todos os endpoints exceto `/health`
+- **Implementação:** A ser implementada por outra equipe em momento posterior
+- **Status Atual:** Todos os endpoints disponíveis sem autenticação
 
 ### **1.3. Formato de Resposta Padrão**
 ```json
@@ -1026,6 +1025,27 @@ GET /api/notas-movimentacao/:id/validar-cancelamento
 }
 ```
 
+### **8.13. Resumo de Notas de Movimentação**
+```http
+GET /api/notas-movimentacao/resumo
+```
+
+**Descrição:** Obtém um resumo das notas de movimentação do sistema.
+
+**Resposta:**
+```json
+{
+  "success": true,
+  "data": {
+    "totalNotas": 1250,
+    "notasRascunho": 45,
+    "notasConcluidas": 1180,
+    "notasCanceladas": 25,
+    "ultimaAtualizacao": "2025-07-07T15:00:00.000Z"
+  }
+}
+```
+
 ---
 
 ## **9. Fichas de EPI Controller**
@@ -1524,8 +1544,8 @@ GET /api/fichas-epi/devolucoes/historico
 - `tipoEpiId`: ID do tipo de EPI (string, opcional)
 - `dataInicio`: Data inicial (date, opcional)
 - `dataFim`: Data final (date, opcional)
-- `page`: Página (number)
-- `limit`: Itens por página (number)
+- `page`: Página (number, padrão: 1)
+- `limit`: Itens por página (number, padrão: 20, máximo: 100)
 
 **Resposta:**
 ```json

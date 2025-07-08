@@ -106,8 +106,8 @@ export class EstoqueController {
     summary: 'Obter kardex de item',
     description: 'Retorna o kardex (histórico de movimentações) de um item específico',
   })
-  @ApiParam({ name: 'almoxarifadoId', type: 'string', format: 'uuid' })
-  @ApiParam({ name: 'tipoEpiId', type: 'string', format: 'uuid' })
+  @ApiParam({ name: 'almoxarifadoId', type: 'string', description: 'ID do almoxarifado (UUID ou ID customizado)' })
+  @ApiParam({ name: 'tipoEpiId', type: 'string', description: 'ID do tipo de EPI (UUID ou ID customizado)' })
   @ApiQuery({ name: 'dataInicio', required: false, type: String, format: 'date' })
   @ApiQuery({ name: 'dataFim', required: false, type: String, format: 'date' })
   @ApiResponse({ status: 200, description: 'Kardex obtido com sucesso' })

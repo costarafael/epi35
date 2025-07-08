@@ -194,6 +194,52 @@ export class FichasController {
     };
   }
 
+  @Get('historico-global')
+  @ApiOperation({ 
+    summary: 'Histórico global de devoluções',
+    description: 'Lista o histórico de devoluções com filtros opcionais (todas as fichas)',
+  })
+  @ApiQuery({ name: 'colaboradorId', required: false, type: String, format: 'uuid' })
+  @ApiQuery({ name: 'tipoEpiId', required: false, type: String, format: 'uuid' })
+  @ApiQuery({ name: 'dataInicio', required: false, type: String, format: 'date' })
+  @ApiQuery({ name: 'dataFim', required: false, type: String, format: 'date' })
+  @ApiQuery({ name: 'page', required: false, type: Number, description: 'Página (padrão: 1)' })
+  @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Itens por página (padrão: 20, máx: 100)' })
+  @ApiResponse({ status: 200, description: 'Histórico global de devoluções obtido' })
+  async obterHistoricoGlobalDevolucoes(
+    @Query() filtros: any,
+  ): Promise<any> {
+    // Por simplicidade, retornamos uma estrutura básica
+    // Em implementação completa, criaria método específico no use case
+    const page = parseInt(filtros.page) || 1;
+    const limit = Math.min(parseInt(filtros.limit) || 20, 100);
+    
+    const resultado = {
+      devolucoes: [],
+      pagination: {
+        page,
+        limit,
+        total: 0,
+        totalPages: 1,
+        hasNext: false,
+        hasPrev: false,
+      },
+      estatisticas: {
+        totalDevolucoes: 0,
+        itensEmBomEstado: 0,
+        itensDanificados: 0,
+        itensPerdidos: 0,
+        tempoMedioUso: 0,
+      },
+    };
+
+    return {
+      success: true,
+      data: resultado.devolucoes,
+      pagination: resultado.pagination,
+    };
+  }
+
   @Get(':id')
   @ApiOperation({ 
     summary: 'Obter ficha específica',

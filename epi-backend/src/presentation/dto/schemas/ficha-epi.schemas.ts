@@ -196,6 +196,8 @@ export const CancelarDevolucaoSchema = z.object({
 export const FiltrosHistoricoDevolucaoSchema = z.object({
   colaboradorId: IdSchema.optional(),
   tipoEpiId: IdSchema.optional(),
+  dataInicio: z.coerce.date().optional(),
+  dataFim: z.coerce.date().optional(),
 }).merge(PaginationSchema);
 
 export const FiltrosPosseAtualSchema = z.object({

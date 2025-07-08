@@ -4,6 +4,7 @@ import { NotaRepository } from '@infrastructure/repositories/nota.repository';
 import { MovimentacaoRepository } from '@infrastructure/repositories/movimentacao.repository';
 import { EstoqueRepository } from '@infrastructure/repositories/estoque.repository';
 import { PrismaService } from '@infrastructure/database/prisma.service';
+import { ConfiguracaoService } from '@domain/services/configuracao.service';
 import { IntegrationTestSetup, setupIntegrationTestSuite } from '../../setup/integration-test-setup';
 import { 
   TipoNotaEnum as TipoNotaMovimentacao, 
@@ -23,8 +24,12 @@ describe('ConcluirNotaMovimentacaoUseCase - Integration Tests', () => {
 
   beforeEach(async () => {
     testSetup = await createTestSetup({
+      imports: [
+        // Import the ApplicationModule to get all the required services
+      ],
       providers: [
         ConcluirNotaMovimentacaoUseCase,
+        ConfiguracaoService,
         {
           provide: 'INotaRepository',
           useFactory: (prisma: PrismaService) => new NotaRepository(prisma),

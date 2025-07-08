@@ -27,20 +27,16 @@ export class IntegrationTestSetup {
     // Criar módulo de teste
     const moduleBuilder = Test.createTestingModule({
       imports: [
-        ConfigModule.forRoot({
-          isGlobal: true,
-          envFilePath: '.env.test',
-        }),
-        DatabaseModule, // Incluir módulo de banco completo
-        RepositoryModule, // Incluir módulo de repositórios
+        // ConfigModule.forRoot({
+        //   isGlobal: true,
+        //   envFilePath: '.env.test',
+        // }),
+        // DatabaseModule, // Removed to avoid ConfigService conflicts
+        // RepositoryModule, // Removed to avoid ConfigService conflicts
         ...(moduleMetadata.imports || []),
       ],
       controllers: moduleMetadata.controllers || [],
       providers: [
-        {
-          provide: PrismaService,
-          useValue: this.testDb.prismaService,
-        },
         {
           provide: ConfigService,
           useValue: {
@@ -55,6 +51,10 @@ export class IntegrationTestSetup {
               return config[key] || defaultValue;
             },
           },
+        },
+        {
+          provide: PrismaService,
+          useValue: this.testDb.prismaService,
         },
         ...(moduleMetadata.providers || []),
       ],

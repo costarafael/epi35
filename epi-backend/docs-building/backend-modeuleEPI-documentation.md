@@ -1,46 +1,9 @@
----
-type: Page
-title: Epi 3.5
-description: null
-icon: null
-createdAt: '2025-06-28T19:49:48.118Z'
-creationDate: 2025-06-28 16:49
-modificationDate: 2025-06-28 22:53
-tags: []
-coverImage: null
----
 
 # Especificação Técnica Detalhada: Módulo de Gestão de Fichas de EPI e Estoque
 
 **Versão**: 3.7.3 (Sistema de Notas de Movimentação + Correção Crítica + IDs Customizados)
 
 **Data**: 07 de julho de 2025
-
-**Status**: ✅ **EM PRODUÇÃO** - https://epi-backend-s14g.onrender.com
-​
-
-**Histórico de Revisão**:
-
-| Versão | Data       | Resumo das Alterações                                                                                                                                                                    |
-| :----- | :--------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 3.3    | 28/06/2025 | Versão inicial da especificação detalhada.                                                                                                                                               |
-| 3.4    | 28/06/2025 | Incorporação de melhorias de rastreabilidade (estornos), esclarecimento de regras de negócio (assinaturas, devoluções) e correção de inconsistências em queries e especificações de API. |
-| 3.5    | 28/06/2025 | Correções técnicas: adição tabela usuarios, remoção data_validade_fabricante, remoção controle concorrência, correção constraints e enum DEVOLUCAO_ATRASADA.                             |
-| 3.5.1  | 04/07/2025 | **Funcionalidades Avançadas**: Implementação de categorias de EPI (categoria_epi_enum), paginação server-side para todos os relatórios, sistema avançado de devolução pendente com filtros por colaborador/almoxarifado, melhorias significativas de UX em formulários e dashboards. |
-| 3.5.2  | 04/07/2025 | **Entidades e Configurações**: Entidade Contratada completa (CRUD + validação CNPJ matemática), configuração simplificada de estoque mínimo global unificada, sistema de status de estoque simplificado (BAIXO/NORMAL/ZERO) substituindo lógica complexa anterior. |
-| 3.5.3  | 04/07/2025 | **Relatórios e Estoque Negativo**: Suporte completo para estoque negativo em todos os relatórios e dashboards, implementação integral do Relatório de Descartes com filtros avançados multi-dimensionais, estatísticas consolidadas e exportação. |
-| 3.5.4  | 05/07/2025 | **DEPLOY PRODUÇÃO FINALIZADO**: Sistema 100% funcional em produção (https://epi-backend-s14g.onrender.com), backend completo com 50 endpoints operacionais, dashboard funcional mostrando dados reais (5 fichas ativas, 6 itens em estoque), database populado com dados de demonstração (3 contratadas, 5 colaboradores), correções de API routes, seed script para produção implementado, monitoramento ativo e sistema pronto para integração com frontend. |
-| 3.5.5  | 06/07/2025 | **REFATORAÇÃO DE CONTROLLERS COMPLETA**: Refatoração bem-sucedida dos controllers grandes para melhor manutenibilidade. RelatoriosController (673 linhas) dividido em 4 controllers especializados, FichasEpiController (630 linhas) refatorado em 3 controllers especializados, criação de 5 formatters services centralizados, implementação de módulos organizados (RelatoriosModule e FichasModule), 100% compatibilidade API preservada, 0 erros de compilação, sistema otimizado seguindo princípios Clean Architecture e Single Responsibility. |
-| 3.5.6  | 06/07/2025 | **SISTEMA DE HISTÓRICO DE FICHAS EPI**: Implementação completa do sistema de auditoria e rastreabilidade de fichas EPI. Novo endpoint GET /api/fichas-epi/:id/historico com rastreamento total de eventos (criação, entregas, devoluções, cancelamentos, alterações de status, itens vencidos). Sistema de filtros avançados (tipo de ação, período) e paginação. Reconstrução automática do histórico a partir de múltiplas fontes de dados. 6/6 testes de integração implementados e passando. Documentação Swagger completa. Pronto para deploy em produção. |
-| 3.5.7  | 06/07/2025 | **SISTEMA DE GERENCIAMENTO DE CONFIGURAÇÕES**: Implementação completa da API REST para gerenciamento de configurações do sistema (PERMITIR_ESTOQUE_NEGATIVO, PERMITIR_AJUSTES_FORCADOS, ESTOQUE_MINIMO_EQUIPAMENTO). 8 endpoints completos: listagem, consulta individual, atualizações (simples, boolean, numérica), batch update e reset para padrão. Validações de tipos e regras de negócio. Single Source of Truth com schemas Zod. Testes de integração 100% cobertura (20/20 testes passando). Sistema type-safe e pronto para produção. |
-| 3.5.8  | 06/07/2025 | **ENDPOINTS DE LISTAGEM DE ESTOQUE**: Implementação dos endpoints críticos faltantes para integração frontend. GET /api/estoque/itens (listagem de itens de estoque com filtros e paginação) e GET /api/estoque/almoxarifados (listagem de almoxarifados). Use cases completos (ListarEstoqueItensUseCase, ListarAlmoxarifadosUseCase), schemas Zod type-safe, integração no ApplicationModule e EstoqueController. Testes de integração 100% (15 cenários). Funcionalidade essencial para criação de entregas no frontend. 0 erros de compilação. |
-| 3.5.9  | 06/07/2025 | **API DE USUÁRIOS PARA CRIAÇÃO DE ENTREGAS**: Implementação completa dos endpoints de usuários solicitados para resolver bloqueio na criação de entregas. GET /api/usuarios (listagem com filtros e paginação) e GET /api/usuarios/:id (consulta individual). ListarUsuariosUseCase com filtros por nome/email case-insensitive, schemas Zod type-safe, UsuariosController com documentação Swagger completa. Testes de integração 100% (11/11 cenários passando). Sistema de paginação configurável (padrão: 50 itens, máximo: 100). Funcionalidade crítica para seleção de responsáveis em entregas de EPI. 0 erros de compilação, pronto para uso imediato no frontend. |
-| 3.5.10 | 06/07/2025 | **CORREÇÃO CRÍTICA MAPEAMENTO DE ENTREGAS**: Identificação e correção de bug crítico no mapeamento de entregas com múltiplos tipos de EPI. Issue: "Frontend envia 1x Óculos + 1x Luvas, backend retorna 2x Óculos". Root cause localizado em `entrega.mapper.ts` - mapper utilizava apenas primeiro item para determinar tipo da entrega. Solução: implementação de agregação inteligente detectando tipos únicos e exibindo "Múltiplos EPIs" quando aplicável. Correção aplicada em ambos endpoints de criação (`POST /api/fichas-epi/:id/entregas` e `POST /api/fichas-epi/:fichaId/entregas`). Investigação completa de todo fluxo (Controller → Use Case → Mapper → Formatters). Commit 293e00c deployado em produção. Mantém rastreabilidade unitária e backward compatibility 100%. |
-| 3.6.0  | 06/07/2025 | **ANÁLISE ARQUITETURAL COMPLETA + ALERTAS DE SEGURANÇA**: Análise profunda e abrangente de toda a arquitetura do sistema utilizando Deep Code Reasoning. **DESCOBERTAS CRÍTICAS**: Vulnerabilidade de segurança identificada (`JWT_SECRET` opcional em produção), modelo de dados incompleto (`Contratada` isolada), processo de negócio implícito documentado (`AGUARDANDO_INSPECAO`). **CONFIRMAÇÕES ARQUITETURAIS**: Arquitetura Layered/Hexagonal validada, ciclo de vida completo dos `EstoqueItem` mapeado (DISPONIVEL→RESERVADO→DISPONIVEL/DESCARTADO/AGUARDANDO_INSPECAO), transações atômicas confirmadas, sistema de observabilidade robusto identificado. **RECOMENDAÇÕES IMEDIATAS**: Tornar `JWT_SECRET` obrigatório para produção, documentar feature flags operacionais, clarificar propósito da entidade `Contratada`. Documentação técnica completamente atualizada com 100% de cobertura arquitetural. |
-| 3.7.0  | 07/07/2025 | **OTIMIZAÇÃO MASSIVA DO FRONTEND + DISPLAY OBJECTS + ENDPOINTS OTIMIZADOS**: Implementação revolucionária de otimização frontend baseada na análise do `fichaProcessAdapter.ts` (1.429 linhas). **ENDPOINTS OTIMIZADOS**: Novo `GET /api/fichas-epi/:id/complete` com dados completamente processados pelo backend, elimina 3-5 chamadas API simultâneas. **DISPLAY OBJECTS**: Sistema de cores semânticas (`green`, `red`, `yellow`, `gray`) + labels legíveis calculados pelo backend, elimina 280+ linhas de lógica complexa do frontend. **BUSINESS LOGIC MIGRATION**: 85% da lógica de negócio movida para backend (status calculation, vencimento logic, CPF masking, iniciais generation, histórico formatting). **STRUCTURED DATA**: Histórico com resumos formatados (`"3x Capacete (CA 12345)"`), mudanças de status automáticas (`"Disponível → Com Colaborador"`), dados estruturados organizados. **PERFORMANCE BOOST**: 3-5x melhoria de performance, redução de 57.8% no código total (2.440 → 1.030 linhas), flexibilidade UI preservada. **CONTROLLERS NOVOS**: `FichasOtimizadasController`, `EntregasOtimizadasController`, `DevolucoesOtimizadasController` com documentação Swagger completa. **SCHEMAS ZOD**: Atualizados com `StatusDisplaySchema`, `StatusVencimentoDisplaySchema`, `TipoDisplaySchema`, `ColaboradorDetalhadoSchema` com novos campos. Sistema pronto para integração frontend com redução massiva de complexidade mantendo total flexibilidade de UI. |
-| 3.7.1  | 07/07/2025 | **IMPLEMENTAÇÃO COMPLETA + ENDPOINTS OTIMIZADOS + TESTES VALIDADOS**: Finalização completa da otimização frontend com todas as funcionalidades implementadas e testadas. **LISTAGEM OTIMIZADA**: `GET /api/fichas-epi/list-enhanced` implementado com `ListarFichasEnhancedUseCase`, status display calculado, estatísticas pré-processadas pelo backend. **CONTROLLERS FINALIZADOS**: Todos os 3 controllers otimizados (`FichasOtimizadas`, `EntregasOtimizadas`, `DevolucoesOtimizadas`) implementados com use cases conectados e documentação Swagger completa. **CORREÇÕES TÉCNICAS**: Corrigido `test-database.service.ts` com nomes corretos de tabelas do schema v3.5, ambiente de testes 100% funcional. **VALIDAÇÃO COMPLETA**: Testes de integração executados com sucesso (11/11 cenários de usuários passando), build sem erros de TypeScript, sistema validado para produção. **REGISTROS MÓDULOS**: Todos os use cases registrados no `ApplicationModule`, controllers registrados no `AppModule`. **STATUS FINAL**: Sistema 100% implementado, testado e pronto para integração frontend com otimização massiva de performance e redução de complexidade. |
-| 3.7.2  | 07/07/2025 | **SISTEMA DE IDs CUSTOMIZADOS + MELHOR LEGIBILIDADE**: Implementação completa do sistema de geração de IDs customizados para melhor experiência do usuário. **IDS AMIGÁVEIS**: Entregas (E+5chars), EstoqueItems (I+5chars), TipoEPI (C+5chars) com caracteres não-confusos excluindo 0,1,O,I,L. **UTILITIES COMPLETAS**: Funções de geração (`generateEntregaId()`, `generateEstoqueItemId()`, `generateTipoEpiId()`), validação customizada e detecção automática de tipo UUID vs Custom. **MIDDLEWARE PRISMA**: Sistema automático de geração de IDs em operações `create` e `createMany` com suporte completo a transações. **COMPATIBILIDADE TOTAL**: Validação dual UUID/Custom ID em schemas Zod (`IdSchema`, `EntregaIdSchema`, `EstoqueItemIdSchema`, `TipoEpiIdSchema`), sistema funciona com dados existentes (UUIDs) e novos registros (IDs customizados). **MIGRAÇÃO SEGURA**: Implementação gradual sem breaking changes, novos registros usarão IDs customizados, registros existentes mantêm UUIDs. **TESTES VALIDADOS**: 13/14 testes unitários para geração e validação de IDs. **PRODUÇÃO READY**: Sistema compilado e pronto para deploy sem afetar funcionalidade existente. |
-| 3.7.3  | 07/07/2025 | **SISTEMA DE NOTAS DE MOVIMENTAÇÃO + RESOLUÇÃO CRÍTICA**: Implementação completa e correção crítica do sistema de Notas de Movimentação de Estoque. **BUG CRÍTICO RESOLVIDO**: Validação de `almoxarifadoId` corrigida para permitir valor `null` em notas de ENTRADA (era obrigatório por constraint de DB incorreta). **MIGRAÇÃO DB**: Nova migration `20250707184445_fix_nota_movimentacao_almoxarifado_fields` aplicada em produção via startup migration. **TIPOS SUPORTADOS**: ENTRADA (almoxarifadoDestino obrigatório), TRANSFERENCIA (origem e destino obrigatórios), DESCARTE (almoxarifado obrigatório). **VALIDAÇÃO COMPLETA**: Schemas Zod atualizados com regras específicas por tipo de nota, prevenção de configurações inválidas. **DEPLOY AUTOMÁTICO**: Sistema configurado com migração automática via render.yaml e startup hook no main.ts. **FRONTEND FUNCIONAL**: Todas as 3 operações de nota funcionando corretamente - criação de notas de entrada, transferência e descarte validadas e testadas. **STATUS**: 100% operacional em produção, issue crítica resolvida, sistema de estoque totalmente funcional. |
 
 ## 🌐 URLs de Produção
 
@@ -66,7 +29,7 @@ coverImage: null
 ### **Status de Produção (07/07/2025 16:15)**
 #### **✅ Sistema Completo + Notas de Movimentação + IDs Customizados + Endpoints Frontend-Ready**
 - **Dashboard**: Funcionando com dados reais (5 fichas ativas, 6 itens estoque)
-- **Database**: Popolado com dados de demonstração
+- **Database**: Populado com dados de demonstração
   - 3 contratadas cadastradas (Alpha, Beta, Gamma)
   - 5 colaboradores ativos (2 diretos + 3 de contratadas)
   - 6 itens de estoque distribuídos em almoxarifados
@@ -449,6 +412,88 @@ POST /api/configuracoes/reset
 - Status de sucesso/falha em operações batch
 
 **Status de Produção**: ✅ Deployment realizado com commit `a2ce7a5`
+
+## **📊 Sistema Dual de Status de Estoque**
+
+### **⚠️ ESCLARECIMENTO IMPORTANTE: Dois Conceitos Distintos**
+
+O sistema implementa **dois conceitos diferentes** para status de estoque que **NÃO devem ser confundidos**:
+
+#### **1. Status Físico do EstoqueItem** (`status_estoque_item_enum`)
+**Localização**: Campo `status` na tabela `estoque_itens`
+**Valores**: `DISPONIVEL`, `AGUARDANDO_INSPECAO`, `QUARENTENA`
+**Finalidade**: Estado físico real do item no almoxarifado
+
+```sql
+-- Status físico dos itens
+CREATE TYPE status_estoque_item_enum AS ENUM (
+  'DISPONIVEL',           -- Item pronto para entrega
+  'AGUARDANDO_INSPECAO',  -- Item aguardando análise técnica
+  'QUARENTENA'            -- Item isolado por problemas identificados
+);
+```
+
+**Arquivo de Implementação**: `src/domain/enums/estoque.enum.ts`
+
+#### **2. Situação Analítica do Estoque** (calculada dinamicamente)
+**Localização**: Calculada em `src/application/use-cases/queries/relatorio-posicao-estoque.use-case.ts`
+**Valores**: `NORMAL`, `BAIXO`, `ZERO`
+**Finalidade**: Situação de reposição baseada em níveis mínimos
+
+```typescript
+// Situação calculada para alertas de reposição
+private async calcularSituacaoEstoque(item: ItemPosicaoEstoque): Promise<'NORMAL' | 'BAIXO' | 'ZERO'> {
+  if (item.saldoTotal === 0) return 'ZERO';
+  
+  const estoqueMinimo = await this.configuracaoService.obterEstoqueMinimoEquipamento();
+  
+  if (item.saldoTotal < estoqueMinimo) return 'BAIXO';
+  else return 'NORMAL';
+}
+```
+
+**Arquivo de Schema**: `src/presentation/dto/schemas/estoque.schemas.ts`
+
+### **🔄 Como os Sistemas se Relacionam**
+
+#### **Status Físico** → Operações de movimentação
+- **DISPONIVEL**: Pode ser usado em entregas e transferências
+- **AGUARDANDO_INSPECAO**: Bloqueado até conclusão da análise
+- **QUARENTENA**: Isolado, não pode ser movimentado
+
+#### **Situação Analítica** → Alertas e relatórios
+- **NORMAL**: Estoque acima do mínimo configurado
+- **BAIXO**: Estoque abaixo do mínimo (alerta amarelo)
+- **ZERO**: Sem itens disponíveis (alerta vermelho)
+
+### **📂 Implementação nos Arquivos**
+
+#### **Controllers que usam Status Físico**:
+- `src/presentation/controllers/relatorios.controller.ts` (linha 163-164)
+  ```typescript
+  .filter(item => ['BAIXO', 'ZERO'].includes(item.situacao)) // ❌ CONFUSÃO CONCEITUAL
+  ```
+
+#### **Controllers que usam Situação Analítica**:
+- `src/shared/formatters/dashboard-formatter.service.ts` (linha 155-156)
+  ```typescript
+  .filter((item: any) => ['BAIXO', 'ZERO'].includes(item.situacao)) // ✅ USO CORRETO
+  ```
+
+### **🎯 Uso Correto em Contextos**
+
+#### **Para Movimentações de Estoque**:
+```typescript
+// ✅ CORRETO: Usar status físico
+WHERE estoque_itens.status = 'DISPONIVEL'
+```
+
+#### **Para Alertas de Reposição**:
+```typescript
+// ✅ CORRETO: Usar situação calculada
+situacao: item.saldoTotal === 0 ? 'ZERO' : 
+          item.saldoTotal < estoqueMinimo ? 'BAIXO' : 'NORMAL'
+```
 
 1. **Fonte Única da Verdade**: O saldo de itens é auditável e reconstruível a partir de um livro-razão imutável (`movimentacoes_estoque`).
 
@@ -1823,7 +1868,7 @@ Analisando o `package.json` e considerando as necessidades específicas do **Mó
 #### **v3.5.2 - Entidades e Configurações**
 - **Entidade Contratada**: CRUD completo com validação CNPJ matemática rigorosa
 - **Estoque Mínimo Global**: Configuração simplificada unificada via `ESTOQUE_MINIMO_EQUIPAMENTO`
-- **Status de Estoque Simplificado**: Sistema BAIXO/NORMAL/ZERO substituindo lógicas complexas
+- **Sistema Dual de Status**: Status físico (DISPONIVEL/AGUARDANDO_INSPECAO/QUARENTENA) + Situação analítica (NORMAL/BAIXO/ZERO)
 
 #### **v3.5.3 - Relatórios e Estoque Negativo**
 - **Suporte a Estoque Negativo**: Implementado em todos os relatórios e dashboards
@@ -2089,192 +2134,3 @@ Os endpoints de usuários resolvem o bloqueio identificado na criação de entre
 - Gerencia configurações como `PERMITIR_ESTOQUE_NEGATIVO`
 
 - Diferentes ambientes (dev, prod, qa)
-
----
-
-## 🎯 ROADMAP E RECOMENDAÇÕES FUTURAS
-
-### **🚨 Ações Imediatas (Prioridade ALTA)**
-
-#### **1. Correção de Segurança - JWT_SECRET**
-**Prazo**: Próximo deploy
-```typescript
-// environment.config.ts - FIX OBRIGATÓRIO
-JWT_SECRET: z.string().refine(
-  (val) => process.env.NODE_ENV !== 'production' || val.length >= 32,
-  { message: 'JWT_SECRET deve ter pelo menos 32 caracteres em produção' }
-)
-```
-
-#### **2. Documentação de Feature Flags**
-**Prazo**: 1-2 dias
-- Criar manual operacional para `PERMITIR_ESTOQUE_NEGATIVO`
-- Documentar procedimentos de uso de `PERMITIR_AJUSTES_FORCADOS`
-- Definir políticas de ativação/desativação
-
-### **📋 Funcionalidades Pendentes (Prioridade MÉDIA)**
-
-#### **3. Sistema de Inspeção de Itens**
-**Escopo**: Implementar workflow completo para `AGUARDANDO_INSPECAO`
-```typescript
-// Endpoints necessários:
-GET  /api/estoque/aguardando-inspecao
-POST /api/estoque/itens/{id}/aprovar-inspecao
-POST /api/estoque/itens/{id}/rejeitar-inspecao
-```
-
-#### **4. Clarificação da Entidade Contratada**
-**Investigação**: Definir propósito e relacionamentos
-- Se ativa: Implementar relacionamentos com Colaborador/Almoxarifado
-- Se legacy: Remover do schema e migrations
-
-### **🔧 Melhorias Arquiteturais (Prioridade BAIXA)**
-
-#### **5. Observabilidade Avançada**
-**Integração com ferramentas externas**:
-- Prometheus/Grafana para métricas persistentes
-- Structured logging com Winston
-- Alertas automáticos para falhas críticas
-
-#### **6. Repository Pattern Completo**
-**Objetivo**: Desacoplar completamente Application de Infrastructure
-```typescript
-// Exemplo de migração:
-interface IEntregaRepository {
-  create(data: CreateEntregaData): Promise<Entrega>;
-  findById(id: string): Promise<Entrega | null>;
-}
-
-// src/infrastructure/repositories/
-class PrismaEntregaRepository implements IEntregaRepository {
-  // Implementação específica do Prisma
-}
-```
-
-#### **7. Cache Strategy Avançado**
-**Melhorias**:
-- TTL configurável por tipo de dados
-- Cache invalidation por eventos de domínio
-- Métricas de hit/miss ratio
-
-### **📊 Roadmap de Performance**
-
-#### **8. Livro Razão Completo com Saldos (PLANEJADO)**
-**Escopo**: Implementar livro razão enterprise-grade com saldos anterior/posterior
-**Prazo**: Desenvolvimento futuro
-```sql
--- Migration planejada
-ALTER TABLE movimentacoes_estoque 
-ADD COLUMN saldo_anterior INTEGER NOT NULL DEFAULT 0,
-ADD COLUMN saldo_posterior INTEGER NOT NULL DEFAULT 0;
-
--- Índices para auditoria
-CREATE INDEX idx_movimentacoes_saldos ON 
-movimentacoes_estoque(estoque_item_id, data_movimentacao);
-```
-
-**Benefícios esperados**:
-- **Auditoria completa**: Saldo antes e depois de cada operação
-- **Reconciliação automática**: Validação de consistência de dados
-- **Compliance**: Atender normas de auditoria externa
-- **Debug avançado**: Rastreamento detalhado de problemas de estoque
-
-**Implementação planejada**:
-```typescript
-// Registro com saldos e lock para evitar race conditions
-async registrarMovimentacaoComSaldo(
-  estoqueItemId: string,
-  quantidade: number,
-  tipo: TipoMovimentacao,
-  responsavelId: string
-): Promise<void> {
-  await this.prisma.$transaction(async (tx) => {
-    // Row-level lock para consistência
-    const estoqueAtual = await tx.estoqueItem.findUnique({
-      where: { id: estoqueItemId }
-      // SELECT ... FOR UPDATE implícito
-    });
-    
-    const saldoAnterior = estoqueAtual.quantidade;
-    const quantidadeMovida = tipo.includes('SAIDA') ? -quantidade : quantidade;
-    const saldoPosterior = saldoAnterior + quantidadeMovida;
-    
-    // Registro no livro razão completo
-    await tx.movimentacaoEstoque.create({
-      data: {
-        estoqueItemId,
-        quantidadeMovida: Math.abs(quantidade),
-        tipoMovimentacao: tipo,
-        saldoAnterior,      // Estado antes da operação
-        saldoPosterior,     // Estado após a operação
-        responsavelId,
-        dataMovimentacao: new Date()
-      }
-    });
-    
-    // Atualização do estoque agregado
-    await tx.estoqueItem.update({
-      where: { id: estoqueItemId },
-      data: { quantidade: saldoPosterior }
-    });
-    
-    // Validação de estoque negativo
-    if (saldoPosterior < 0) {
-      const configuracao = await this.getConfiguracaoEstoqueNegativo();
-      if (!configuracao.permitir) {
-        throw new BusinessError('Estoque insuficiente');
-      }
-    }
-  });
-}
-```
-
-#### **9. Database Optimization**
-- Índices específicos para queries mais frequentes
-- Análise de slow queries
-- Connection pooling otimizado
-
-#### **10. API Rate Limiting**
-- Implementar throttling por usuário/endpoint
-- Proteção contra abuse de APIs públicas
-
-### **🔐 Hardening de Segurança**
-
-#### **11. RBAC (Role-Based Access Control)**
-- Definir roles: ADMIN, MANAGER, OPERATOR, VIEW_ONLY
-- Implementar guards por endpoint
-- Audit log de ações sensíveis
-
-#### **12. Input Sanitization**
-- Validação adicional além do Zod
-- Proteção contra SQL injection
-- XSS prevention
-
----
-
-## 📖 CONCLUSÕES DA ANÁLISE
-
-### **✅ Pontos Fortes Identificados**
-
-1. **Arquitetura Sólida**: Layered/Hexagonal bem implementada
-2. **Type Safety**: Zod como Single Source of Truth
-3. **Transações Atômicas**: Garantia de integridade de dados
-4. **Modularização**: Controllers especializados e bem organizados
-5. **Observabilidade**: Fundação para monitoring avançado
-6. **Tratamento de Erros**: Centralizado e consistente
-
-### **🔍 Gaps Identificados e Resolvidos**
-
-1. **Vulnerabilidade JWT**: Identificada e solução proposta
-2. **Modelo Incompleto**: Contratada isolada documentada
-3. **Processo Implícito**: Inspeção de itens mapeado
-4. **Ciclo de Estados**: EstoqueItem completamente documentado
-
-### **🎖️ Qualidade Geral do Sistema**
-
-**Nota**: **A+** - Sistema de produção maduro e bem arquitetado
-
-O sistema demonstra excelente qualidade de código, com padrões consistentes, arquitetura robusta e atenção aos detalhes de segurança e performance. As descobertas desta análise representam oportunidades de melhoria, não problemas fundamentais na implementação.
-
-**Status Final**: **Sistema pronto para produção com correções de segurança aplicadas**
-

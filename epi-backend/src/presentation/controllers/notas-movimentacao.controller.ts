@@ -31,6 +31,7 @@ import {
   ConcluirNotaSchema,
   CancelarNotaSchema,
   FiltrosNotaMovimentacaoSchema,
+  FiltrosResumoNotaMovimentacaoSchema,
   CriarNotaMovimentacaoRequest,
   AdicionarItemNotaRequest,
   AtualizarQuantidadeItemRequest,
@@ -38,6 +39,7 @@ import {
   ConcluirNotaRequest,
   CancelarNotaRequest,
   FiltrosNotaMovimentacao,
+  FiltrosResumoNotaMovimentacao,
 } from '../dto/schemas/nota-movimentacao.schemas';
 import { IdSchema, SuccessResponse, PaginatedResponse } from '../dto/schemas/common.schemas';
 
@@ -189,6 +191,160 @@ export class NotasMovimentacaoController {
         totalPages: Math.ceil(notasFormatadas.length / Number(filtros.limit)),
         hasNext: endIndex < notasFormatadas.length,
         hasPrev: filtros.page > 1,
+      },
+    };
+  }
+
+  @Get('resumo')
+  @ApiOperation({ 
+    summary: 'Resumo de notas de movimentação',
+    description: 'Lista notas com informações resumidas para exibição em tabelas',
+  })
+  @ApiQuery({ name: 'page', required: false, type: Number, description: 'Página (padrão: 1)' })
+  @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Itens por página (padrão: 10, máx: 100)' })
+  @ApiQuery({ name: 'numero', required: false, type: String, description: 'Filtrar por número da nota' })
+  @ApiQuery({ name: 'tipo', required: false, enum: ['ENTRADA', 'TRANSFERENCIA', 'DESCARTE', 'AJUSTE'] })
+  @ApiQuery({ name: 'status', required: false, enum: ['RASCUNHO', 'CONCLUIDA', 'CANCELADA'] })
+  @ApiQuery({ name: 'almoxarifadoId', required: false, type: String, description: 'ID do almoxarifado (origem ou destino)' })
+  @ApiQuery({ name: 'usuarioId', required: false, type: String, description: 'ID do usuário responsável' })
+  @ApiQuery({ name: 'dataInicio', required: false, type: String, format: 'date' })
+  @ApiQuery({ name: 'dataFim', required: false, type: String, format: 'date' })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Resumo de notas recuperado com sucesso',
+    schema: {
+      type: 'object',
+      properties: {
+        success: { type: 'boolean' },
+        data: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              id: { type: 'string', format: 'uuid' },
+              numero: { type: 'string', example: 'ENT-2025-000014' },
+              tipo: { type: 'string', enum: ['ENTRADA', 'TRANSFERENCIA', 'DESCARTE', 'AJUSTE'] },
+              status: { type: 'string', enum: ['RASCUNHO', 'CONCLUIDA', 'CANCELADA'] },
+              responsavel_nome: { type: 'string', example: 'Administrador Sistema' },
+              almoxarifado_nome: { type: 'string', example: 'Almoxarifado RJ' },
+              total_itens: { type: 'number', example: 5 },
+              valor_total: { type: 'number', nullable: true, example: 1250.00 },
+              data_documento: { type: 'string', format: 'date', example: '2025-07-07' },
+              observacoes: { type: 'string', nullable: true, example: 'Compra de EPIs' },
+            },
+          },
+        },
+        pagination: {
+          type: 'object',
+          properties: {
+            page: { type: 'number' },
+            limit: { type: 'number' },
+            total: { type: 'number' },
+            totalPages: { type: 'number' },
+            hasNext: { type: 'boolean' },
+            hasPrev: { type: 'boolean' },
+          },
+        },
+      },
+    },
+  })
+  async obterResumoNotas(
+    @Query() 
+    filtros: any,
+  ): Promise<PaginatedResponse> {
+    // Aplicar defaults aos filtros se não fornecidos
+    const page = parseInt(filtros.page) || 1;
+    const limit = Math.min(parseInt(filtros.limit) || 10, 100);
+    
+    const where: any = {};
+    
+    if (filtros.numero) {
+      where.numeroDocumento = { contains: filtros.numero, mode: 'insensitive' };
+    }
+    if (filtros.tipo) {
+      where.tipoNota = filtros.tipo;
+    }
+    if (filtros.status) {
+      where.status = filtros.status;
+    }
+    if (filtros.almoxarifadoId) {
+      where.OR = [
+        { almoxarifadoId: filtros.almoxarifadoId },
+        { almoxarifadoDestinoId: filtros.almoxarifadoId },
+      ];
+    }
+    if (filtros.usuarioId) {
+      where.responsavelId = filtros.usuarioId;
+    }
+    if (filtros.dataInicio || filtros.dataFim) {
+      where.dataDocumento = {};
+      if (filtros.dataInicio) {
+        where.dataDocumento.gte = new Date(filtros.dataInicio);
+      }
+      if (filtros.dataFim) {
+        where.dataDocumento.lte = new Date(filtros.dataFim);
+      }
+    }
+
+    const [notas, total] = await Promise.all([
+      this.prismaService.notaMovimentacao.findMany({
+        where,
+        include: {
+          responsavel: {
+            select: { nome: true },
+          },
+          almoxarifadoOrigem: {
+            select: { nome: true },
+          },
+          almoxarifadoDestino: {
+            select: { nome: true },
+          },
+          itens: {
+            select: {
+              quantidade: true,
+              custoUnitario: true,
+            },
+          },
+        },
+        orderBy: { dataDocumento: 'desc' },
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      this.prismaService.notaMovimentacao.count({ where }),
+    ]);
+
+    const notasFormatadas = notas.map(nota => {
+      const totalItens = nota.itens.reduce((acc, item) => acc + item.quantidade, 0);
+      const valorTotal = nota.itens.reduce((acc, item) => {
+        return acc + (item.custoUnitario ? item.custoUnitario.toNumber() * item.quantidade : 0);
+      }, 0);
+      
+      const almoxarifadoNome = nota.almoxarifadoDestino?.nome || nota.almoxarifadoOrigem?.nome || '';
+      
+      return {
+        id: nota.id,
+        numero: nota.numeroDocumento || '',
+        tipo: nota.tipoNota,
+        status: nota.status,
+        responsavel_nome: nota.responsavel.nome,
+        almoxarifado_nome: almoxarifadoNome,
+        total_itens: totalItens,
+        valor_total: valorTotal > 0 ? valorTotal : null,
+        data_documento: nota.dataDocumento.toISOString().split('T')[0],
+        observacoes: nota.observacoes,
+      };
+    });
+
+    return {
+      success: true,
+      data: notasFormatadas,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+        hasNext: page * limit < total,
+        hasPrev: page > 1,
       },
     };
   }

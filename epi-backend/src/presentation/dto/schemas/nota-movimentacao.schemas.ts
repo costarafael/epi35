@@ -138,6 +138,31 @@ export const CancelamentoNotaResponseSchema = z.object({
   estoqueAjustado: z.boolean(),
 });
 
+export const ResumoNotaMovimentacaoSchema = z.object({
+  id: IdSchema,
+  numero: z.string(),
+  tipo: TipoNotaMovimentacaoSchema,
+  status: StatusNotaMovimentacaoSchema,
+  responsavel_nome: z.string(),
+  almoxarifado_nome: z.string(),
+  total_itens: z.number(),
+  valor_total: z.number().nullable(),
+  data_documento: z.string(),
+  observacoes: z.string().nullable(),
+});
+
+export const FiltrosResumoNotaMovimentacaoSchema = z.object({
+  numero: z.string().optional(),
+  tipo: TipoNotaMovimentacaoSchema.optional(),
+  status: StatusNotaMovimentacaoSchema.optional(),
+  almoxarifadoId: z.string().min(1).optional(),
+  usuarioId: z.string().min(1).optional(),
+  dataInicio: z.coerce.date().optional(),
+  dataFim: z.coerce.date().optional(),
+  page: z.coerce.number().int().positive().default(1),
+  limit: z.coerce.number().int().positive().max(100).default(10),
+}).strict(false);
+
 // Type exports
 export type CriarNotaMovimentacaoRequest = z.infer<typeof CriarNotaMovimentacaoSchema>;
 export type AdicionarItemNotaRequest = z.infer<typeof AdicionarItemNotaSchema>;
@@ -149,3 +174,5 @@ export type FiltrosNotaMovimentacao = z.infer<typeof FiltrosNotaMovimentacaoSche
 export type NotaMovimentacaoResponse = z.infer<typeof NotaMovimentacaoResponseSchema>;
 export type ProcessamentoNotaResponse = z.infer<typeof ProcessamentoNotaResponseSchema>;
 export type CancelamentoNotaResponse = z.infer<typeof CancelamentoNotaResponseSchema>;
+export type ResumoNotaMovimentacao = z.infer<typeof ResumoNotaMovimentacaoSchema>;
+export type FiltrosResumoNotaMovimentacao = z.infer<typeof FiltrosResumoNotaMovimentacaoSchema>;

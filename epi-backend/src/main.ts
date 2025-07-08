@@ -81,9 +81,8 @@ async function bootstrap() {
     preflightContinue: false,
   });
 
-  // Global pipes - Use Zod validation
+  // Global pipes - Use only ValidationPipe, Zod validation is handled locally
   app.useGlobalPipes(
-    new GlobalZodValidationPipe(),
     new ValidationPipe({
       transform: true,
       whitelist: true,

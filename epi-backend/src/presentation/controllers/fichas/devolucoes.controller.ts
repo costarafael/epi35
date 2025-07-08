@@ -64,7 +64,7 @@ export class DevolucoesController {
   @ApiResponse({ status: 404, description: 'Ficha não encontrada' })
   @ApiResponse({ status: 422, description: 'Entrega não assinada ou item já devolvido' })
   async processarDevolucao(
-    @Param('fichaId', new ZodValidationPipe(IdSchema)) 
+    @Param('fichaId') 
     fichaId: string,
     @Body(new ZodValidationPipe(ProcessarDevolucaoSchema)) 
     devolucaoDto: ProcessarDevolucaoRequest,
@@ -98,7 +98,7 @@ export class DevolucoesController {
   @ApiResponse({ status: 200, description: 'Histórico obtido com sucesso' })
   @ApiResponse({ status: 404, description: 'Ficha não encontrada' })
   async obterHistoricoDevolucoes(
-    @Param('fichaId', new ZodValidationPipe(IdSchema)) 
+    @Param('fichaId') 
     fichaId: string,
     @Query(new ZodValidationPipe(FiltrosHistoricoDevolucaoSchema)) 
     filtros: FiltrosHistoricoDevolucao,

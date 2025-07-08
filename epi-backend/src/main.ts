@@ -81,14 +81,14 @@ async function bootstrap() {
     preflightContinue: false,
   });
 
-  // Global pipes - Temporarily disabled to test UUID validation issue
-  // app.useGlobalPipes(
-  //   new ValidationPipe({
-  //     transform: true,
-  //     whitelist: true,
-  //     forbidNonWhitelisted: true,
-  //   }),
-  // );
+  // Global pipes - Re-enabled after fixing controller route conflicts
+  app.useGlobalPipes(
+    new ValidationPipe({
+      transform: true,
+      whitelist: true,
+      forbidNonWhitelisted: true,
+    }),
+  );
 
   // Global filters
   app.useGlobalFilters(new HttpExceptionFilter());

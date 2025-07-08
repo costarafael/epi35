@@ -87,19 +87,19 @@ export class DevolucoesController {
     };
   }
 
-  @Get(':fichaId/historico-devolucoes')
+  @Get('historico-global')
   @ApiOperation({ 
     summary: 'Histórico de devoluções da ficha',
     description: 'Retorna histórico das devoluções de uma ficha específica',
   })
-  @ApiParam({ name: 'fichaId', type: String, format: 'uuid' })
+  @ApiQuery({ name: 'colaboradorId', required: false, type: String, description: 'ID do colaborador' })
+  @ApiQuery({ name: 'tipoEpiId', required: false, type: String, description: 'ID do tipo de EPI' })
+  @ApiQuery({ name: 'dataInicio', required: false, type: String, format: 'date' })
+  @ApiQuery({ name: 'dataFim', required: false, type: String, format: 'date' })
   @ApiQuery({ name: 'page', required: false, type: Number, description: 'Página (padrão: 1)' })
   @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Itens por página (padrão: 10)' })
-  @ApiResponse({ status: 200, description: 'Histórico obtido com sucesso' })
-  @ApiResponse({ status: 404, description: 'Ficha não encontrada' })
+  @ApiResponse({ status: 200, description: 'Histórico global obtido com sucesso' })
   async obterHistoricoDevolucoes(
-    @Param('fichaId') 
-    fichaId: string,
     @Query() 
     filtros: any,
   ): Promise<PaginatedResponse> {

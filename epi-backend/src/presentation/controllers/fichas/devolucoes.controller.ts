@@ -28,7 +28,7 @@ import { DevolucaoFormatterService } from '../../../shared/formatters/devolucao-
 
 @ApiTags('fichas-epi')
 @ApiBearerAuth()
-@Controller('teste-devolucoes')
+@Controller('fichas-epi')
 export class DevolucoesController {
   constructor(
     private readonly processarDevolucaoUseCase: ProcessarDevolucaoUseCase,

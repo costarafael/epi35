@@ -59,6 +59,7 @@ export class ConcluirNotaMovimentacaoUseCase {
     private readonly movimentacaoRepository: IMovimentacaoRepository,
     @Inject('IEstoqueRepository')
     private readonly estoqueRepository: IEstoqueRepository,
+    @Inject(PrismaService)
     private readonly prisma: PrismaService,
     private readonly configuracaoService: ConfiguracaoService,
   ) {}

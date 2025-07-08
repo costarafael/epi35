@@ -1,4 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
+import { Test } from '@nestjs/testing';
+import { ConfigService } from '@nestjs/config';
 import { ConcluirNotaMovimentacaoUseCase } from '@application/use-cases/estoque/concluir-nota-movimentacao.use-case';
 import { NotaRepository } from '@infrastructure/repositories/nota.repository';
 import { MovimentacaoRepository } from '@infrastructure/repositories/movimentacao.repository';
@@ -23,13 +25,35 @@ describe('ConcluirNotaMovimentacaoUseCase - Integration Tests', () => {
   // let _estoqueRepository: EstoqueRepository;
 
   beforeEach(async () => {
-    testSetup = await createTestSetup({
-      imports: [
-        // Import the ApplicationModule to get all the required services
-      ],
+    testSetup = await createTestSetup();
+
+    // Override providers to add the missing services
+    await testSetup.app.close(); // Close the initial app
+
+    // Create a new test module with all required providers
+    const moduleBuilder = Test.createTestingModule({
       providers: [
         ConcluirNotaMovimentacaoUseCase,
         ConfiguracaoService,
+        {
+          provide: PrismaService,
+          useValue: testSetup.prismaService,
+        },
+        {
+          provide: ConfigService,
+          useValue: {
+            get: (key: string, defaultValue?: any) => {
+              const config = {
+                DATABASE_URL: 'postgresql://postgres:postgres@localhost:5436/epi_test_db_v35?schema=public',
+                NODE_ENV: 'test',
+                PERMITIR_ESTOQUE_NEGATIVO: 'false',
+                PERMITIR_AJUSTES_FORCADOS: 'true',
+                ESTOQUE_MINIMO_EQUIPAMENTO: '10',
+              };
+              return config[key] || defaultValue;
+            },
+          },
+        },
         {
           provide: 'INotaRepository',
           useFactory: (prisma: PrismaService) => new NotaRepository(prisma),
@@ -63,6 +87,10 @@ describe('ConcluirNotaMovimentacaoUseCase - Integration Tests', () => {
       ],
     });
 
+    const moduleFixture = await moduleBuilder.compile();
+    testSetup.app = moduleFixture.createNestApplication();
+    await testSetup.app.init();
+
     useCase = testSetup.app.get<ConcluirNotaMovimentacaoUseCase>(ConcluirNotaMovimentacaoUseCase);
     // _notaRepository = testSetup.app.get<NotaRepository>(NotaRepository);
     // _movimentacaoRepository = testSetup.app.get<MovimentacaoRepository>(MovimentacaoRepository);
@@ -92,7 +120,7 @@ describe('ConcluirNotaMovimentacaoUseCase - Integration Tests', () => {
         data: {
           numeroDocumento: 'ENTRADA-001',
           tipoNota: TipoNotaMovimentacao.ENTRADA,
-          almoxarifadoOrigem: { connect: { id: almoxarifado.id } },
+          // almoxarifadoOrigem: não deve ser informado para ENTRADA
           almoxarifadoDestino: { connect: { id: almoxarifado.id } },
           responsavel: { connect: { id: usuario.id } },
           status: StatusNotaMovimentacao.RASCUNHO,
@@ -258,6 +286,7 @@ describe('ConcluirNotaMovimentacaoUseCase - Integration Tests', () => {
           numeroDocumento: 'DESC-001',
           tipoNota: TipoNotaMovimentacao.DESCARTE,
           almoxarifadoOrigem: { connect: { id: almoxarifado.id } },
+          // almoxarifadoDestino: não deve ser informado para DESCARTE
           responsavel: { connect: { id: usuario.id } },
           status: StatusNotaMovimentacao.RASCUNHO,
           observacoes: 'EPIs vencidos - descarte',
@@ -319,7 +348,7 @@ describe('ConcluirNotaMovimentacaoUseCase - Integration Tests', () => {
         data: {
           numeroDocumento: 'AJUSTE-001',
           tipoNota: TipoNotaMovimentacao.ENTRADA_AJUSTE,
-          almoxarifadoOrigem: { connect: { id: almoxarifado.id } },
+          // almoxarifadoOrigem: não deve ser informado para AJUSTE
           almoxarifadoDestino: { connect: { id: almoxarifado.id } },
           responsavel: { connect: { id: usuario.id } },
           status: StatusNotaMovimentacao.RASCUNHO,
@@ -390,7 +419,7 @@ describe('ConcluirNotaMovimentacaoUseCase - Integration Tests', () => {
         data: {
           numeroDocumento: 'CONCLUIDA-001',
           tipoNota: TipoNotaMovimentacao.ENTRADA,
-          almoxarifadoOrigem: { connect: { id: almoxarifado.id } },
+          // almoxarifadoOrigem: não deve ser informado para ENTRADA
           almoxarifadoDestino: { connect: { id: almoxarifado.id } },
           responsavel: { connect: { id: usuario.id } },
           status: StatusNotaMovimentacao.CONCLUIDA, // Já concluída
@@ -418,7 +447,7 @@ describe('ConcluirNotaMovimentacaoUseCase - Integration Tests', () => {
         data: {
           numeroDocumento: 'SEM-ITENS-001',
           tipoNota: TipoNotaMovimentacao.ENTRADA,
-          almoxarifadoOrigem: { connect: { id: almoxarifado.id } },
+          // almoxarifadoOrigem: não deve ser informado para ENTRADA
           almoxarifadoDestino: { connect: { id: almoxarifado.id } },
           responsavel: { connect: { id: usuario.id } },
           status: StatusNotaMovimentacao.RASCUNHO,
@@ -566,7 +595,7 @@ describe('ConcluirNotaMovimentacaoUseCase - Integration Tests', () => {
         data: {
           numeroDocumento: 'MULTIPLOS-001',
           tipoNota: TipoNotaMovimentacao.ENTRADA,
-          almoxarifadoOrigem: { connect: { id: almoxarifado.id } },
+          // almoxarifadoOrigem: não deve ser informado para ENTRADA
           almoxarifadoDestino: { connect: { id: almoxarifado.id } },
           responsavel: { connect: { id: usuario.id } },
           status: StatusNotaMovimentacao.RASCUNHO,

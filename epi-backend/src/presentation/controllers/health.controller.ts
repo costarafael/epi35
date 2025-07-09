@@ -49,4 +49,39 @@ export class HealthController {
       });
     }
   }
+
+  @Post('seed-demo')
+  async runDemoSeed(@Res() res: Response) {
+    try {
+      console.log('🎭 Running demo seed for production...');
+      
+      // Execute demo seed script
+      execSync('npx ts-node prisma/seed-demo.ts', { 
+        stdio: 'inherit',
+        cwd: process.cwd(),
+        env: {
+          ...process.env,
+          NODE_ENV: 'production'
+        }
+      });
+      
+      console.log('✅ Demo seed completed successfully!');
+      
+      return res.status(HttpStatus.OK).json({
+        status: 'success',
+        message: 'Demo seed completed successfully',
+        description: 'Database populated with: 20 companies, 200 employees, 25 EPI types, stock movements, deliveries, and returns',
+        timestamp: new Date().toISOString(),
+      });
+      
+    } catch (error) {
+      console.error('❌ Demo seed failed:', error.message);
+      return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
+        status: 'error',
+        message: 'Demo seed failed',
+        error: error.message,
+        timestamp: new Date().toISOString(),
+      });
+    }
+  }
 }

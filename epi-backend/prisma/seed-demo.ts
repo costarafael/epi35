@@ -41,30 +41,30 @@ const CONTRATADAS_REAIS = [
 // Tipos de EPI mais comuns conforme CA do Ministério do Trabalho
 const TIPOS_EPI_COMUNS = [
   { nome: 'Capacete de Segurança Classe A', ca: 'CA-31469', categoria: 'PROTECAO_CABECA' as const, vidaUtil: 1800 },
-  { nome: 'Capacete de Segurança Classe B', ca: 'CA-35519', categoria: 'PROTECAO_CABECA', vidaUtil: 1800 },
-  { nome: 'Óculos de Proteção Ampla Visão', ca: 'CA-25716', categoria: 'PROTECAO_OLHOS_ROSTO', vidaUtil: 720 },
-  { nome: 'Óculos de Proteção Contra Impactos', ca: 'CA-15700', categoria: 'PROTECAO_OLHOS_ROSTO', vidaUtil: 540 },
-  { nome: 'Protetor Facial de Acrílico', ca: 'CA-19775', categoria: 'PROTECAO_OLHOS_ROSTO', vidaUtil: 720 },
-  { nome: 'Protetor Auditivo de Inserção', ca: 'CA-5674', categoria: 'PROTECAO_OUVIDOS', vidaUtil: 240 },
-  { nome: 'Protetor Auditivo Tipo Concha', ca: 'CA-12506', categoria: 'PROTECAO_OUVIDOS', vidaUtil: 1080 },
-  { nome: 'Luva de Raspa de Couro', ca: 'CA-29219', categoria: 'PROTECAO_MAOS_BRACCOS', vidaUtil: 180 },
-  { nome: 'Luva de Vaqueta', ca: 'CA-15799', categoria: 'PROTECAO_MAOS_BRACCOS', vidaUtil: 180 },
-  { nome: 'Luva de Malha de Aço', ca: 'CA-26918', categoria: 'PROTECAO_MAOS_BRACCOS', vidaUtil: 720 },
-  { nome: 'Luva de Látex Natural', ca: 'CA-11288', categoria: 'PROTECAO_MAOS_BRACCOS', vidaUtil: 90 },
-  { nome: 'Luva de Borracha Nitrílica', ca: 'CA-28414', categoria: 'PROTECAO_MAOS_BRACCOS', vidaUtil: 180 },
-  { nome: 'Botina de Segurança com Bico de Aço', ca: 'CA-28914', categoria: 'PROTECAO_PES', vidaUtil: 720 },
-  { nome: 'Sapato de Segurança', ca: 'CA-37501', categoria: 'PROTECAO_PES', vidaUtil: 720 },
-  { nome: 'Bota de Borracha', ca: 'CA-39186', categoria: 'PROTECAO_PES', vidaUtil: 540 },
-  { nome: 'Máscara Respiratória PFF2', ca: 'CA-38437', categoria: 'PROTECAO_RESPIRATORIA', vidaUtil: 30 },
-  { nome: 'Máscara Respiratória PFF1', ca: 'CA-26351', categoria: 'PROTECAO_RESPIRATORIA', vidaUtil: 30 },
-  { nome: 'Respirador Semifacial', ca: 'CA-5756', categoria: 'PROTECAO_RESPIRATORIA', vidaUtil: 1080 },
-  { nome: 'Cinto de Segurança Tipo Paraquedista', ca: 'CA-35147', categoria: 'PROTECAO_CLIMATICA', vidaUtil: 1800 },
-  { nome: 'Trava-Quedas', ca: 'CA-31467', categoria: 'PROTECAO_CLIMATICA', vidaUtil: 1800 },
-  { nome: 'Avental de Raspa de Couro', ca: 'CA-32890', categoria: 'PROTECAO_CLIMATICA', vidaUtil: 360 },
-  { nome: 'Manga de Raspa de Couro', ca: 'CA-29891', categoria: 'PROTECAO_CLIMATICA', vidaUtil: 360 },
-  { nome: 'Roupa de Aproximação ao Calor', ca: 'CA-34567', categoria: 'ROUPA_APROXIMACAO', vidaUtil: 540 },
-  { nome: 'Colete Refletivo', ca: 'CA-40567', categoria: 'PROTECAO_CLIMATICA', vidaUtil: 720 },
-  { nome: 'Uniforme de Segurança', ca: 'CA-41234', categoria: 'PROTECAO_CLIMATICA', vidaUtil: 360 },
+  { nome: 'Capacete de Segurança Classe B', ca: 'CA-35519', categoria: 'PROTECAO_CABECA' as const, vidaUtil: 1800 },
+  { nome: 'Óculos de Proteção Ampla Visão', ca: 'CA-25716', categoria: 'PROTECAO_OLHOS_ROSTO' as const, vidaUtil: 720 },
+  { nome: 'Óculos de Proteção Contra Impactos', ca: 'CA-15700', categoria: 'PROTECAO_OLHOS_ROSTO' as const, vidaUtil: 540 },
+  { nome: 'Protetor Facial de Acrílico', ca: 'CA-19775', categoria: 'PROTECAO_OLHOS_ROSTO' as const, vidaUtil: 720 },
+  { nome: 'Protetor Auditivo de Inserção', ca: 'CA-5674', categoria: 'PROTECAO_OUVIDOS' as const, vidaUtil: 240 },
+  { nome: 'Protetor Auditivo Tipo Concha', ca: 'CA-12506', categoria: 'PROTECAO_OUVIDOS' as const, vidaUtil: 1080 },
+  { nome: 'Luva de Raspa de Couro', ca: 'CA-29219', categoria: 'PROTECAO_MAOS_BRACCOS' as const, vidaUtil: 180 },
+  { nome: 'Luva de Vaqueta', ca: 'CA-15799', categoria: 'PROTECAO_MAOS_BRACCOS' as const, vidaUtil: 180 },
+  { nome: 'Luva de Malha de Aço', ca: 'CA-26918', categoria: 'PROTECAO_MAOS_BRACCOS' as const, vidaUtil: 720 },
+  { nome: 'Luva de Látex Natural', ca: 'CA-11288', categoria: 'PROTECAO_MAOS_BRACCOS' as const, vidaUtil: 90 },
+  { nome: 'Luva de Borracha Nitrílica', ca: 'CA-28414', categoria: 'PROTECAO_MAOS_BRACCOS' as const, vidaUtil: 180 },
+  { nome: 'Botina de Segurança com Bico de Aço', ca: 'CA-28914', categoria: 'PROTECAO_PES' as const, vidaUtil: 720 },
+  { nome: 'Sapato de Segurança', ca: 'CA-37501', categoria: 'PROTECAO_PES' as const, vidaUtil: 720 },
+  { nome: 'Bota de Borracha', ca: 'CA-39186', categoria: 'PROTECAO_PES' as const, vidaUtil: 540 },
+  { nome: 'Máscara Respiratória PFF2', ca: 'CA-38437', categoria: 'PROTECAO_RESPIRATORIA' as const, vidaUtil: 30 },
+  { nome: 'Máscara Respiratória PFF1', ca: 'CA-26351', categoria: 'PROTECAO_RESPIRATORIA' as const, vidaUtil: 30 },
+  { nome: 'Respirador Semifacial', ca: 'CA-5756', categoria: 'PROTECAO_RESPIRATORIA' as const, vidaUtil: 1080 },
+  { nome: 'Cinto de Segurança Tipo Paraquedista', ca: 'CA-35147', categoria: 'PROTECAO_CLIMATICA' as const, vidaUtil: 1800 },
+  { nome: 'Trava-Quedas', ca: 'CA-31467', categoria: 'PROTECAO_CLIMATICA' as const, vidaUtil: 1800 },
+  { nome: 'Avental de Raspa de Couro', ca: 'CA-32890', categoria: 'PROTECAO_CLIMATICA' as const, vidaUtil: 360 },
+  { nome: 'Manga de Raspa de Couro', ca: 'CA-29891', categoria: 'PROTECAO_CLIMATICA' as const, vidaUtil: 360 },
+  { nome: 'Roupa de Aproximação ao Calor', ca: 'CA-34567', categoria: 'ROUPA_APROXIMACAO' as const, vidaUtil: 540 },
+  { nome: 'Colete Refletivo', ca: 'CA-40567', categoria: 'PROTECAO_CLIMATICA' as const, vidaUtil: 720 },
+  { nome: 'Uniforme de Segurança', ca: 'CA-41234', categoria: 'PROTECAO_CLIMATICA' as const, vidaUtil: 360 },
 ];
 
 // Nomes brasileiros comuns para colaboradores
@@ -381,7 +381,6 @@ async function criarEntregas(fichas: any[], almoxarifados: any[], usuarios: any[
         almoxarifadoId: almoxarifado.id,
         responsavelId: responsavel.id,
         status: 'ASSINADA',
-        createdAt: dataEntrega,
       },
     });
     
@@ -452,7 +451,9 @@ async function criarDevolucoes(entregas: any[], usuarios: any[]) {
     // Buscar itens da entrega
     const itensEntrega = await prisma.entregaItem.findMany({
       where: { entregaId: entrega.id },
-      include: { estoqueItemOrigem: true },
+      include: { 
+        estoqueItem: true,
+      },
     });
     
     // Devolver alguns itens (30-70% dos itens)
@@ -485,8 +486,8 @@ async function criarDevolucoes(entregas: any[], usuarios: any[]) {
       // Criar item de estoque em quarentena
       const itemExistente = await prisma.estoqueItem.findFirst({
         where: {
-          almoxarifadoId: itemEntrega.estoqueItemOrigem.almoxarifadoId,
-          tipoEpiId: itemEntrega.estoqueItemOrigem.tipoEpiId,
+          almoxarifadoId: itemEntrega.estoqueItem.almoxarifadoId,
+          tipoEpiId: itemEntrega.estoqueItem.tipoEpiId,
           status: 'QUARENTENA',
         },
       });
@@ -503,10 +504,10 @@ async function criarDevolucoes(entregas: any[], usuarios: any[]) {
       } else {
         await prisma.estoqueItem.create({
           data: {
-            almoxarifadoId: itemEntrega.estoqueItemOrigem.almoxarifadoId,
-            tipoEpiId: itemEntrega.estoqueItemOrigem.tipoEpiId,
+            almoxarifadoId: itemEntrega.estoqueItem.almoxarifadoId,
+            tipoEpiId: itemEntrega.estoqueItem.tipoEpiId,
             quantidade: quantidadeDevolucao,
-            custoUnitario: itemEntrega.estoqueItemOrigem.custoUnitario,
+            custoUnitario: itemEntrega.estoqueItem.custoUnitario,
             status: 'QUARENTENA',
           },
         });

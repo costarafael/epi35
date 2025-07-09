@@ -81,6 +81,7 @@ export class GerenciarNotaRascunhoUseCase {
       input.notaId,
       input.tipoEpiId,
       input.quantidade,
+      input.custoUnitario,
       input.observacoes,
     );
   }

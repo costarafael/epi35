@@ -34,6 +34,7 @@ export const CriarNotaMovimentacaoSchema = z.object({
 export const AdicionarItemNotaSchema = z.object({
   tipoEpiId: IdSchema,
   quantidade: z.number().int().positive('Quantidade deve ser positiva'),
+  custoUnitario: z.number().nonnegative('Custo unitário não pode ser negativo').optional(),
   observacoes: ObservacoesSchema,
 });
 

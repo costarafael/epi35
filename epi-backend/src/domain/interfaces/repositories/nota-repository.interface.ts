@@ -62,6 +62,7 @@ export interface INotaRepository extends IBaseRepository<NotaMovimentacao> {
     notaId: string,
     tipoEpiId: string,
     quantidade: number,
+    custoUnitario?: number,
     observacoes?: string,
   ): Promise<void>;
 

@@ -51,6 +51,7 @@ export class CriarTipoEpiUseCase {
     const tipoEpi = await this.prisma.tipoEPI.create({
       data: {
         // ID será gerado automaticamente pelo middleware customIdMiddleware
+        id: '', // Placeholder que será substituído pelo middleware
         nomeEquipamento: tipoEpiData.nomeEquipamento,
         numeroCa: tipoEpiData.numeroCa,
         categoria: tipoEpiData.categoria,

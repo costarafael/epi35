@@ -16,23 +16,29 @@ export const customIdMiddleware: Prisma.Middleware = async (params, next) => {
   if (params.action === 'create') {
     const { model, args } = params;
 
+    // Log para debugging
+    console.log(`🔧 Middleware: Creating ${model}`, args.data.id ? 'with ID' : 'without ID');
+
     // Gera ID customizado baseado no modelo
     switch (model) {
       case 'Entrega':
         if (!args.data.id) {
           args.data.id = generateEntregaId();
+          console.log(`🆔 Generated Entrega ID: ${args.data.id}`);
         }
         break;
         
       case 'EstoqueItem':
         if (!args.data.id) {
           args.data.id = generateEstoqueItemId();
+          console.log(`🆔 Generated EstoqueItem ID: ${args.data.id}`);
         }
         break;
         
       case 'TipoEPI':
         if (!args.data.id) {
           args.data.id = generateTipoEpiId();
+          console.log(`🆔 Generated TipoEPI ID: ${args.data.id}`);
         }
         break;
     }

@@ -14,28 +14,28 @@ const CONFIG = {
   percentualDevolucoes: 0.2, // 20% das entregas terão devoluções
 };
 
-// Dados reais de contratadas brasileiras
+// Dados reais de contratadas brasileiras com CNPJs válidos
 const CONTRATADAS_REAIS = [
-  { nome: 'Construtora Andrade Gutierrez S.A.', cnpj: '17262213000364' },
-  { nome: 'Odebrecht Construções e Engenharia S.A.', cnpj: '15102288000182' },
-  { nome: 'Camargo Corrêa Construções e Participações S.A.', cnpj: '61625493000123' },
-  { nome: 'Queiroz Galvão Construções S.A.', cnpj: '33169817000176' },
-  { nome: 'OAS Engenharia e Construções S.A.', cnpj: '05711171000130' },
-  { nome: 'Engevix Engenharia S.A.', cnpj: '20611729000190' },
-  { nome: 'Serveng Civilsan S.A.', cnpj: '44734671000109' },
-  { nome: 'Construcap CCPS Engenharia e Comércio S.A.', cnpj: '47046992000156' },
-  { nome: 'Mendes Júnior Trading e Engenharia S.A.', cnpj: '17184602000104' },
-  { nome: 'Construtora Norberto Odebrecht S.A.', cnpj: '15102288000263' },
-  { nome: 'Techint Engenharia e Construção S.A.', cnpj: '04669443000108' },
-  { nome: 'Construtora Barbosa Mello S.A.', cnpj: '33134038000141' },
-  { nome: 'Galvão Engenharia S.A.', cnpj: '44820719000157' },
-  { nome: 'Construções e Comércio Camargo Corrêa S.A.', cnpj: '61625493000204' },
-  { nome: 'Skanska Brasil S.A.', cnpj: '42278473000103' },
-  { nome: 'Método Engenharia S.A.', cnpj: '77816766000145' },
-  { nome: 'Construtora Triunfo S.A.', cnpj: '91143711000157' },
-  { nome: 'Construtora Tenda S.A.', cnpj: '11284210000139' },
-  { nome: 'Cyrela Brazil Realty S.A.', cnpj: '73178600000143' },
-  { nome: 'MRV Engenharia e Participações S.A.', cnpj: '08343492000120' },
+  { nome: 'Construtora Andrade Gutierrez S.A.', cnpj: '39758577000100' },
+  { nome: 'Odebrecht Construções e Engenharia S.A.', cnpj: '15388679000105' },
+  { nome: 'Camargo Corrêa Construções e Participações S.A.', cnpj: '48919621000108' },
+  { nome: 'Queiroz Galvão Construções S.A.', cnpj: '65658550000148' },
+  { nome: 'OAS Engenharia e Construções S.A.', cnpj: '69213951000145' },
+  { nome: 'Engevix Engenharia S.A.', cnpj: '08696359000157' },
+  { nome: 'Serveng Civilsan S.A.', cnpj: '09206939000181' },
+  { nome: 'Construcap CCPS Engenharia e Comércio S.A.', cnpj: '13539270000117' },
+  { nome: 'Mendes Júnior Trading e Engenharia S.A.', cnpj: '72106826000140' },
+  { nome: 'Construtora Norberto Odebrecht S.A.', cnpj: '07412299000130' },
+  { nome: 'Techint Engenharia e Construção S.A.', cnpj: '94542632000120' },
+  { nome: 'Construtora Barbosa Mello S.A.', cnpj: '72496007000157' },
+  { nome: 'Galvão Engenharia S.A.', cnpj: '71224012000148' },
+  { nome: 'Construções e Comércio Camargo Corrêa S.A.', cnpj: '88353437000150' },
+  { nome: 'Skanska Brasil S.A.', cnpj: '64126211000158' },
+  { nome: 'Método Engenharia S.A.', cnpj: '75014583000109' },
+  { nome: 'Construtora Triunfo S.A.', cnpj: '97417482000111' },
+  { nome: 'Construtora Tenda S.A.', cnpj: '23656472000100' },
+  { nome: 'Cyrela Brazil Realty S.A.', cnpj: '69839775000151' },
+  { nome: 'MRV Engenharia e Participações S.A.', cnpj: '41090639000192' },
 ];
 
 // Tipos de EPI mais comuns conforme CA do Ministério do Trabalho
@@ -99,21 +99,43 @@ const CARGOS_SETORES = [
   { cargo: 'Coordenador de Obras', setor: 'Engenharia' },
 ];
 
-// Função para gerar CPF válido
-function gerarCPF(): string {
-  const cpf = Array.from({ length: 9 }, () => Math.floor(Math.random() * 10));
-  
-  // Primeiro dígito verificador
-  let soma = cpf.reduce((acc, digit, index) => acc + digit * (10 - index), 0);
-  const digito1 = soma % 11 < 2 ? 0 : 11 - (soma % 11);
-  cpf.push(digito1);
-  
-  // Segundo dígito verificador
-  soma = cpf.reduce((acc, digit, index) => acc + digit * (11 - index), 0);
-  const digito2 = soma % 11 < 2 ? 0 : 11 - (soma % 11);
-  cpf.push(digito2);
-  
-  return cpf.join('');
+// Lista de CPFs válidos pré-gerados
+const CPFS_VALIDOS = [
+  '98721761248', '51333961391', '93900403023', '31348877464', '45141010104', '90814225888', '08873513603', '26141488900', '12253003557', '89642070332',
+  '49501404935', '28012487543', '81415282463', '24448526992', '48204140380', '62923277872', '59190296257', '61476431850', '10071115269', '17860076810',
+  '67652469597', '13047683689', '01198561823', '23260825916', '45463617007', '69565606318', '27194322374', '80480948518', '71233996339', '68598507016',
+  '29639616699', '17380266209', '67384275490', '18340631918', '89798533437', '21848022042', '05507115621', '68936922777', '40467636125', '67459087270',
+  '86464688448', '77634295930', '24529969045', '79313900165', '98535242953', '18696476450', '73932073703', '81432310542', '87440143760', '56691720865',
+  '54319509676', '94636878825', '13671857269', '26792795224', '56527031726', '48768917880', '32585547302', '12162179121', '54475103096', '13954690241',
+  '90742735729', '74535484627', '32874090182', '43412113409', '81801642419', '45536611950', '23643856369', '43508783006', '18365001144', '03443201628',
+  '86956619890', '48819911914', '62945492725', '23800003287', '46737621260', '84380031845', '11428612521', '44298728803', '71564340040', '07189741402',
+  '12005576549', '49026663404', '76845964629', '44591164993', '84597868380', '90142746371', '51024725855', '86336174719', '95394520666', '14283272159',
+  '30377373796', '07831998489', '18062174492', '24682590332', '89394354352', '65341689364', '08680092452', '36664535700', '48122122949', '81812275145',
+  '50162434502', '04205081715', '33254557352', '18613473830', '53437374630', '01165730073', '68098534308', '49266136891', '98275969506', '09498350647',
+  '50154413712', '79215641513', '42654488284', '75320023146', '95684436498', '72024468209', '31338762010', '44338119802', '57926011789', '62675327204',
+  '94599436160', '86080182920', '40911386165', '38214752779', '97996788979', '57203223299', '77428746876', '96343604324', '01814668721', '39199093219',
+  '50894778331', '42999071833', '35236343003', '58252294855', '03117774904', '51903480752', '41238655181', '46406659465', '17225532430', '71921209607',
+  '06681900860', '06886321307', '27320323010', '94004904960', '85396412089', '53123513424', '86661838531', '90151580022', '16290175661', '87806034161',
+  '10044457090', '08691368950', '31393555721', '36573688171', '23830964900', '35174152358', '54539055062', '11353710327', '34727913305', '46088027550',
+  '79584689037', '87610902802', '63461233781', '64632245372', '52862905313', '36111087584', '83489646819', '28676541221', '32345933615', '65984614642',
+  '68480935308', '91170027881', '29477208493', '51496605829', '64371373712', '85933164925', '61464044970', '37254399319', '38222216783', '69278700754',
+  '34300957002', '11208792059', '74402297206', '82629127052', '33997426813', '34945399603', '07022065632', '03256057772', '87027752042', '31024210596',
+  '53771440238', '17949338598', '39209888251', '28942084052', '19607423704', '50793027632', '10809742373', '42057321550', '92465828886', '37014074954',
+  '06222664466', '05071083531', '57256758154', '01637409419', '37306048643', '90780783328', '97752805599', '90624522130', '52114119602', '68482296957',
+  '31402176503', '54120384250', '46846465723', '80535927401', '02746946203', '72984165373', '00766595692', '72675994600', '08759226781', '75330142865',
+  '05447938899', '94241521320', '48928883890', '93361152941', '10048704695', '89401784590', '10020201826', '75531064373', '87336571140', '99945996231',
+  '27135147111', '98724150304', '46775881983', '22534826506', '90957077416', '48018909466', '52986846700', '61650876203', '62794339869', '71370092474',
+  '41775198200', '42797998227', '04733983387', '53568260522', '50292240503', '45193357954', '99571895571', '07158256316', '34702023624', '05024474198',
+  '60971145911', '81928028683', '37324246001', '34309460771', '70548078807', '38438825842', '75803791555', '14378767066', '18224904997', '60392429659',
+  '38970144323', '80611564580', '48887889520', '84295871877', '44356610636', '50499977718', '37739332402', '29807459796', '04114964258', '41966756542',
+  '23763596003', '01487713193', '90011118156', '96805885051', '79282060306', '49667443507', '35988931677', '69040940282', '41926143590', '62474623604',
+  '06809760512', '03134260662', '34991588928', '29208874915', '63261305657', '99614506121', '64884973836', '61438623623', '54993462085', '04320698959',
+  '03869718544', '07639943671', '77279547133', '23549388020', '87339525580', '81656057476', '41572757132', '10008952388', '20066262640', '78222710591',
+];
+
+// Função para obter CPF válido da lista
+function obterCPFValido(index: number): string {
+  return CPFS_VALIDOS[index % CPFS_VALIDOS.length];
 }
 
 // Função para gerar matrícula única
@@ -186,6 +208,7 @@ async function criarColaboradores(contratadas: any[], unidadeNegocio: any) {
   
   const colaboradores = [];
   let nomeIndex = 0;
+  let cpfIndex = 0;
   
   for (const contratada of contratadas) {
     const prefix = contratada.nome.split(' ')[0].substring(0, 3).toUpperCase();
@@ -197,7 +220,7 @@ async function criarColaboradores(contratadas: any[], unidadeNegocio: any) {
       const colaborador = await prisma.colaborador.create({
         data: {
           nome: nome,
-          cpf: gerarCPF(),
+          cpf: obterCPFValido(cpfIndex),
           matricula: gerarMatricula(i + 1, prefix),
           cargo: cargoSetor.cargo,
           setor: cargoSetor.setor,
@@ -209,6 +232,7 @@ async function criarColaboradores(contratadas: any[], unidadeNegocio: any) {
       
       colaboradores.push(colaborador);
       nomeIndex++;
+      cpfIndex++;
     }
   }
   
@@ -226,6 +250,7 @@ async function criarTiposEPI() {
     const tipoEpi = await prisma.tipoEPI.create({
       data: {
         // ID será gerado automaticamente pelo middleware
+        id: '', // Placeholder que será substituído pelo middleware
         nomeEquipamento: tipo.nome,
         numeroCa: tipo.ca,
         categoria: tipo.categoria,
@@ -254,6 +279,7 @@ async function criarEstoqueInicial(almoxarifados: any[], tiposEpi: any[]) {
       const estoqueItem = await prisma.estoqueItem.create({
         data: {
           // ID será gerado automaticamente pelo middleware
+          id: '', // Placeholder que será substituído pelo middleware
           almoxarifadoId: almoxarifado.id,
           tipoEpiId: tipoEpi.id,
           quantidade: quantidade,
@@ -377,6 +403,7 @@ async function criarEntregas(fichas: any[], almoxarifados: any[], usuarios: any[
     const entrega = await prisma.entrega.create({
       data: {
         // ID será gerado automaticamente pelo middleware
+        id: '', // Placeholder que será substituído pelo middleware
         fichaEpiId: ficha.id,
         almoxarifadoId: almoxarifado.id,
         responsavelId: responsavel.id,
@@ -504,6 +531,7 @@ async function criarDevolucoes(entregas: any[], usuarios: any[]) {
       } else {
         await prisma.estoqueItem.create({
           data: {
+            id: '', // Placeholder que será substituído pelo middleware
             almoxarifadoId: itemEntrega.estoqueItem.almoxarifadoId,
             tipoEpiId: itemEntrega.estoqueItem.tipoEpiId,
             quantidade: quantidadeDevolucao,

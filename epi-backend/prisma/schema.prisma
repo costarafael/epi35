@@ -163,7 +163,7 @@ model Almoxarifado {
 }
 
 model TipoEPI {
-  id              String              @id @default(uuid())
+  id              String              @id
   nomeEquipamento String              @map("nome_equipamento") @db.VarChar(255)
   numeroCa        String              @unique @map("numero_ca") @db.VarChar(50)
   descricao       String?             @db.Text
@@ -180,7 +180,7 @@ model TipoEPI {
 }
 
 model EstoqueItem {
-  id            String                 @id @default(uuid())
+  id            String                 @id
   almoxarifadoId String                @map("almoxarifado_id")
   tipoEpiId     String                 @map("tipo_epi_id")
   quantidade    Int                    @default(0)
@@ -313,7 +313,7 @@ model FichaEPI {
 }
 
 model Entrega {
-  id               String             @id @default(uuid())
+  id               String             @id
   fichaEpiId       String             @map("ficha_epi_id")
   almoxarifadoId   String             @map("almoxarifado_id")
   responsavelId    String             @map("responsavel_id")

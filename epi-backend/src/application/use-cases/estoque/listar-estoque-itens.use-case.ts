@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../infrastructure/database/prisma.service';
 import { BusinessError } from '../../../domain/exceptions/business.exception';
+import { ConfiguracaoService } from '../../../domain/services/configuracao.service';
 
 export interface EstoqueItemOutput {
   id: string;
@@ -31,7 +32,7 @@ export interface EstoqueItemOutput {
 export interface ListarEstoqueItensInput {
   almoxarifadoId?: string;
   tipoEpiId?: string;
-  status?: 'DISPONIVEL' | 'AGUARDANDO_INSPECAO' | 'QUARENTENA';
+  status?: 'DISPONIVEL' | 'AGUARDANDO_INSPECAO' | 'QUARENTENA' | 'SEM_ESTOQUE';
   apenasDisponiveis?: boolean;
   apenasComSaldo?: boolean;
   page?: number;
@@ -50,13 +51,19 @@ export interface ListarEstoqueItensOutput {
 
 @Injectable()
 export class ListarEstoqueItensUseCase {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly configuracaoService: ConfiguracaoService,
+  ) {}
 
   async execute(input: ListarEstoqueItensInput = {}): Promise<ListarEstoqueItensOutput> {
     try {
       const page = input.page || 1;
       const limit = Math.min(input.limit || 50, 100); // Máximo 100 itens por página
       const skip = (page - 1) * limit;
+
+      // Obter configuração do sistema
+      const permitirEstoqueNegativo = await this.configuracaoService.permitirEstoqueNegativo();
 
       // Construir filtros
       const where: any = {};
@@ -69,11 +76,26 @@ export class ListarEstoqueItensUseCase {
         where.tipoEpiId = input.tipoEpiId;
       }
 
-      // Filtro por status específico tem prioridade sobre apenasDisponiveis
-      if (input.status) {
+      // Lógica condicional baseada no status e configuração
+      if (input.status === 'SEM_ESTOQUE') {
+        // Itens sem estoque: quantidade <= 0 E status não é QUARENTENA/AGUARDANDO_INSPECAO
+        where.quantidade = { lte: 0 };
+        where.status = { notIn: ['QUARENTENA', 'AGUARDANDO_INSPECAO'] };
+      } else if (input.status === 'DISPONIVEL') {
+        where.status = 'DISPONIVEL';
+        if (!permitirEstoqueNegativo) {
+          // Se não permite estoque negativo, filtrar apenas itens com quantidade > 0
+          where.quantidade = { gt: 0 };
+        }
+      } else if (input.status) {
+        // Outros status específicos (QUARENTENA, AGUARDANDO_INSPECAO)
         where.status = input.status;
       } else if (input.apenasDisponiveis) {
+        // Filtro legado: apenasDisponiveis
         where.status = 'DISPONIVEL';
+        if (!permitirEstoqueNegativo) {
+          where.quantidade = { gt: 0 };
+        }
       }
 
       if (input.apenasComSaldo) {

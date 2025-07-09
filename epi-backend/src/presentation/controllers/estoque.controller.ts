@@ -20,6 +20,7 @@ import { RelatorioPosicaoEstoqueUseCase } from '../../application/use-cases/quer
 import { RealizarAjusteDirectoUseCase } from '../../application/use-cases/estoque/realizar-ajuste-direto.use-case';
 import { ListarEstoqueItensUseCase } from '../../application/use-cases/estoque/listar-estoque-itens.use-case';
 import { ListarAlmoxarifadosUseCase } from '../../application/use-cases/estoque/listar-almoxarifados.use-case';
+import { ConfiguracaoService } from '../../domain/services/configuracao.service';
 import {
   FiltrosEstoqueSchema,
   AjusteDirectoSchema,
@@ -53,6 +54,7 @@ export class EstoqueController {
     private readonly realizarAjusteDirectoUseCase: RealizarAjusteDirectoUseCase,
     private readonly listarEstoqueItensUseCase: ListarEstoqueItensUseCase,
     private readonly listarAlmoxarifadosUseCase: ListarAlmoxarifadosUseCase,
+    private readonly configuracaoService: ConfiguracaoService,
   ) {}
 
   @Get('posicao')
@@ -413,7 +415,7 @@ export class EstoqueController {
   })
   @ApiQuery({ name: 'almoxarifadoId', required: false, type: String, format: 'uuid', description: 'Filtrar por almoxarifado' })
   @ApiQuery({ name: 'tipoEpiId', required: false, type: String, format: 'uuid', description: 'Filtrar por tipo de EPI' })
-  @ApiQuery({ name: 'status', required: false, enum: ['DISPONIVEL', 'AGUARDANDO_INSPECAO', 'QUARENTENA'], description: 'Filtrar por status do item' })
+  @ApiQuery({ name: 'status', required: false, enum: ['DISPONIVEL', 'AGUARDANDO_INSPECAO', 'QUARENTENA', 'SEM_ESTOQUE'], description: 'Filtrar por status do item' })
   @ApiQuery({ name: 'apenasDisponiveis', required: false, type: Boolean, description: 'Apenas itens disponíveis' })
   @ApiQuery({ name: 'apenasComSaldo', required: false, type: Boolean, description: 'Apenas itens com saldo > 0' })
   @ApiQuery({ name: 'page', required: false, type: Number, description: 'Página (padrão: 1)' })
@@ -519,6 +521,53 @@ export class EstoqueController {
     return {
       success: true,
       data: almoxarifados,
+    };
+  }
+
+  @Get('configuracao-filtros')
+  @ApiOperation({ 
+    summary: 'Obter configuração dos filtros de estoque',
+    description: 'Retorna as configurações que determinam quais filtros/tabs devem ser exibidos no frontend',
+  })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Configuração obtida com sucesso',
+    schema: {
+      type: 'object',
+      properties: {
+        success: { type: 'boolean', example: true },
+        data: {
+          type: 'object',
+          properties: {
+            permitirEstoqueNegativo: { type: 'boolean', description: 'Se permite estoque negativo no sistema' },
+            tabsDisponiveis: {
+              type: 'object',
+              properties: {
+                disponivel: { type: 'boolean', example: true },
+                quarentena: { type: 'boolean', example: true },
+                aguardandoInspecao: { type: 'boolean', example: true },
+                semEstoque: { type: 'boolean', description: 'Se deve exibir a tab "Sem Estoque"' },
+              },
+            },
+          },
+        },
+      },
+    },
+  })
+  async obterConfiguracaoFiltros(): Promise<SuccessResponse> {
+    const permitirEstoqueNegativo = await this.configuracaoService.permitirEstoqueNegativo();
+    
+    return {
+      success: true,
+      data: {
+        permitirEstoqueNegativo,
+        tabsDisponiveis: {
+          disponivel: true,
+          quarentena: true,
+          aguardandoInspecao: true,
+          semEstoque: !permitirEstoqueNegativo
+        }
+      }
     };
   }
 }

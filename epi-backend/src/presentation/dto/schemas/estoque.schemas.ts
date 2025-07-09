@@ -248,7 +248,7 @@ export type AnaliseGiroResponse = z.infer<typeof AnaliseGiroResponseSchema>;
 export const ListarEstoqueItensQuerySchema = z.object({
   almoxarifadoId: IdSchema.optional(),
   tipoEpiId: IdSchema.optional(),
-  status: z.enum(['DISPONIVEL', 'AGUARDANDO_INSPECAO', 'QUARENTENA']).optional(),
+  status: z.enum(['DISPONIVEL', 'AGUARDANDO_INSPECAO', 'QUARENTENA', 'SEM_ESTOQUE']).optional(),
   apenasDisponiveis: z.coerce.boolean().default(false),
   apenasComSaldo: z.coerce.boolean().default(false),
   page: z.coerce.number().int().positive().default(1),

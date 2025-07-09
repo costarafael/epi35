@@ -26,6 +26,7 @@ export interface IContratadaRepository extends IBaseRepository<Contratada> {
         cnpj: string;
       };
       totalColaboradores: number;
+      totalEpisAtivos: number;
     }>;
   }>;
 }

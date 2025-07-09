@@ -155,6 +155,7 @@ export class ContratadaRepository implements IContratadaRepository {
         cnpj: string;
       };
       totalColaboradores: number;
+      totalEpisAtivos: number;
     }>;
   }> {
     const [
@@ -190,6 +191,29 @@ export class ContratadaRepository implements IContratadaRepository {
       }),
     ]);
 
+    // Contar EPIs ativos por contratada
+    const episAtivosPorContratada = await Promise.all(
+      topContratadas.map(async (contratada) => {
+        const totalEpisAtivos = await this.prisma.entregaItem.count({
+          where: {
+            status: 'COM_COLABORADOR',
+            entrega: {
+              fichaEpi: {
+                colaborador: {
+                  contratadaId: contratada.id,
+                },
+              },
+            },
+          },
+        });
+        return { contratadaId: contratada.id, totalEpisAtivos };
+      })
+    );
+
+    const episAtivosMap = new Map(
+      episAtivosPorContratada.map(item => [item.contratadaId, item.totalEpisAtivos])
+    );
+
     return {
       total: totalContratadas,
       colaboradoresVinculados: totalColaboradores,
@@ -201,6 +225,7 @@ export class ContratadaRepository implements IContratadaRepository {
           cnpj: item.cnpj,
         },
         totalColaboradores: item._count.colaboradores,
+        totalEpisAtivos: episAtivosMap.get(item.id) || 0,
       })),
     };
   }

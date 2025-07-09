@@ -142,7 +142,7 @@ export class ContratadaController {
   @Get('estatisticas')
   @ApiOperation({ 
     summary: 'Obter estatísticas das contratadas',
-    description: 'Retorna estatísticas gerais das contratadas e colaboradores vinculados',
+    description: 'Retorna estatísticas gerais das contratadas, colaboradores vinculados e EPIs ativos por contratada',
   })
   @ApiResponse({ 
     status: 200, 
@@ -171,6 +171,7 @@ export class ContratadaController {
                     },
                   },
                   totalColaboradores: { type: 'number' },
+                  totalEpisAtivos: { type: 'number' },
                 },
               },
             },

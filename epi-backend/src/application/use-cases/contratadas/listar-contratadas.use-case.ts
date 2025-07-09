@@ -57,6 +57,7 @@ export class ListarContratadasUseCase {
         cnpjFormatado: string;
       };
       totalColaboradores: number;
+      totalEpisAtivos: number;
     }>;
   }> {
     const stats = await this.contratadaRepository.obterEstatisticas();
@@ -70,6 +71,7 @@ export class ListarContratadasUseCase {
           cnpjFormatado: this.formatCNPJ(item.contratada.cnpj),
         },
         totalColaboradores: item.totalColaboradores,
+        totalEpisAtivos: item.totalEpisAtivos,
       })),
     };
   }

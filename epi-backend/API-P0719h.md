@@ -916,7 +916,7 @@ GET /api/contratadas
 GET /api/contratadas/estatisticas
 ```
 
-**Descrição:** Retorna estatísticas gerais das contratadas e colaboradores vinculados.
+**Descrição:** Retorna estatísticas gerais das contratadas, colaboradores vinculados e EPIs ativos por contratada.
 
 **Resposta:**
 ```json
@@ -933,12 +933,31 @@ GET /api/contratadas/estatisticas
           "nome": "Empresa Alpha LTDA",
           "cnpjFormatado": "12.345.678/0001-95"
         },
-        "totalColaboradores": 45
+        "totalColaboradores": 45,
+        "totalEpisAtivos": 230
       }
     ]
   }
 }
 ```
+
+**Campos da Resposta:**
+- `total`: Total de contratadas cadastradas no sistema
+- `colaboradoresVinculados`: Total de colaboradores vinculados a contratadas
+- `colaboradoresSemContratada`: Total de colaboradores sem contratada vinculada
+- `topContratadas`: Lista das top 5 contratadas ordenadas por número de colaboradores
+  - `contratada.id`: ID único da contratada
+  - `contratada.nome`: Nome da empresa contratada
+  - `contratada.cnpjFormatado`: CNPJ formatado (XX.XXX.XXX/XXXX-XX)
+  - `totalColaboradores`: Número total de colaboradores vinculados à contratada
+  - `totalEpisAtivos`: **[NOVO]** Total de EPIs ativos (status COM_COLABORADOR) da contratada
+
+**Exemplo de Uso:**
+O campo `totalEpisAtivos` representa a quantidade de equipamentos de proteção individual que estão atualmente com os colaboradores da contratada (status COM_COLABORADOR). Útil para:
+- Dashboards de controle de EPIs por empresa
+- Relatórios de utilização de equipamentos
+- Métricas de distribuição de EPIs por contratada
+- Alertas de concentração de equipamentos
 
 ### **8.4. Buscar Contratadas por Nome**
 ```http
@@ -1098,10 +1117,12 @@ POST /api/notas-movimentacao
 }
 ```
 
-### **8.2. Listar Notas de Movimentação**
+### **9.2. Listar Notas de Movimentação**
 ```http
 GET /api/notas-movimentacao
 ```
+
+**Descrição:** Lista notas com filtros opcionais e paginação, incluindo informações expandidas e campos calculados.
 
 **Query Parameters:**
 - `page`: Página (number, padrão: 1)
@@ -1109,6 +1130,7 @@ GET /api/notas-movimentacao
 - `numero`: Filtrar por número (string, opcional)
 - `tipo`: Filtrar por tipo (enum: ENTRADA, TRANSFERENCIA, DESCARTE, AJUSTE)
 - `status`: Filtrar por status (enum: RASCUNHO, CONCLUIDA, CANCELADA)
+- `usuarioId`: ID do usuário responsável (string, opcional)
 - `dataInicio`: Data inicial (date, opcional)
 - `dataFim`: Data final (date, opcional)
 
@@ -1126,7 +1148,28 @@ GET /api/notas-movimentacao
       "usuarioId": "uuid",
       "observacoes": "Compra de EPIs",
       "_status": "RASCUNHO",
-      "createdAt": "2025-07-07T14:30:00.000Z"
+      "createdAt": "2025-07-07T14:30:00.000Z",
+      
+      // Campos expandidos e calculados
+      "usuario": {
+        "id": "uuid",
+        "nome": "Administrador Sistema"
+      },
+      "almoxarifadoOrigem": null,
+      "almoxarifadoDestino": {
+        "id": "uuid",
+        "nome": "Almoxarifado Central SP"
+      },
+      "totalItens": 5,
+      "valorTotal": 1250.00,
+      "_itens": [
+        {
+          "id": "uuid",
+          "tipoEpiId": "uuid",
+          "quantidade": 10,
+          "custo_unitario": 25.00
+        }
+      ]
     }
   ],
   "pagination": {
@@ -1140,7 +1183,68 @@ GET /api/notas-movimentacao
 }
 ```
 
-### **8.3. Listar Rascunhos**
+**Novos Campos:**
+- `usuario`: Informações do responsável pela nota
+- `almoxarifadoOrigem`/`almoxarifadoDestino`: Detalhes dos almoxarifados
+- `totalItens`: Quantidade total de itens na nota
+- `valorTotal`: Valor total calculado (quantidade × custo unitário)
+- `_itens`: Lista resumida dos itens com custos
+
+### **9.3. Resumo de Notas de Movimentação** ⭐ **[NOVO]**
+```http
+GET /api/notas-movimentacao/resumo
+```
+
+**Descrição:** Lista notas com informações resumidas otimizadas para exibição em tabelas e dashboards.
+
+**Query Parameters:**
+- `page`: Página (number, padrão: 1)
+- `limit`: Itens por página (number, padrão: 10, máximo: 100)
+- `numero`: Filtrar por número da nota (string, opcional)
+- `tipo`: Filtrar por tipo (enum: ENTRADA, TRANSFERENCIA, DESCARTE, AJUSTE)
+- `status`: Filtrar por status (enum: RASCUNHO, CONCLUIDA, CANCELADA)
+- `almoxarifadoId`: ID do almoxarifado (origem ou destino, string, opcional)
+- `usuarioId`: ID do usuário responsável (string, opcional)
+- `dataInicio`: Data inicial (date, opcional)
+- `dataFim`: Data final (date, opcional)
+
+**Resposta:**
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "uuid",
+      "numero": "ENT-2025-000014",
+      "tipo": "ENTRADA",
+      "status": "CONCLUIDA",
+      "responsavel_nome": "Administrador Sistema",
+      "almoxarifado_nome": "Almoxarifado RJ",
+      "total_itens": 5,
+      "valor_total": 1250.00,
+      "data_documento": "2025-07-07",
+      "observacoes": "Compra de EPIs"
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 10,
+    "total": 25,
+    "totalPages": 3,
+    "hasNext": true,
+    "hasPrev": false
+  }
+}
+```
+
+**Características do Endpoint Resumo:**
+- **Performance otimizada** para listagens grandes
+- **Campos padronizados** para exibição em tabelas
+- **Filtro por almoxarifado** (origem ou destino)
+- **Valores calculados** (total de itens, valor total)
+- **Formato de data** simplificado (YYYY-MM-DD)
+
+### **9.4. Listar Rascunhos**
 ```http
 GET /api/notas-movimentacao/rascunhos
 ```
@@ -1198,7 +1302,7 @@ DELETE /api/notas-movimentacao/:id
 
 **Restrições:** Apenas notas em status RASCUNHO podem ser excluídas.
 
-### **8.7. Adicionar Item à Nota**
+### **9.7. Adicionar Item à Nota**
 ```http
 POST /api/notas-movimentacao/:id/itens
 ```
@@ -1208,16 +1312,36 @@ POST /api/notas-movimentacao/:id/itens
 {
   "tipoEpiId": "uuid",
   "quantidade": 25,
-  "observacoes": "Lote especial com certificação"
+  "custoUnitario": 50.75
 }
 ```
+
+**Campos:**
+- `tipoEpiId` (string, UUID, obrigatório): ID do tipo de EPI
+- `quantidade` (number, obrigatório): Quantidade do item (deve ser positiva)
+- `custoUnitario` (number, opcional): Custo unitário do item (deve ser não-negativo)
 
 **Validações:**
 - Nota deve estar em status RASCUNHO
 - Tipo de EPI não pode estar duplicado na nota
 - Quantidade deve ser positiva
+- Custo unitário, se informado, não pode ser negativo
 
-### **8.8. Atualizar Quantidade do Item**
+**Resposta:**
+```json
+{
+  "success": true,
+  "message": "Item adicionado com sucesso",
+  "data": null
+}
+```
+
+**Códigos de Status:**
+- **201:** Item adicionado com sucesso
+- **400:** Dados inválidos ou nota não editável
+- **409:** Tipo de EPI já adicionado na nota
+
+### **9.8. Atualizar Quantidade do Item**
 ```http
 PUT /api/notas-movimentacao/:id/itens/:tipoEpiId
 ```
@@ -1229,12 +1353,30 @@ PUT /api/notas-movimentacao/:id/itens/:tipoEpiId
 }
 ```
 
-### **8.9. Remover Item da Nota**
+**Resposta:**
+```json
+{
+  "success": true,
+  "message": "Quantidade do item atualizada com sucesso",
+  "data": null
+}
+```
+
+### **9.9. Remover Item da Nota**
 ```http
 DELETE /api/notas-movimentacao/:id/itens/:itemId
 ```
 
-### **8.10. Concluir Nota de Movimentação**
+**Resposta:**
+```json
+{
+  "success": true,
+  "message": "Item removido com sucesso",
+  "data": null
+}
+```
+
+### **9.10. Concluir Nota de Movimentação**
 ```http
 POST /api/notas-movimentacao/:id/concluir
 ```
@@ -1280,7 +1422,7 @@ POST /api/notas-movimentacao/:id/concluir
 }
 ```
 
-### **8.11. Cancelar Nota de Movimentação**
+### **9.11. Cancelar Nota de Movimentação**
 ```http
 POST /api/notas-movimentacao/:id/cancelar
 ```
@@ -1293,7 +1435,32 @@ POST /api/notas-movimentacao/:id/cancelar
 }
 ```
 
-### **8.12. Validar Cancelamento**
+**Resposta:**
+```json
+{
+  "success": true,
+  "message": "Nota cancelada com sucesso",
+  "data": {
+    "notaCancelada": {
+      "id": "uuid",
+      "status": "CANCELADA"
+    },
+    "estornosGerados": [
+      {
+        "movimentacaoOriginalId": "uuid",
+        "movimentacaoEstornoId": "uuid",
+        "tipoEpiId": "uuid",
+        "quantidade": 10,
+        "saldoAnterior": 50,
+        "saldoPosterior": 40
+      }
+    ],
+    "estoqueAjustado": true
+  }
+}
+```
+
+### **9.12. Validar Cancelamento**
 ```http
 GET /api/notas-movimentacao/:id/validar-cancelamento
 ```
@@ -1321,34 +1488,51 @@ GET /api/notas-movimentacao/:id/validar-cancelamento
 }
 ```
 
-### **8.13. Resumo de Notas de Movimentação**
-```http
-GET /api/notas-movimentacao/resumo
-```
+---
 
-**Descrição:** Obtém um resumo das notas de movimentação do sistema.
+## **📝 Resumo das Principais Atualizações na API de Notas de Movimentação**
 
-**Resposta:**
-```json
-{
-  "success": true,
-  "data": {
-    "totalNotas": 1250,
-    "notasRascunho": 45,
-    "notasConcluidas": 1180,
-    "notasCanceladas": 25,
-    "ultimaAtualizacao": "2025-07-07T15:00:00.000Z"
-  }
-}
-```
+### **🆕 Novos Endpoints:**
+- **`GET /api/notas-movimentacao/resumo`**: Listagem otimizada para tabelas e dashboards
+
+### **✨ Melhorias nos Endpoints Existentes:**
+
+#### **1. Listagem Principal (`GET /api/notas-movimentacao`)**
+- **Campos expandidos:** `usuario`, `almoxarifadoOrigem`, `almoxarifadoDestino`
+- **Campos calculados:** `totalItens`, `valorTotal`
+- **Lista de itens:** `_itens` com custo unitário
+- **Filtro adicional:** `usuarioId`
+
+#### **2. Adição de Itens (`POST /api/notas-movimentacao/:id/itens`)**
+- **Novo campo:** `custoUnitario` (opcional, não-negativo)
+- **Validação aprimorada:** Verificação de duplicação de tipos de EPI
+- **Cálculo automático:** Valor total baseado em quantidade × custo unitário
+
+#### **3. Respostas Padronizadas**
+- **Mensagens consistentes:** Todas as operações retornam mensagens de sucesso
+- **Códigos de status claros:** Documentação completa dos códigos de erro
+- **Estrutura uniforme:** Padrão `{ success, data, message }` em todas as respostas
+
+### **🔧 Campos Calculados Automáticos:**
+- **`totalItens`**: Soma das quantidades de todos os itens
+- **`valorTotal`**: Soma de (quantidade × custoUnitario) de todos os itens
+- **`responsavel_nome`**: Nome do usuário responsável (endpoint resumo)
+- **`almoxarifado_nome`**: Nome do almoxarifado (origem ou destino)
+- **`data_documento`**: Data formatada (YYYY-MM-DD) no endpoint resumo
+
+### **🎯 Performance e Usabilidade:**
+- **Endpoint `/resumo`** otimizado para listagens grandes
+- **Filtros aprimorados** incluindo filtro por almoxarifado (origem ou destino)
+- **Paginação consistente** em todos os endpoints
+- **Informações expandidas** sem necessidade de chamadas adicionais
 
 ---
 
-## **9. Fichas de EPI Controller**
+## **10. Fichas de EPI Controller**
 
 **Base Route:** `/api/fichas-epi`
 
-### **8.1. Criar Ficha de EPI**
+### **10.1. Criar Ficha de EPI**
 ```http
 POST /api/fichas-epi
 ```
@@ -1574,9 +1758,9 @@ GET /api/fichas-epi/:id/historico
 
 ---
 
-## **10. Fichas EPI - Entregas**
+## **11. Fichas EPI - Entregas**
 
-### **10.1. Criar Entrega**
+### **11.1. Criar Entrega**
 ```http
 POST /api/fichas-epi/:fichaId/entregas
 ```
@@ -1746,9 +1930,9 @@ PUT /api/fichas-epi/entregas/:entregaId/assinar
 
 ---
 
-## **11. Fichas EPI - Devoluções**
+## **12. Fichas EPI - Devoluções**
 
-### **11.1. Processar Devolução**
+### **12.1. Processar Devolução**
 ```http
 POST /api/fichas-epi/entregas/:entregaId/devolucao
 ```
@@ -1880,9 +2064,9 @@ GET /api/fichas-epi/devolucoes/historico
 
 ---
 
-## **12. Controllers Otimizados**
+## **13. Controllers Otimizados**
 
-### **12.1. Listagem Otimizada de Fichas**
+### **13.1. Listagem Otimizada de Fichas**
 ```http
 GET /api/fichas-epi/list-enhanced
 ```
@@ -2110,11 +2294,11 @@ POST /api/devolucoes/process-batch
 
 ---
 
-## **13. Relatórios Controller**
+## **14. Relatórios Controller**
 
 **Base Route:** `/api/relatorios`
 
-### **13.1. Dashboard Principal**
+### **14.1. Dashboard Principal**
 ```http
 GET /api/relatorios/dashboard
 ```
@@ -2314,9 +2498,9 @@ GET /api/relatorios/auditoria
 
 ---
 
-## **14. Códigos de Erro Comuns**
+## **15. Códigos de Erro Comuns**
 
-### **14.1. Erros de Validação (400)**
+### **15.1. Erros de Validação (400)**
 ```json
 {
   "success": false,
@@ -2365,9 +2549,9 @@ GET /api/relatorios/auditoria
 
 ---
 
-## **15. Schemas de Dados Importantes**
+## **16. Schemas de Dados Importantes**
 
-### **15.1. ID Customizados**
+### **16.1. ID Customizados**
 - **Entregas:** `E` + 5 caracteres alfanuméricos (ex: E4U302)
 - **EstoqueItems:** `I` + 5 caracteres alfanuméricos (ex: I7XK91)
 - **TipoEPI:** `C` + 5 caracteres alfanuméricos (ex: C2MN58)
@@ -2416,9 +2600,9 @@ GET /api/relatorios/auditoria
 
 ---
 
-## **16. Observações Importantes**
+## **17. Observações Importantes**
 
-### **16.1. Política de Dados Reais**
+### **17.1. Política de Dados Reais**
 - **PROIBIÇÃO ABSOLUTA DE MOCKS** (exceto headers da aplicação)
 - Todos os dados vêm de fontes reais: PostgreSQL e Redis
 - Testes devem usar dados reais do banco de testes
@@ -2447,4 +2631,22 @@ GET /api/relatorios/auditoria
 
 **Fim da Documentação**
 
-Esta documentação cobre todos os 167 endpoints disponíveis na API do Módulo de Gestão de EPI v3.5, fornecendo informações técnicas completas para desenvolvimento e integração.
+Esta documentação cobre todos os endpoints disponíveis na API do Módulo de Gestão de EPI v3.5, fornecendo informações técnicas completas para desenvolvimento e integração.
+
+## **🚀 Atualizações Recentes v3.5**
+
+### **📊 Contratadas Controller**
+- **Adicionado:** Campo `totalEpisAtivos` no endpoint `/api/contratadas/estatisticas`
+- **Funcionalidade:** Conta EPIs ativos (COM_COLABORADOR) por contratada
+- **Uso:** Dashboards, métricas e relatórios de distribuição
+
+### **📋 Notas de Movimentação Controller**
+- **Novo endpoint:** `GET /api/notas-movimentacao/resumo` - Listagem otimizada
+- **Melhorias:** Campos expandidos, valores calculados e suporte a `custoUnitario`
+- **Performance:** Filtros aprimorados e paginação otimizada
+
+### **🔧 Melhorias Gerais**
+- **Dados reais:** Política de proibição absoluta de mocks
+- **Transações:** Operações atômicas para consistência
+- **Rastreabilidade:** Controle unitário de EPIs
+- **Documentação:** Exemplos completos e casos de uso

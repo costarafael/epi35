@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '@infrastructure/database/prisma.service';
 import { MonitorUseCase } from 'src/shared/decorators/monitor-performance.decorator';
+import { StatusEstoqueItem } from 'src/domain/enums/estoque.enum';
 import {
   ProcessarDevolucoesBatch,
   DevolucoesBatchResponse,
@@ -66,11 +67,8 @@ export class ProcessarDevolucoesBatchUseCase {
             },
           });
 
-          // 4. Determinar status de retorno ao estoque baseado no motivo
-          let statusEstoque = 'DISPONIVEL';
-          if (devolucao.motivo === 'danificado') {
-            statusEstoque = 'QUARENTENA';
-          }
+          // 4. NOVA LÓGICA: Todos os itens devolvidos vão para QUARENTENA (padrão)
+          let statusEstoque = StatusEstoqueItem.QUARENTENA; // Padrão: todos itens passam por inspeção
 
           // 5. Criar movimentação de entrada no estoque
           await tx.movimentacaoEstoque.create({
@@ -83,17 +81,16 @@ export class ProcessarDevolucoesBatchUseCase {
             },
           });
 
-          // 6. Retornar item ao estoque (apenas se não estiver danificado)
-          if (devolucao.motivo !== 'danificado') {
-            await tx.estoqueItem.update({
-              where: { id: entregaItem.estoqueItem.id },
-              data: {
-                quantidade: {
-                  increment: 1,
-                },
+          // 6. Retornar item ao estoque (SEMPRE vai para QUARENTENA)
+          await tx.estoqueItem.update({
+            where: { id: entregaItem.estoqueItem.id },
+            data: {
+              quantidade: {
+                increment: 1,
               },
-            });
-          }
+              status: statusEstoque, // Sempre QUARENTENA
+            },
+          });
 
           // 7. Criar histórico na ficha
           await tx.historicoFicha.create({

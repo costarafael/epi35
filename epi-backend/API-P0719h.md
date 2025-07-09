@@ -541,11 +541,12 @@ GET /api/tipos-epi/:id/estatisticas
 {
   "success": true,
   "data": {
-    "totalEstoque": 150,
-    "totalComColaboradores": 45,
-    "totalEntregas": 320,
-    "totalDevolucoes": 275,
-    "vidaMediaUso": 540
+    "totalFichas": 0,
+    "fichasAtivas": 0,
+    "totalEstoque": 25,
+    "estoqueDisponivel": 20,
+    "totalEntregas": 15,
+    "entregasAtivas": 5
   }
 }
 ```
@@ -2181,33 +2182,7 @@ GET /api/relatorios/dashboard/estatisticas-entregas
 GET /api/relatorios/dashboard/vencimentos-proximos
 ```
 
-### **13.4. Relatório de Conformidade**
-```http
-GET /api/relatorios/conformidade
-```
 
-**Query Parameters:**
-- `unidadeNegocioId`: ID da unidade de negócio (string, opcional)
-- `colaboradorId`: ID do colaborador (string, opcional)
-- `incluirVencidos`: Incluir itens vencidos (boolean, padrão: true)
-- `incluirProximosVencimento`: Incluir próximos ao vencimento (boolean, padrão: true)
-- `diasAvisoVencimento`: Dias para alerta de vencimento (number, padrão: 30)
-- `dataInicio`: Data inicial (date, opcional)
-- `dataFim`: Data final (date, opcional)
-
-### **13.5. Relatório de Uso de EPIs**
-```http
-GET /api/relatorios/uso-epis
-```
-
-**Query Parameters:**
-- `colaboradorId`: ID do colaborador (string, opcional)
-- `tipoEpiId`: ID do tipo de EPI (string, opcional)
-- `unidadeNegocioId`: ID da unidade de negócio (string, opcional)
-- `incluirDevolvidos`: Incluir itens devolvidos (boolean, padrão: true)
-- `incluirPerdidos`: Incluir itens perdidos (boolean, padrão: true)
-- `dataInicio`: Data inicial (date, opcional)
-- `dataFim`: Data final (date, opcional)
 
 ### **13.6. Relatório de Movimentações**
 ```http

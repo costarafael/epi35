@@ -1,6 +1,10 @@
 import { PrismaClient } from '@prisma/client';
+import { applyCustomIdMiddleware } from '../src/infrastructure/database/prisma-id-middleware';
 
 const prisma = new PrismaClient();
+
+// Aplicar middleware para geração de IDs customizados
+applyCustomIdMiddleware(prisma);
 
 // Configuração do seed
 const CONFIG = {

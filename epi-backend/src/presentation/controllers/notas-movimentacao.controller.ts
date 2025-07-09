@@ -161,11 +161,10 @@ export class NotasMovimentacaoController {
             select: { id: true, nome: true },
           },
           itens: {
-            select: {
-              id: true,
-              tipoEpiId: true,
-              quantidade: true,
-              custoUnitario: true,
+            include: {
+              tipoEpi: {
+                select: { nomeEquipamento: true, numeroCa: true },
+              },
             },
           },
         },

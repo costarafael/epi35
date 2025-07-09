@@ -1122,7 +1122,9 @@ POST /api/notas-movimentacao
 GET /api/notas-movimentacao
 ```
 
-**Descrição:** Lista notas com filtros opcionais e paginação, incluindo informações expandidas e campos calculados.
+**Descrição:** Lista notas com filtros opcionais e paginação, incluindo informações expandidas e campos calculados com custos.
+
+**✅ CORREÇÃO APLICADA (09/07/2025):** Endpoint agora retorna corretamente os custos unitários nos itens e valores totais calculados.
 
 **Query Parameters:**
 - `page`: Página (number, padrão: 1)
@@ -1256,6 +1258,10 @@ GET /api/notas-movimentacao/rascunhos
 GET /api/notas-movimentacao/:id
 ```
 
+**Descrição:** Retorna os detalhes completos de uma nota, incluindo itens com custos unitários.
+
+**✅ CORREÇÃO APLICADA (09/07/2025):** Endpoint agora retorna corretamente o campo `custoUnitario` em todos os itens.
+
 **Resposta:**
 ```json
 {
@@ -1264,19 +1270,19 @@ GET /api/notas-movimentacao/:id
     "id": "uuid",
     "numero": "ENT-2025-000001",
     "tipo": "ENTRADA",
-    "status": "RASCUNHO",
+    "almoxarifadoOrigemId": null,
+    "almoxarifadoDestinoId": "uuid",
+    "usuarioId": "uuid",
     "observacoes": "Compra de EPIs",
-    "itens": [
+    "_status": "RASCUNHO",
+    "createdAt": "2025-07-09T19:41:06.690Z",
+    "_itens": [
       {
         "id": "uuid",
         "tipoEpiId": "uuid",
         "quantidade": 50,
-        "quantidadeProcessada": 0,
-        "observacoes": null,
-        "tipoEpi": {
-          "nome": "Capacete de Segurança",
-          "codigo": "CA-12345"
-        }
+        "custoUnitario": "45.75",
+        "quantidadeProcessada": 0
       }
     ]
   }

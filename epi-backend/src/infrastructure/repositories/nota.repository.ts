@@ -212,6 +212,7 @@ export class NotaRepository implements INotaRepository {
       id: item.id,
       tipoEpiId: item.tipoEpiId,
       quantidade: item.quantidade,
+      custoUnitario: item.custoUnitario,
       quantidadeProcessada: 0, // Valor padrão
       observacoes: undefined,
     }));

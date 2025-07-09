@@ -374,6 +374,8 @@ GET /api/colaboradores
 
 **Descrição:** Lista colaboradores com filtros opcionais e paginação.
 
+**✅ NOVO FILTRO (09/07/2025):** Adicionado parâmetro `semFicha` para facilitar a criação de fichas EPI.
+
 **Query Parameters:**
 - `nome`: Filtro por nome (string, opcional)
 - `cpf`: Filtro por CPF (string, opcional)
@@ -381,8 +383,13 @@ GET /api/colaboradores
 - `cargo`: Filtro por cargo (string, opcional)
 - `setor`: Filtro por setor (string, opcional)
 - `ativo`: Filtro por status ativo (boolean, opcional)
+- `semFicha`: **[NOVO]** Filtro para colaboradores sem ficha EPI ativa (boolean, opcional) 
 - `page`: Página (number, padrão: 1)
 - `limit`: Itens por página (number, padrão: 10, máximo: 100)
+
+**💡 Casos de Uso:**
+- **Para criar fichas**: `GET /api/colaboradores?contratadaId=UUID&semFicha=true`
+- **Listagem geral**: `GET /api/colaboradores?contratadaId=UUID`
 
 **Resposta:**
 ```json

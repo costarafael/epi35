@@ -107,6 +107,7 @@ export class ColaboradoresController {
   @ApiQuery({ name: 'cargo', required: false, type: String, description: 'Filtrar por cargo' })
   @ApiQuery({ name: 'setor', required: false, type: String, description: 'Filtrar por setor' })
   @ApiQuery({ name: 'ativo', required: false, type: Boolean, description: 'Filtrar por status ativo' })
+  @ApiQuery({ name: 'semFicha', required: false, type: Boolean, description: 'Filtrar apenas colaboradores sem ficha EPI (útil para criação de fichas)' })
   @ApiQuery({ name: 'page', required: false, type: Number, description: 'Página (padrão: 1)' })
   @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Itens por página (padrão: 10, máx: 100)' })
   @ApiResponse({ 
@@ -165,6 +166,7 @@ export class ColaboradoresController {
         cargo: filtros.cargo,
         setor: filtros.setor,
         ativo: filtros.ativo,
+        semFicha: filtros.semFicha,
       },
       {
         page: filtros.page,

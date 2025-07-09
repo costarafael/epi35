@@ -9,6 +9,7 @@ export interface ListarColaboradoresInput {
   cargo?: string;
   setor?: string;
   ativo?: boolean;
+  semFicha?: boolean; // Filtrar apenas colaboradores sem ficha EPI
 }
 
 export interface PaginationInput {
@@ -66,6 +67,15 @@ export class ListarColaboradoresUseCase {
       where.ativo = filtros.ativo;
     }
 
+    // Filtro para colaboradores sem ficha EPI ativa
+    if (filtros.semFicha === true) {
+      where.fichasEPI = {
+        none: {
+          status: 'ATIVA', // Não possui nenhuma ficha EPI ativa
+        },
+      };
+    }
+
     // Buscar colaboradores e total
     const [colaboradores, total] = await Promise.all([
       this.prisma.colaborador.findMany({
@@ -76,6 +86,12 @@ export class ListarColaboradoresUseCase {
               id: true,
               nome: true,
               cnpj: true,
+            },
+          },
+          fichasEPI: {
+            select: {
+              id: true,
+              status: true,
             },
           },
         },

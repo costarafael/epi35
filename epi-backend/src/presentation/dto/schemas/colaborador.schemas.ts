@@ -81,6 +81,7 @@ export const FiltrosColaboradorSchema = z.object({
   cargo: z.string().optional(),
   setor: z.string().optional(),
   ativo: z.boolean().optional(),
+  semFicha: z.boolean().optional(), // Filtrar apenas colaboradores sem ficha EPI
   page: z.coerce.number().int().positive().default(1),
   limit: z.coerce.number().int().positive().max(100).default(10),
 });

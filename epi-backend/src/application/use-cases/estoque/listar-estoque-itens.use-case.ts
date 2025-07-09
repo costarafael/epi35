@@ -31,6 +31,7 @@ export interface EstoqueItemOutput {
 export interface ListarEstoqueItensInput {
   almoxarifadoId?: string;
   tipoEpiId?: string;
+  status?: 'DISPONIVEL' | 'AGUARDANDO_INSPECAO' | 'QUARENTENA';
   apenasDisponiveis?: boolean;
   apenasComSaldo?: boolean;
   page?: number;
@@ -68,15 +69,16 @@ export class ListarEstoqueItensUseCase {
         where.tipoEpiId = input.tipoEpiId;
       }
 
-      if (input.apenasDisponiveis) {
+      // Filtro por status específico tem prioridade sobre apenasDisponiveis
+      if (input.status) {
+        where.status = input.status;
+      } else if (input.apenasDisponiveis) {
         where.status = 'DISPONIVEL';
       }
 
       if (input.apenasComSaldo) {
         where.quantidade = { gt: 0 };
       }
-
-      // Buscar itens e contagem total
       const [items, total] = await Promise.all([
         this.prisma.estoqueItem.findMany({
           where,

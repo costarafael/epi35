@@ -71,7 +71,15 @@ export const AtualizarColaboradorSchema = z.object({
     .max(100, 'Setor deve ter no máximo 100 caracteres')
     .optional()
     .transform(val => val?.trim()),
-  ativo: z.boolean().optional(),
+  ativo: z.union([
+    z.boolean(),
+    z.string().transform(val => {
+      const lower = val.toLowerCase();
+      if (lower === 'true' || lower === '1') return true;
+      if (lower === 'false' || lower === '0') return false;
+      throw new Error(`Invalid boolean value: ${val}`);
+    })
+  ]).optional(),
 });
 
 export const FiltrosColaboradorSchema = z.object({
@@ -80,8 +88,24 @@ export const FiltrosColaboradorSchema = z.object({
   contratadaId: IdSchema.optional(),
   cargo: z.string().optional(),
   setor: z.string().optional(),
-  ativo: z.boolean().optional(),
-  semFicha: z.boolean().optional(), // Filtrar apenas colaboradores sem ficha EPI
+  ativo: z.union([
+    z.boolean(),
+    z.string().transform(val => {
+      const lower = val.toLowerCase();
+      if (lower === 'true' || lower === '1') return true;
+      if (lower === 'false' || lower === '0') return false;
+      throw new Error(`Invalid boolean value: ${val}`);
+    })
+  ]).optional(),
+  semFicha: z.union([
+    z.boolean(),
+    z.string().transform(val => {
+      const lower = val.toLowerCase();
+      if (lower === 'true' || lower === '1') return true;
+      if (lower === 'false' || lower === '0') return false;
+      throw new Error(`Invalid boolean value: ${val}`);
+    })
+  ]).optional(), // Filtrar apenas colaboradores sem ficha EPI
   page: z.coerce.number().int().positive().default(1),
   limit: z.coerce.number().int().positive().max(100).default(10),
 });

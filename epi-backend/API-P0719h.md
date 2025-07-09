@@ -3,7 +3,7 @@
 ## **Documentação Técnica Completa**
 
 **Versão:** 3.5
-**Data:** 07/07/2025  
+**Data:** 09/07/2025  
 **Ambiente de Produção:** https://epi-backend-s14g.onrender.com  
 **Documentação Swagger:** `/api/docs`  
 **Health Check:** `/health`  
@@ -376,20 +376,28 @@ GET /api/colaboradores
 
 **✅ NOVO FILTRO (09/07/2025):** Adicionado parâmetro `semFicha` para facilitar a criação de fichas EPI.
 
+**✅ CORREÇÃO APLICADA (09/07/2025):** Parâmetros boolean agora aceitam strings via query parameters.
+
 **Query Parameters:**
 - `nome`: Filtro por nome (string, opcional)
 - `cpf`: Filtro por CPF (string, opcional)
 - `contratadaId`: Filtro por contratada (string UUID, opcional)
 - `cargo`: Filtro por cargo (string, opcional)
 - `setor`: Filtro por setor (string, opcional)
-- `ativo`: Filtro por status ativo (boolean, opcional)
-- `semFicha`: **[NOVO]** Filtro para colaboradores sem ficha EPI ativa (boolean, opcional) 
+- `ativo`: Filtro por status ativo (boolean/string, opcional)
+- `semFicha`: **[NOVO]** Filtro para colaboradores sem ficha EPI ativa (boolean/string, opcional) 
 - `page`: Página (number, padrão: 1)
 - `limit`: Itens por página (number, padrão: 10, máximo: 100)
 
 **💡 Casos de Uso:**
 - **Para criar fichas**: `GET /api/colaboradores?contratadaId=UUID&semFicha=true`
 - **Listagem geral**: `GET /api/colaboradores?contratadaId=UUID`
+
+**📋 Validação de Parâmetros Boolean:**
+Os parâmetros `ativo` e `semFicha` aceitam tanto boolean quanto string:
+- **Valores aceitos para `true`**: `true`, `"true"`, `"TRUE"`, `"1"`
+- **Valores aceitos para `false`**: `false`, `"false"`, `"FALSE"`, `"0"`
+- **Formato recomendado**: `?semFicha=true&ativo=true`
 
 **Resposta:**
 ```json
@@ -788,10 +796,16 @@ GET /api/estoque/itens
 **Query Parameters:**
 - `almoxarifadoId`: ID do almoxarifado (string, opcional)
 - `tipoEpiId`: ID do tipo de EPI (string, opcional)
+- `status`: Status do item (string: "DISPONIVEL", "AGUARDANDO_INSPECAO", "QUARENTENA", opcional)
 - `apenasDisponiveis`: Apenas itens disponíveis (boolean, opcional)
 - `apenasComSaldo`: Apenas itens com saldo (boolean, opcional)
 - `page`: Página (number)
 - `limit`: Itens por página (number)
+
+**Exemplos de Uso:**
+- `GET /api/estoque/itens?status=QUARENTENA` - Lista apenas itens em quarentena
+- `GET /api/estoque/itens?status=DISPONIVEL` - Lista apenas itens disponíveis
+- `GET /api/estoque/itens?status=AGUARDANDO_INSPECAO` - Lista apenas itens aguardando inspeção
 
 **Resposta:**
 ```json
@@ -1589,8 +1603,8 @@ GET /api/fichas-epi
 - `colaboradorId`: ID do colaborador (string, opcional)
 - `status`: Status da ficha (enum: ATIVA, INATIVA, SUSPENSA)
 - `colaboradorNome`: Nome do colaborador (string, opcional)
-- `ativo`: Filtrar colaboradores ativos (boolean, opcional)
-- `devolucaoPendente`: Fichas com devolução pendente (boolean, opcional)
+- `ativo`: Filtrar colaboradores ativos (boolean/string, opcional)
+- `devolucaoPendente`: Fichas com devolução pendente (boolean/string, opcional)
 
 **Resposta:**
 ```json
@@ -1899,8 +1913,8 @@ GET /api/fichas-epi/colaborador/:colaboradorId/posse-atual
 ```
 
 **Query Parameters:**
-- `incluirVencidos`: Incluir itens vencidos (boolean, padrão: false)
-- `incluirProximosVencimento`: Incluir próximos ao vencimento (boolean, padrão: true)
+- `incluirVencidos`: Incluir itens vencidos (boolean/string, padrão: false)
+- `incluirProximosVencimento`: Incluir próximos ao vencimento (boolean/string, padrão: true)
 
 **Resposta:**
 ```json
@@ -2127,7 +2141,7 @@ GET /api/fichas-epi/list-enhanced
 - `status`: Status da ficha (enum, opcional)
 - `cargo`: Cargo do colaborador (string, opcional)
 - `empresa`: Empresa/contratada (string, opcional)
-- `vencimentoProximo`: Próximo ao vencimento (boolean, opcional)
+- `vencimentoProximo`: Próximo ao vencimento (boolean/string, opcional)
 
 **Resposta:**
 ```json
@@ -2699,3 +2713,25 @@ Esta documentação cobre todos os endpoints disponíveis na API do Módulo de G
 - **Transações:** Operações atômicas para consistência
 - **Rastreabilidade:** Controle unitário de EPIs
 - **Documentação:** Exemplos completos e casos de uso
+
+### **🆕 Correção de Validação de Parâmetros Boolean (09/07/2025)**
+- **Problema resolvido:** Parâmetros boolean em query parameters agora aceitam strings
+- **Endpoints afetados:** `/api/colaboradores`, `/api/fichas-epi` e endpoints relacionados
+- **Parâmetros corrigidos:** `ativo`, `semFicha`, `devolucaoPendente`, `incluirVencidos`, `incluirProximosVencimento`, `vencimentoProximo`
+- **Formatos aceitos:** 
+  - **Para `true`**: `true`, `"true"`, `"TRUE"`, `"1"`
+  - **Para `false`**: `false`, `"false"`, `"FALSE"`, `"0"`
+- **Exemplo de uso:** `GET /api/colaboradores?semFicha=true&ativo=true`
+- **Benefício:** Compatibilidade total com query parameters HTTP que sempre são strings
+
+### **🔍 Novo Filtro de Status para Estoque (09/07/2025)**
+- **Endpoint:** `GET /api/estoque/itens?status=QUARENTENA`
+- **Funcionalidade:** Filtrar itens de estoque por status específico
+- **Status disponíveis:** `DISPONIVEL`, `AGUARDANDO_INSPECAO`, `QUARENTENA`
+- **Validação:** Rejeita status inválidos com erro 400
+- **Casos de uso:**
+  - **Quarentena:** `GET /api/estoque/itens?status=QUARENTENA`
+  - **Disponíveis:** `GET /api/estoque/itens?status=DISPONIVEL`
+  - **Aguardando inspeção:** `GET /api/estoque/itens?status=AGUARDANDO_INSPECAO`
+- **Integração:** Funciona com outros filtros (`almoxarifadoId`, `tipoEpiId`, `apenasComSaldo`)
+- **Prioridade:** Filtro `status` tem prioridade sobre `apenasDisponiveis`

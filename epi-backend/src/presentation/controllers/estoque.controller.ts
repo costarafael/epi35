@@ -413,6 +413,7 @@ export class EstoqueController {
   })
   @ApiQuery({ name: 'almoxarifadoId', required: false, type: String, format: 'uuid', description: 'Filtrar por almoxarifado' })
   @ApiQuery({ name: 'tipoEpiId', required: false, type: String, format: 'uuid', description: 'Filtrar por tipo de EPI' })
+  @ApiQuery({ name: 'status', required: false, enum: ['DISPONIVEL', 'AGUARDANDO_INSPECAO', 'QUARENTENA'], description: 'Filtrar por status do item' })
   @ApiQuery({ name: 'apenasDisponiveis', required: false, type: Boolean, description: 'Apenas itens disponíveis' })
   @ApiQuery({ name: 'apenasComSaldo', required: false, type: Boolean, description: 'Apenas itens com saldo > 0' })
   @ApiQuery({ name: 'page', required: false, type: Number, description: 'Página (padrão: 1)' })
@@ -449,6 +450,7 @@ export class EstoqueController {
     const resultado = await this.listarEstoqueItensUseCase.execute({
       almoxarifadoId: query.almoxarifadoId,
       tipoEpiId: query.tipoEpiId,
+      status: query.status,
       apenasDisponiveis: query.apenasDisponiveis,
       apenasComSaldo: query.apenasComSaldo,
       page: query.page,

@@ -54,8 +54,24 @@ export const FichaFiltersSchema = z.object({
   colaboradorId: IdSchema.optional(),
   status: StatusFichaEPISchema.optional(),
   colaboradorNome: z.string().optional(),
-  ativo: z.boolean().optional(),
-  devolucaoPendente: z.boolean().optional(), // ✅ NOVO FILTRO: mostrar apenas fichas com devolução em atraso
+  ativo: z.union([
+    z.boolean(),
+    z.string().transform(val => {
+      const lower = val.toLowerCase();
+      if (lower === 'true' || lower === '1') return true;
+      if (lower === 'false' || lower === '0') return false;
+      throw new Error(`Invalid boolean value: ${val}`);
+    })
+  ]).optional(),
+  devolucaoPendente: z.union([
+    z.boolean(),
+    z.string().transform(val => {
+      const lower = val.toLowerCase();
+      if (lower === 'true' || lower === '1') return true;
+      if (lower === 'false' || lower === '0') return false;
+      throw new Error(`Invalid boolean value: ${val}`);
+    })
+  ]).optional(), // ✅ NOVO FILTRO: mostrar apenas fichas com devolução em atraso
 });
 
 export const AtualizarStatusFichaSchema = z.object({
@@ -67,7 +83,15 @@ export const FiltrosFichaEpiSchema = z.object({
   contratadaId: IdSchema.optional(),
   status: StatusFichaEPISchema.optional(),
   colaboradorNome: z.string().optional(),
-  devolucaoPendente: z.boolean().optional(), // ✅ NOVO FILTRO: para API controller
+  devolucaoPendente: z.union([
+    z.boolean(),
+    z.string().transform(val => {
+      const lower = val.toLowerCase();
+      if (lower === 'true' || lower === '1') return true;
+      if (lower === 'false' || lower === '0') return false;
+      throw new Error(`Invalid boolean value: ${val}`);
+    })
+  ]).optional(), // ✅ NOVO FILTRO: para API controller
 }).merge(SearchSchema).merge(PaginationSchema);
 
 // Delivery schemas - Single Source of Truth
@@ -197,8 +221,24 @@ export const FiltrosHistoricoDevolucaoSchema = z.object({
 
 export const FiltrosPosseAtualSchema = z.object({
   colaboradorId: IdSchema,
-  incluirVencidos: z.coerce.boolean().default(false),
-  incluirProximosVencimento: z.coerce.boolean().default(true),
+  incluirVencidos: z.union([
+    z.boolean(),
+    z.string().transform(val => {
+      const lower = val.toLowerCase();
+      if (lower === 'true' || lower === '1') return true;
+      if (lower === 'false' || lower === '0') return false;
+      throw new Error(`Invalid boolean value: ${val}`);
+    })
+  ]).default(false),
+  incluirProximosVencimento: z.union([
+    z.boolean(),
+    z.string().transform(val => {
+      const lower = val.toLowerCase();
+      if (lower === 'true' || lower === '1') return true;
+      if (lower === 'false' || lower === '0') return false;
+      throw new Error(`Invalid boolean value: ${val}`);
+    })
+  ]).default(true),
 });
 
 // ✅ NOVO: Schemas para Histórico Geral da Ficha
@@ -663,7 +703,15 @@ export const FichaListQuerySchema = z.object({
   status: z.enum(['ativa', 'inativa', 'vencida', 'pendente_devolucao']).optional(),
   cargo: z.string().optional(),
   empresa: z.string().optional(),
-  vencimentoProximo: z.coerce.boolean().optional(),
+  vencimentoProximo: z.union([
+    z.boolean(),
+    z.string().transform(val => {
+      const lower = val.toLowerCase();
+      if (lower === 'true' || lower === '1') return true;
+      if (lower === 'false' || lower === '0') return false;
+      throw new Error(`Invalid boolean value: ${val}`);
+    })
+  ]).optional(),
 });
 
 // Schema para criação de entrega completa

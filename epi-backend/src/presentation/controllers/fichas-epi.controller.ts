@@ -536,7 +536,7 @@ export class FichasEpiController {
       itensParaDevolucao: devolucaoDto.itensParaDevolucao.map(item => ({
         itemId: item.itemId,
         motivoDevolucao: item.motivoDevolucao,
-        condicaoItem: item.condicaoItem,
+        destinoItem: item.destinoItem,
       })),
       assinaturaColaborador: devolucaoDto.assinaturaColaborador,
       observacoes: devolucaoDto.observacoes,

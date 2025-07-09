@@ -282,22 +282,22 @@ export class RelatoriosController {
         dataDevolucao: dev.dataDevolucao,
         diasUso: dev.diasUso,
         motivoDevolucao: dev.motivoDevolucao,
-        condicaoItem: dev.condicaoItem as any,
+        destinoItem: dev.destinoItem as any,
         numeroSerie: dev.numeroSerie,
         lote: dev.lote,
         custoEstimado: 0,
       })),
       estatisticas: {
         totalEntregas: historico.estatisticas.totalDevolucoes,
-        totalDevolvidos: historico.estatisticas.itensEmBomEstado,
-        totalPerdidos: historico.estatisticas.itensPerdidos,
+        totalDevolvidos: historico.estatisticas.itensQuarentena,
+        totalPerdidos: historico.estatisticas.itensDescarte,
         totalEmUso: 0,
         tempoMedioUso: historico.estatisticas.tempoMedioUso,
         taxaPerda: historico.estatisticas.totalDevolucoes > 0 
-          ? (historico.estatisticas.itensPerdidos / historico.estatisticas.totalDevolucoes) * 100 
+          ? (historico.estatisticas.itensDescarte / historico.estatisticas.totalDevolucoes) * 100 
           : 0,
         taxaDanificacao: historico.estatisticas.totalDevolucoes > 0 
-          ? (historico.estatisticas.itensDanificados / historico.estatisticas.totalDevolucoes) * 100 
+          ? (historico.estatisticas.itensOutros / historico.estatisticas.totalDevolucoes) * 100 
           : 0,
         custoTotalPerdas: 0,
       },

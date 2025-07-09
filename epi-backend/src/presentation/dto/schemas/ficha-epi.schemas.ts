@@ -146,7 +146,7 @@ export const ValidarEntregaSchema = z.object({
 export const ItemDevolucaoSchema = z.object({
   itemId: IdSchema,
   motivoDevolucao: z.string().max(500).optional(),
-  condicaoItem: z.enum(['BOM', 'DANIFICADO', 'PERDIDO']),
+  destinoItem: z.enum(['QUARENTENA', 'DESCARTE']).default('QUARENTENA'),
 });
 
 export const ProcessarDevolucaoSchema = z.object({
@@ -170,7 +170,7 @@ export const DevolucaoUseCaseOutputSchema = z.object({
     statusAnterior: z.string(),
     novoStatus: z.string(),
     motivoDevolucao: z.string().optional(),
-    condicaoItem: z.string(),
+    destinoItem: z.string(),
   })),
   movimentacoesEstoque: z.array(z.object({
     id: IdSchema,
@@ -334,7 +334,7 @@ export const ItemDevolucaoResponseSchema = z.object({
   statusAnterior: z.string(),
   novoStatus: z.string(),
   motivoDevolucao: z.string().optional(),
-  condicaoItem: z.string(),
+  destinoItem: z.string(),
 });
 
 export const DevolucaoResponseSchema = z.object({
@@ -406,7 +406,7 @@ export const HistoricoDevolucaoResponseSchema = z.object({
     dataDevolucao: z.date(),
     diasUso: z.number(),
     motivoDevolucao: z.string().optional(),
-    condicaoItem: z.string(),
+    destinoItem: z.string(),
     numeroSerie: z.string().optional(),
     lote: z.string().optional(),
   })),
@@ -602,7 +602,7 @@ export const FichaCompletaSchema = z.object({
     categoria: z.string(),
     quantidade: z.number().int().positive().default(1),
     dataDevolucao: z.string(),
-    motivo: z.enum(['devolução padrão', 'danificado', 'troca']), // ← Atualizado conforme documentação
+    motivo: z.enum(['devolução padrão', 'danificado', 'troca', 'outros']), // ← Atualizado conforme documentação
     motivoDisplay: z.string(),
     status: z.enum(['processada', 'cancelada']),
     podeProcessar: z.boolean(),

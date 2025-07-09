@@ -61,6 +61,7 @@ export class ConcluirNotaMovimentacaoUseCase {
     private readonly estoqueRepository: IEstoqueRepository,
     @Inject(PrismaService)
     private readonly prisma: PrismaService,
+    @Inject(ConfiguracaoService)
     private readonly configuracaoService: ConfiguracaoService,
   ) {}
 
@@ -296,13 +297,22 @@ export class ConcluirNotaMovimentacaoUseCase {
     notaId: string,
     responsavelIdNota: string,
   ): Promise<void> {
-    // Buscar ou criar o estoque item
-    const estoqueItem = await this.estoqueRepository.criarOuAtualizar(
+    // Buscar estoque existente primeiro
+    let estoqueItem = await this.estoqueRepository.findByAlmoxarifadoAndTipo(
       almoxarifadoId,
       item.tipoEpiId,
       StatusEstoqueItem.DISPONIVEL,
-      0, // quantidade inicial se não existir
     );
+
+    // Se não existir, criar com quantidade inicial 0
+    if (!estoqueItem) {
+      estoqueItem = await this.estoqueRepository.criarOuAtualizar(
+        almoxarifadoId,
+        item.tipoEpiId,
+        StatusEstoqueItem.DISPONIVEL,
+        0, // quantidade inicial se não existir
+      );
+    }
 
     // Criar movimentação de entrada usando o responsável da nota
     await this.prisma.movimentacaoEstoque.create({
@@ -316,7 +326,7 @@ export class ConcluirNotaMovimentacaoUseCase {
       },
     });
 
-    // Atualizar estoque
+    // Atualizar estoque adicionando a quantidade
     await this.estoqueRepository.adicionarQuantidade(
       almoxarifadoId,
       item.tipoEpiId,
@@ -342,13 +352,22 @@ export class ConcluirNotaMovimentacaoUseCase {
       throw new BusinessError('Item de estoque não encontrado no almoxarifado de origem');
     }
 
-    // Buscar ou criar estoque item de destino
-    const estoqueItemDestino = await this.estoqueRepository.criarOuAtualizar(
+    // Buscar estoque item de destino
+    let estoqueItemDestino = await this.estoqueRepository.findByAlmoxarifadoAndTipo(
       almoxarifadoDestinoId,
       item.tipoEpiId,
       StatusEstoqueItem.DISPONIVEL,
-      0,
     );
+
+    // Se não existir, criar com quantidade inicial 0
+    if (!estoqueItemDestino) {
+      estoqueItemDestino = await this.estoqueRepository.criarOuAtualizar(
+        almoxarifadoDestinoId,
+        item.tipoEpiId,
+        StatusEstoqueItem.DISPONIVEL,
+        0,
+      );
+    }
 
     // Criar movimentações usando o responsável da nota
     await this.prisma.movimentacaoEstoque.create({
@@ -374,12 +393,30 @@ export class ConcluirNotaMovimentacaoUseCase {
     });
 
     // Atualizar estoques
-    await this.estoqueRepository.removerQuantidade(
-      almoxarifadoOrigemId,
-      item.tipoEpiId,
-      StatusEstoqueItem.DISPONIVEL,
-      item.quantidade,
-    );
+    const permitirEstoqueNegativo = await this.configuracaoService.permitirEstoqueNegativo();
+    
+    if (permitirEstoqueNegativo) {
+      // Se permite estoque negativo, usar Prisma direto para permitir quantidades negativas
+      const novaQuantidadeOrigem = estoqueItemOrigem.quantidade - item.quantidade;
+      await this.prisma.estoqueItem.update({
+        where: {
+          almoxarifadoId_tipoEpiId_status: {
+            almoxarifadoId: almoxarifadoOrigemId,
+            tipoEpiId: item.tipoEpiId,
+            status: StatusEstoqueItem.DISPONIVEL as any,
+          },
+        },
+        data: { quantidade: novaQuantidadeOrigem },
+      });
+    } else {
+      // Se não permite estoque negativo, usar validação
+      await this.estoqueRepository.removerQuantidade(
+        almoxarifadoOrigemId,
+        item.tipoEpiId,
+        StatusEstoqueItem.DISPONIVEL,
+        item.quantidade,
+      );
+    }
 
     await this.estoqueRepository.adicionarQuantidade(
       almoxarifadoDestinoId,
@@ -432,13 +469,22 @@ export class ConcluirNotaMovimentacaoUseCase {
     notaId: string,
     responsavelIdNota: string,
   ): Promise<void> {
-    // Buscar ou criar estoque item
-    const estoqueItem = await this.estoqueRepository.criarOuAtualizar(
+    // Buscar estoque existente primeiro
+    let estoqueItem = await this.estoqueRepository.findByAlmoxarifadoAndTipo(
       almoxarifadoId,
       item.tipoEpiId,
       StatusEstoqueItem.DISPONIVEL,
-      0,
     );
+
+    // Se não existir, criar com quantidade inicial 0
+    if (!estoqueItem) {
+      estoqueItem = await this.estoqueRepository.criarOuAtualizar(
+        almoxarifadoId,
+        item.tipoEpiId,
+        StatusEstoqueItem.DISPONIVEL,
+        0,
+      );
+    }
 
     // Determinar tipo de ajuste (positivo ou negativo)
     const tipoMovimentacao = item.quantidade >= 0 

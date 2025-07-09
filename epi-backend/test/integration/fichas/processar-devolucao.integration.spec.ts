@@ -44,7 +44,7 @@ describe('ProcessarDevolucaoUseCase - Integration Tests', () => {
   });
 
   describe('execute - Fluxo Completo de Devolução', () => {
-    it('deve processar devolução completa com sucesso e criar estoque AGUARDANDO_INSPECAO', async () => {
+    it('deve processar devolução completa com sucesso e criar estoque QUARENTENA', async () => {
       // Arrange - Criar cenário de entrega para devolução
       const usuario = await testSetup.findUser('admin@test.com');
       const colaborador = await testSetup.findColaborador('João Silva Santos');
@@ -116,7 +116,7 @@ describe('ProcessarDevolucaoUseCase - Integration Tests', () => {
         where: {
           almoxarifadoId: almoxarifado.id,
           tipoEpiId: tipoCapacete.id,
-          status: StatusEstoqueItem.AGUARDANDO_INSPECAO,
+          status: StatusEstoqueItem.QUARENTENA,
         },
       });
       const quantidadeInspecaoAntes = estoqueInspecaoAntes?.quantidade || 0;
@@ -127,12 +127,12 @@ describe('ProcessarDevolucaoUseCase - Integration Tests', () => {
           {
             itemId: itensEntrega[0].id,
             motivoDevolucao: 'Fim do uso',
-            condicaoItem: 'BOM' as const,
+            destinoItem: 'QUARENTENA' as const,
           },
           {
             itemId: itensEntrega[1].id,
             motivoDevolucao: 'Defeito',
-            condicaoItem: 'DANIFICADO' as const,
+            destinoItem: 'DESCARTE' as const,
           },
         ],
         usuarioId: usuario.id,
@@ -154,15 +154,15 @@ describe('ProcessarDevolucaoUseCase - Integration Tests', () => {
         expect(item.novoStatus).toBe(StatusEntregaItem.DEVOLVIDO);
       });
 
-      // Verificar que estoque AGUARDANDO_INSPECAO foi criado/atualizado
+      // Verificar que estoque QUARENTENA foi criado/atualizado
       const estoqueInspecaoDepois = await testSetup.prismaService.estoqueItem.findFirst({
         where: {
           almoxarifadoId: almoxarifado.id,
           tipoEpiId: tipoCapacete.id,
-          status: StatusEstoqueItem.AGUARDANDO_INSPECAO,
+          status: StatusEstoqueItem.QUARENTENA,
         },
       });
-      expect(estoqueInspecaoDepois.quantidade).toBe(quantidadeInspecaoAntes + 1); // Apenas 1 item DANIFICADO
+      expect(estoqueInspecaoDepois.quantidade).toBe(quantidadeInspecaoAntes + 2); // Ambos os itens vão para QUARENTENA
 
       // Verificar que itens foram marcados como devolvidos no banco
       const itensDb = await testSetup.prismaService.entregaItem.findMany({
@@ -232,12 +232,12 @@ describe('ProcessarDevolucaoUseCase - Integration Tests', () => {
           {
             itemId: itensEntrega[0].id,
             motivoDevolucao: 'Troca por tamanho',
-            condicaoItem: 'BOM' as const,
+            destinoItem: 'QUARENTENA' as const,
           },
           {
             itemId: itensEntrega[2].id,
             motivoDevolucao: 'Fim do uso',
-            condicaoItem: 'BOM' as const,
+            destinoItem: 'QUARENTENA' as const,
           },
         ],
         usuarioId: usuario.id,
@@ -331,7 +331,7 @@ describe('ProcessarDevolucaoUseCase - Integration Tests', () => {
         itensParaDevolucao: itensEntrega.map(item => ({
           itemId: item.id,
           motivoDevolucao: 'Devolução completa',
-          condicaoItem: 'BOM' as const,
+          destinoItem: 'QUARENTENA' as const,
         })),
         usuarioId: usuario.id,
       };
@@ -361,7 +361,7 @@ describe('ProcessarDevolucaoUseCase - Integration Tests', () => {
           {
             itemId: 'item-qualquer',
             motivoDevolucao: 'Teste',
-            condicaoItem: 'BOM' as const,
+            destinoItem: 'QUARENTENA' as const,
           },
         ],
         usuarioId: usuario.id,
@@ -404,7 +404,7 @@ describe('ProcessarDevolucaoUseCase - Integration Tests', () => {
           {
             itemId: 'item-qualquer',
             motivoDevolucao: 'Teste',
-            condicaoItem: 'BOM' as const,
+            destinoItem: 'QUARENTENA' as const,
           },
         ],
         usuarioId: usuario.id,
@@ -461,7 +461,7 @@ describe('ProcessarDevolucaoUseCase - Integration Tests', () => {
           {
             itemId: itemDevolvido.id,
             motivoDevolucao: 'Teste duplicado',
-            condicaoItem: 'BOM' as const,
+            destinoItem: 'QUARENTENA' as const,
           },
         ],
         usuarioId: usuario.id,
@@ -539,7 +539,7 @@ describe('ProcessarDevolucaoUseCase - Integration Tests', () => {
           {
             itemId: itemEntrega2.id,
             motivoDevolucao: 'Erro - item de outra entrega',
-            condicaoItem: 'BOM' as const,
+            destinoItem: 'QUARENTENA' as const,
           },
         ],
         usuarioId: usuario.id,
@@ -598,7 +598,7 @@ describe('ProcessarDevolucaoUseCase - Integration Tests', () => {
           {
             itemId: itemEntrega.id,
             motivoDevolucao: 'Teste histórico',
-            condicaoItem: 'BOM' as const,
+            destinoItem: 'QUARENTENA' as const,
           },
         ],
         usuarioId: usuario.id,

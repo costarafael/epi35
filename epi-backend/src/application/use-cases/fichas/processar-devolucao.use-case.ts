@@ -14,8 +14,8 @@ import { ProcessarDevolucaoInput, DevolucaoOutput } from '../../../presentation/
  * 
  * Regras de Negócio Críticas:
  * - Devolução só permitida para entregas ASSINADAS (validação obrigatória)
- * - Itens em condição DANIFICADO/PERDIDO vão para status QUARENTENA
- * - Itens em condição BOM retornam como DISPONIVEL
+ * - Todos os itens devolvidos vão para status QUARENTENA (padrão)
+ * - Destino DESCARTE pode ser usado para itens irrecuperáveis
  * - Movimentações unitárias para rastreabilidade atômica
  * - Transação garantindo consistência entre entrega e estoque
  * 
@@ -24,8 +24,8 @@ import { ProcessarDevolucaoInput, DevolucaoOutput } from '../../../presentation/
  * const devolucao = await useCase.execute({
  *   entregaId: "entrega-123",
  *   itensParaDevolucao: [
- *     { itemId: "item-1", condicaoItem: "BOM" },
- *     { itemId: "item-2", condicaoItem: "DANIFICADO" }
+ *     { itemId: "item-1", destinoItem: "QUARENTENA" },
+ *     { itemId: "item-2", destinoItem: "DESCARTE" }
  *   ]
  * });
  * ```
@@ -80,7 +80,7 @@ export class ProcessarDevolucaoUseCase {
 
       // 2. Preparar dados para batch updates
       const itemUpdatesData = input.itensParaDevolucao.map(itemInput => {
-        const novoStatus = this.determinarNovoStatusItem(itemInput.condicaoItem);
+        const novoStatus = this.determinarNovoStatusItem(itemInput.destinoItem);
         return {
           where: { id: itemInput.itemId },
           data: { status: novoStatus },
@@ -102,7 +102,7 @@ export class ProcessarDevolucaoUseCase {
       for (const itemInput of input.itensParaDevolucao) {
         const item = entregaCompleta.itens.find(i => i.id === itemInput.itemId);
         const itemDetails = itensMap.get(itemInput.itemId);
-        const novoStatus = this.determinarNovoStatusItem(itemInput.condicaoItem);
+        const novoStatus = this.determinarNovoStatusItem(itemInput.destinoItem);
 
         itensDevolucao.push({
           itemId: item.id,
@@ -112,33 +112,30 @@ export class ProcessarDevolucaoUseCase {
           statusAnterior: item.status as StatusEntregaItem,
           novoStatus,
           motivoDevolucao: itemInput.motivoDevolucao || 'N/A',
-          condicaoItem: itemInput.condicaoItem,
+          destinoItem: itemInput.destinoItem,
         });
 
-        // Criar movimentação de entrada se item não foi perdido
-        if (itemInput.condicaoItem !== 'PERDIDO') {
-          const statusEstoque = itemInput.condicaoItem === 'DANIFICADO' 
-            ? StatusEstoqueItem.AGUARDANDO_INSPECAO 
-            : StatusEstoqueItem.DISPONIVEL;
+        // Criar movimentação de entrada (todos os itens vão para destino especificado)
+        const statusEstoque = itemInput.destinoItem === 'DESCARTE' 
+          ? StatusEstoqueItem.QUARENTENA  // DESCARTE também vai para quarentena
+          : StatusEstoqueItem.QUARENTENA; // QUARENTENA é o padrão
 
-          // Preparar dados da movimentação
-          movimentacoesData.push({
-            estoqueItemId: item.estoqueItemOrigemId,
-            tipoMovimentacao: 'ENTRADA_DEVOLUCAO',
-            quantidadeMovida: ESTOQUE.QUANTIDADE_UNITARIA, // ✅ SEMPRE 1 - rastreabilidade unitária preservada
-            responsavelId: input.usuarioId,
-            entregaId: input.entregaId,
-          });
+        // Preparar dados da movimentação
+        movimentacoesData.push({
+          estoqueItemId: item.estoqueItemOrigemId,
+          tipoMovimentacao: 'ENTRADA_DEVOLUCAO',
+          quantidadeMovida: ESTOQUE.QUANTIDADE_UNITARIA, // ✅ SEMPRE 1 - rastreabilidade unitária preservada
+          responsavelId: input.usuarioId,
+          entregaId: input.entregaId,
+        });
 
-
-          const tipoEpiId = itemDetails?.estoqueItem?.tipoEpiId;
-          movimentacoesEstoque.push({
-            id: `temp-${itemInput.itemId}`, // Será atualizado após insert
-            tipoEpiId: tipoEpiId || 'N/A',
-            quantidade: ESTOQUE.QUANTIDADE_UNITARIA,
-            statusEstoque,
-          });
-        }
+        const tipoEpiId = itemDetails?.estoqueItem?.tipoEpiId;
+        movimentacoesEstoque.push({
+          id: `temp-${itemInput.itemId}`, // Será atualizado após insert
+          tipoEpiId: tipoEpiId || 'N/A',
+          quantidade: ESTOQUE.QUANTIDADE_UNITARIA,
+          statusEstoque,
+        });
       }
 
       // 5. Criar todas as movimentações em batch
@@ -148,20 +145,18 @@ export class ProcessarDevolucaoUseCase {
         });
       }
 
-      // 6. Atualizar estoque respeitando a condição de cada item
+      // 6. Atualizar estoque respeitando o destino de cada item
       for (const itemInput of input.itensParaDevolucao) {
-        if (itemInput.condicaoItem !== 'PERDIDO') {
-          const itemDetails = itensMap.get(itemInput.itemId);
-          const tipoEpiId = itemDetails?.estoqueItem?.tipoEpiId;
-          
-          if (tipoEpiId) {
-            await this.atualizarEstoque(
-              entregaCompleta.almoxarifadoId,
-              tipoEpiId,
-              itemInput.condicaoItem,
-              tx,
-            );
-          }
+        const itemDetails = itensMap.get(itemInput.itemId);
+        const tipoEpiId = itemDetails?.estoqueItem?.tipoEpiId;
+        
+        if (tipoEpiId) {
+          await this.atualizarEstoque(
+            entregaCompleta.almoxarifadoId,
+            tipoEpiId,
+            itemInput.destinoItem,
+            tx,
+          );
         }
       }
 
@@ -263,15 +258,15 @@ export class ProcessarDevolucaoUseCase {
       dataDevolucao: Date;
       diasUso: number;
       motivoDevolucao?: string;
-      condicaoItem: string;
+      destinoItem: string;
       numeroSerie?: string;
       lote?: string;
     }[];
     estatisticas: {
       totalDevolucoes: number;
-      itensEmBomEstado: number;
-      itensDanificados: number;
-      itensPerdidos: number;
+      itensQuarentena: number;
+      itensDescarte: number;
+      itensOutros: number;
       tempoMedioUso: number;
     };
   }> {
@@ -326,7 +321,7 @@ export class ProcessarDevolucaoUseCase {
         dataDevolucao: item.createdAt, // Use createdAt as approximation since dataDevolucao was removed
         diasUso,
         motivoDevolucao: 'N/A',
-        condicaoItem: this.mapearCondicaoItem(item.status as any),
+        destinoItem: this.mapearDestinoItem(item.status as any),
         numeroSerie: 'N/A',
         lote: 'N/A',
       };
@@ -334,9 +329,9 @@ export class ProcessarDevolucaoUseCase {
 
     // Calcular estatísticas
     const totalDevolucoes = devolucoes.length;
-    const itensEmBomEstado = devolucoes.filter(d => d.condicaoItem === 'BOM').length;
-    const itensDanificados = devolucoes.filter(d => d.condicaoItem === 'DANIFICADO').length;
-    const itensPerdidos = devolucoes.filter(d => d.condicaoItem === 'PERDIDO').length;
+    const itensQuarentena = devolucoes.filter(d => d.destinoItem === 'QUARENTENA').length;
+    const itensDescarte = devolucoes.filter(d => d.destinoItem === 'DESCARTE').length;
+    const itensOutros = devolucoes.filter(d => !['QUARENTENA', 'DESCARTE'].includes(d.destinoItem)).length;
     
     const tempoMedioUso = devolucoes.length > 0
       ? devolucoes.reduce((sum, d) => sum + d.diasUso, 0) / devolucoes.length
@@ -346,9 +341,9 @@ export class ProcessarDevolucaoUseCase {
       devolucoes,
       estatisticas: {
         totalDevolucoes,
-        itensEmBomEstado,
-        itensDanificados,
-        itensPerdidos,
+        itensQuarentena,
+        itensDescarte,
+        itensOutros,
         tempoMedioUso,
       },
     };
@@ -359,7 +354,7 @@ export class ProcessarDevolucaoUseCase {
     // entregaId obrigatório: validado por IdSchema
     // itensParaDevolucao obrigatório e não vazio: validado por z.array(ItemDevolucaoSchema).min(1)
     // usuarioId obrigatório: validado por IdSchema
-    // condicaoItem válidos: validado por z.enum(['BOM', 'DANIFICADO', 'PERDIDO'])
+    // destinoItem válidos: validado por z.enum(['QUARENTENA', 'DESCARTE'])
     
     // Apenas validações de negócio específicas que não podem ser feitas no Zod permanecem aqui
   }
@@ -404,7 +399,7 @@ export class ProcessarDevolucaoUseCase {
 
   private async validarItensPodeSemDevolvidos(
     entrega: any,
-    itens: { itemId: string; motivoDevolucao?: string; condicaoItem: 'BOM' | 'DANIFICADO' | 'PERDIDO' }[],
+    itens: { itemId: string; motivoDevolucao?: string; destinoItem: 'QUARENTENA' | 'DESCARTE' }[],
   ): Promise<void> {
     for (const itemInput of itens) {
       const item = entrega.itens.find((i: any) => i.id === itemInput.itemId);
@@ -421,28 +416,25 @@ export class ProcessarDevolucaoUseCase {
     }
   }
 
-  private determinarNovoStatusItem(condicaoItem: string): StatusEntregaItem {
-    switch (condicaoItem) {
-      case 'BOM':
-      case 'DANIFICADO':
-      case 'PERDIDO':
+  private determinarNovoStatusItem(destinoItem: string): StatusEntregaItem {
+    switch (destinoItem) {
+      case 'QUARENTENA':
+      case 'DESCARTE':
         return StatusEntregaItem.DEVOLVIDO;
       default:
-        throw new BusinessError(`Condição de item inválida: ${condicaoItem}`);
+        throw new BusinessError(`Destino de item inválido: ${destinoItem}`);
     }
   }
 
   private async criarMovimentacaoEntrada(
     entrega: any,
     item: any,
-    condicaoItem: string,
+    destinoItem: string,
     usuarioId: string,
     tx: any,
   ): Promise<any> {
-    // Find the correct estoqueItem for this almoxarifado + tipoEpi + status
-    const statusEstoque = condicaoItem === 'DANIFICADO' 
-      ? 'AGUARDANDO_INSPECAO' 
-      : 'DISPONIVEL';
+    // Todos os itens devolvidos vão para QUARENTENA (padrão)
+    const statusEstoque = 'QUARENTENA';
 
     // Get tipoEpiId from the original entregaItem
     const originalItem = await tx.entregaItem.findUnique({
@@ -488,12 +480,11 @@ export class ProcessarDevolucaoUseCase {
   private async atualizarEstoque(
     almoxarifadoId: string,
     tipoEpiId: string,
-    condicaoItem: string,
+    destinoItem: string,
     tx: any,
   ): Promise<void> {
-    const statusEstoque = condicaoItem === 'DANIFICADO' 
-      ? StatusEstoqueItem.AGUARDANDO_INSPECAO 
-      : StatusEstoqueItem.DISPONIVEL;
+    // Todos os itens devolvidos vão para QUARENTENA (padrão)
+    const statusEstoque = StatusEstoqueItem.QUARENTENA;
 
     // Tentar atualizar estoque existente
     const estoqueAtualizado = await tx.estoqueItem.updateMany({
@@ -540,10 +531,10 @@ export class ProcessarDevolucaoUseCase {
     }
   }
 
-  private mapearCondicaoItem(status: StatusEntregaItem): string {
+  private mapearDestinoItem(status: StatusEntregaItem): string {
     switch (status) {
       case StatusEntregaItem.DEVOLVIDO:
-        return 'DEVOLVIDO'; // Note: condition detail (BOM/DANIFICADO/PERDIDO) no longer tracked at item level
+        return 'QUARENTENA'; // Padrão: itens devolvidos vão para quarentena
       case StatusEntregaItem.COM_COLABORADOR:
         return 'EM_POSSE';
       default:

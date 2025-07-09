@@ -75,7 +75,7 @@ export class DevolucoesController {
       itensParaDevolucao: devolucaoDto.itensParaDevolucao.map(item => ({
         itemId: item.itemId,
         motivoDevolucao: item.motivoDevolucao,
-        condicaoItem: item.condicaoItem,
+        destinoItem: item.destinoItem,
       })),
       observacoes: devolucaoDto.observacoes,
     });

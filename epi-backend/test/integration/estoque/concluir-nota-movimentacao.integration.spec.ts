@@ -34,7 +34,12 @@ describe('ConcluirNotaMovimentacaoUseCase - Integration Tests', () => {
     const moduleBuilder = Test.createTestingModule({
       providers: [
         ConcluirNotaMovimentacaoUseCase,
-        ConfiguracaoService,
+        {
+          provide: ConfiguracaoService,
+          useFactory: (configService: ConfigService, prismaService: PrismaService) => 
+            new ConfiguracaoService(configService, prismaService),
+          inject: [ConfigService, PrismaService],
+        },
         {
           provide: PrismaService,
           useValue: testSetup.prismaService,
@@ -43,6 +48,12 @@ describe('ConcluirNotaMovimentacaoUseCase - Integration Tests', () => {
           provide: ConfigService,
           useValue: {
             get: (key: string, defaultValue?: any) => {
+              // Check process.env first for runtime changes, then fall back to defaults
+              const envValue = process.env[key];
+              if (envValue !== undefined) {
+                return envValue;
+              }
+              
               const config = {
                 DATABASE_URL: 'postgresql://postgres:postgres@localhost:5436/epi_test_db_v35?schema=public',
                 NODE_ENV: 'test',
@@ -517,8 +528,20 @@ describe('ConcluirNotaMovimentacaoUseCase - Integration Tests', () => {
     });
 
     it('deve permitir estoque negativo quando configuração está habilitada', async () => {
-      // Arrange - Simular configuração permitindo estoque negativo
+      // Arrange - Configurar no banco e variável de ambiente
       process.env.PERMITIR_ESTOQUE_NEGATIVO = 'true';
+      
+      // Atualizar configuração no banco de dados
+      await testSetup.prismaService.configuracao.upsert({
+        where: { chave: 'PERMITIR_ESTOQUE_NEGATIVO' },
+        update: { valor: 'true' },
+        create: {
+          chave: 'PERMITIR_ESTOQUE_NEGATIVO',
+          valor: 'true',
+          descricao: 'Permitir estoque negativo - teste'
+        }
+      });
+      
 
       const usuario = await testSetup.findUser('admin@test.com');
       const almoxCentral = await testSetup.findAlmoxarifado('Almoxarifado Central');
@@ -575,8 +598,18 @@ describe('ConcluirNotaMovimentacaoUseCase - Integration Tests', () => {
         const estoqueDepois = await testSetup.getEstoqueDisponivel(almoxCentral.id, tipoLuva.id);
         expect(estoqueDepois.quantidade).toBeLessThan(0);
       } finally {
-        // Cleanup - remover variável de ambiente
+        // Cleanup - remover variável de ambiente e resetar configuração no banco
         delete process.env.PERMITIR_ESTOQUE_NEGATIVO;
+        
+        await testSetup.prismaService.configuracao.upsert({
+          where: { chave: 'PERMITIR_ESTOQUE_NEGATIVO' },
+          update: { valor: 'false' },
+          create: {
+            chave: 'PERMITIR_ESTOQUE_NEGATIVO',
+            valor: 'false',
+            descricao: 'Permitir estoque negativo'
+          }
+        });
       }
     });
   });

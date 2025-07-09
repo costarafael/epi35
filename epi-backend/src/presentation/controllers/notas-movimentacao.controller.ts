@@ -123,74 +123,102 @@ export class NotasMovimentacaoController {
   @ApiQuery({ name: 'dataFim', required: false, type: String, format: 'date' })
   @ApiResponse({ status: 200, description: 'Lista de notas recuperada com sucesso' })
   async listarNotas(
-    @Query(new ZodValidationPipe(FiltrosNotaMovimentacaoSchema)) 
+    @Query(new ZodValidationPipe(FiltrosNotaMovimentacaoSchema))
     filtros: FiltrosNotaMovimentacao,
   ): Promise<PaginatedResponse> {
-    // Construir filtros para query direta no Prisma
+    const { page, limit, ...restFiltros } = filtros;
+
     const where: any = {};
-    
-    if (filtros.numero) {
-      where.numeroDocumento = { contains: filtros.numero, mode: 'insensitive' };
+    if (restFiltros.numero) {
+      where.numeroDocumento = { contains: restFiltros.numero, mode: 'insensitive' };
     }
-    if (filtros.tipo) {
-      where.tipoNota = filtros.tipo;
+    if (restFiltros.tipo) {
+      where.tipoNota = restFiltros.tipo;
     }
-    if (filtros.status) {
-      where.status = filtros.status;
+    if (restFiltros.status) {
+      where.status = restFiltros.status;
     }
-    if (filtros.almoxarifadoOrigemId) {
-      where.almoxarifadoId = filtros.almoxarifadoOrigemId;
+    if (restFiltros.usuarioId) {
+      where.responsavelId = restFiltros.usuarioId;
     }
-    if (filtros.almoxarifadoDestinoId) {
-      where.almoxarifadoDestinoId = filtros.almoxarifadoDestinoId;
-    }
-    if (filtros.usuarioId) {
-      where.responsavelId = filtros.usuarioId;
-    }
-    if (filtros.dataInicio || filtros.dataFim) {
+    if (restFiltros.dataInicio || restFiltros.dataFim) {
       where.createdAt = {};
-      if (filtros.dataInicio) {
-        where.createdAt.gte = filtros.dataInicio;
-      }
-      if (filtros.dataFim) {
-        where.createdAt.lte = filtros.dataFim;
-      }
+      if (restFiltros.dataInicio) where.createdAt.gte = new Date(restFiltros.dataInicio);
+      if (restFiltros.dataFim) where.createdAt.lte = new Date(restFiltros.dataFim);
     }
 
-    const notas = await this.prismaService.notaMovimentacao.findMany({
-      where,
-      orderBy: { createdAt: 'desc' },
+    const [notas, total] = await this.prismaService.$transaction([
+      this.prismaService.notaMovimentacao.findMany({
+        where,
+        include: {
+          responsavel: {
+            select: { id: true, nome: true },
+          },
+          almoxarifadoOrigem: {
+            select: { id: true, nome: true },
+          },
+          almoxarifadoDestino: {
+            select: { id: true, nome: true },
+          },
+          itens: {
+            select: {
+              id: true,
+              tipoEpiId: true,
+              quantidade: true,
+              custoUnitario: true,
+            },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      this.prismaService.notaMovimentacao.count({ where }),
+    ]);
+
+    const notasFormatadas = notas.map(nota => {
+      const totalItens = nota.itens.reduce((acc, item) => acc + item.quantidade, 0);
+      const valorTotal = nota.itens.reduce((acc, item) => {
+        const custo = item.custoUnitario ? item.custoUnitario.toNumber() : 0;
+        return acc + (custo * item.quantidade);
+      }, 0);
+
+      return {
+        id: nota.id,
+        numero: nota.numeroDocumento,
+        tipo: nota.tipoNota,
+        almoxarifadoOrigemId: nota.almoxarifadoId,
+        almoxarifadoDestinoId: nota.almoxarifadoDestinoId,
+        usuarioId: nota.responsavelId,
+        observacoes: nota.observacoes,
+        _status: nota.status,
+        createdAt: nota.createdAt,
+        
+        // Campos expandidos e calculados
+        usuario: nota.responsavel,
+        almoxarifadoOrigem: nota.almoxarifadoOrigem,
+        almoxarifadoDestino: nota.almoxarifadoDestino,
+        totalItens,
+        valorTotal,
+        _itens: nota.itens.map(item => ({
+          id: item.id,
+          tipoEpiId: item.tipoEpiId,
+          quantidade: item.quantidade,
+          custo_unitario: item.custoUnitario?.toNumber() ?? 0,
+        })),
+      };
     });
 
-    // Mapear para formato esperado pelo frontend (baseado na resposta atual)
-    const notasFormatadas = notas.map(nota => ({
-      id: nota.id,
-      numero: nota.numeroDocumento || '',
-      tipo: nota.tipoNota,
-      almoxarifadoOrigemId: nota.almoxarifadoId,
-      almoxarifadoDestinoId: nota.almoxarifadoDestinoId,
-      usuarioId: nota.responsavelId,
-      observacoes: nota.observacoes,
-      _status: nota.status,
-      createdAt: nota.createdAt,
-      _itens: [], // Por enquanto retornamos vazio para manter compatibilidade
-    }));
-
-    // Implementar paginação simples
-    const startIndex = (filtros.page - 1) * filtros.limit;
-    const endIndex = startIndex + filtros.limit;
-    const notasPaginadas = notasFormatadas.slice(startIndex, endIndex);
-    
     return {
       success: true,
-      data: notasPaginadas,
+      data: notasFormatadas,
       pagination: {
-        page: Number(filtros.page),
-        limit: Number(filtros.limit),
-        total: notasFormatadas.length,
-        totalPages: Math.ceil(notasFormatadas.length / Number(filtros.limit)),
-        hasNext: endIndex < notasFormatadas.length,
-        hasPrev: filtros.page > 1,
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+        hasNext: page * limit < total,
+        hasPrev: page > 1,
       },
     };
   }

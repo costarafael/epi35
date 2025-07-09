@@ -63,7 +63,6 @@ export interface INotaRepository extends IBaseRepository<NotaMovimentacao> {
     tipoEpiId: string,
     quantidade: number,
     custoUnitario?: number,
-    observacoes?: string,
   ): Promise<void>;
 
   removerItem(notaId: string, itemId: string): Promise<void>;

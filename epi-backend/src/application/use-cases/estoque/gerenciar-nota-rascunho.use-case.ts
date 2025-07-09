@@ -16,7 +16,8 @@ export interface AdicionarItemInput {
   notaId: string;
   tipoEpiId: string;
   quantidade: number;
-  observacoes?: string;
+  custoUnitario?: number;
+  // observacoes não existe no schema v3.5
 }
 
 export interface AtualizarQuantidadeItemInput {
@@ -82,7 +83,6 @@ export class GerenciarNotaRascunhoUseCase {
       input.tipoEpiId,
       input.quantidade,
       input.custoUnitario,
-      input.observacoes,
     );
   }
 

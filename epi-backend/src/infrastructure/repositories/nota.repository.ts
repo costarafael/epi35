@@ -322,7 +322,6 @@ export class NotaRepository implements INotaRepository {
     tipoEpiId: string,
     quantidade: number,
     custoUnitario?: number,
-    observacoes?: string,
   ): Promise<void> {
     await this.prisma.notaMovimentacaoItem.create({
       data: {
@@ -330,7 +329,7 @@ export class NotaRepository implements INotaRepository {
         tipoEpiId,
         quantidade,
         custoUnitario,
-        observacoes,
+        // observacoes não existe no schema v3.5
       },
     });
   }

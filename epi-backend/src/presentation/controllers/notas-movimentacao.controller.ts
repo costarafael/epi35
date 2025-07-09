@@ -477,7 +477,8 @@ export class NotasMovimentacaoController {
       notaId,
       tipoEpiId: adicionarItemDto.tipoEpiId,
       quantidade: adicionarItemDto.quantidade,
-      observacoes: adicionarItemDto.observacoes,
+      custoUnitario: adicionarItemDto.custoUnitario,
+      // observacoes não existe no schema v3.5
     });
 
     return {

@@ -1932,31 +1932,44 @@ PUT /api/fichas-epi/entregas/:entregaId/assinar
 
 ## **12. Fichas EPI - Devoluções**
 
+### **🚨 REGRAS CRÍTICAS DE NEGÓCIO**
+- **Validação Obrigatória:** Devolução só é permitida para entregas com status `ASSINADA`
+- **Destino Padrão:** Todos os itens devolvidos vão para status `QUARENTENA` (inspeção obrigatória)
+- **Rastreabilidade:** Cada devolução cria movimentação unitária (`quantidadeMovida: 1`)
+- **Transações Atômicas:** Todas as operações são transacionais para garantir consistência
+
 ### **12.1. Processar Devolução**
 ```http
-POST /api/fichas-epi/entregas/:entregaId/devolucao
+POST /api/fichas-epi/:fichaId/devolucoes
 ```
+
+**Parâmetros:**
+- `fichaId`: ID da ficha EPI (UUID)
 
 **Body:**
 ```json
 {
+  "entregaId": "uuid",
   "itensParaDevolucao": [
     {
       "itemId": "uuid",
       "motivoDevolucao": "Fim do período de uso",
-      "condicaoItem": "BOM"
+      "destinoItem": "QUARENTENA"
     }
   ],
-  "assinaturaColaborador": "base64_signature",
   "usuarioId": "uuid",
   "observacoes": "Devolução padrão"
 }
 ```
 
-**Condições do Item:**
-- `BOM`: Item em boas condições
-- `DANIFICADO`: Item danificado
-- `PERDIDO`: Item perdido
+**Destinos Permitidos:**
+- `QUARENTENA`: Item vai para inspeção (padrão)
+- `DESCARTE`: Item irrecuperável (também vai para quarentena temporariamente)
+
+**Validações Automáticas:**
+- Entrega deve estar com status `ASSINADA`
+- Itens devem estar com status `COM_COLABORADOR`
+- Ficha deve existir e estar ativa
 
 **Resposta:**
 ```json
@@ -1968,55 +1981,75 @@ POST /api/fichas-epi/entregas/:entregaId/devolucao
       {
         "itemId": "uuid",
         "tipoEpiId": "uuid",
-        "numeroSerie": "CS-001",
+        "numeroSerie": "N/A",
+        "lote": "N/A",
         "statusAnterior": "COM_COLABORADOR",
         "novoStatus": "DEVOLVIDO",
         "motivoDevolucao": "Fim do período de uso",
-        "condicaoItem": "BOM"
+        "destinoItem": "QUARENTENA"
       }
     ],
     "movimentacoesEstoque": [
       {
-        "id": "uuid",
+        "id": "temp-uuid",
         "tipoEpiId": "uuid",
         "quantidade": 1,
-        "statusEstoque": "DISPONIVEL"
+        "statusEstoque": "QUARENTENA"
       }
     ],
-    "statusEntregaAtualizado": "DEVOLVIDA_TOTAL",
+    "statusEntregaAtualizado": "ASSINADA",
     "dataProcessamento": "2025-07-07T15:00:00.000Z"
+  },
+  "message": "Devolução processada com sucesso"
+}
+```
+
+**Códigos de Status:**
+- **201:** Devolução processada com sucesso
+- **400:** Dados inválidos
+- **404:** Ficha não encontrada
+- **422:** Entrega não assinada ou item já devolvido
+
+### **12.2. Processamento em Lote**
+```http
+POST /api/fichas-epi/:fichaId/devolucoes/batch
+```
+
+**Body:**
+```json
+{
+  "devolucoes": [
+    {
+      "equipamentoId": "uuid",
+      "motivo": "devolução padrão",
+      "observacoes": "Item em boas condições"
+    }
+  ]
+}
+```
+
+**Motivos Permitidos:**
+- `devolução padrão`: Devolução normal
+- `danificado`: Item danificado
+- `troca`: Troca de equipamento
+- `outros`: Outros motivos
+
+**Resposta:**
+```json
+{
+  "success": true,
+  "data": {
+    "processadas": 5,
+    "erros": [],
+    "fichasAtualizadas": ["uuid1", "uuid2"],
+    "estoqueAtualizado": true
   }
 }
 ```
 
-### **11.2. Validar Devolução**
+### **12.3. Histórico Global de Devoluções**
 ```http
-POST /api/fichas-epi/entregas/:entregaId/devolucao/validar
-```
-
-**Body:**
-```json
-{
-  "itemIds": ["uuid1", "uuid2"]
-}
-```
-
-### **11.3. Cancelar Devolução**
-```http
-POST /api/fichas-epi/entregas/:entregaId/devolucao/cancelar
-```
-
-**Body:**
-```json
-{
-  "itensParaCancelar": ["uuid1", "uuid2"],
-  "motivo": "Erro no processamento da devolução"
-}
-```
-
-### **11.4. Histórico de Devoluções**
-```http
-GET /api/fichas-epi/devolucoes/historico
+GET /api/fichas-epi/historico-global
 ```
 
 **Query Parameters:**
@@ -2025,42 +2058,45 @@ GET /api/fichas-epi/devolucoes/historico
 - `dataInicio`: Data inicial (date, opcional)
 - `dataFim`: Data final (date, opcional)
 - `page`: Página (number, padrão: 1)
-- `limit`: Itens por página (number, padrão: 20, máximo: 100)
+- `limit`: Itens por página (number, padrão: 10)
 
 **Resposta:**
 ```json
 {
   "success": true,
-  "data": {
-    "devolucoes": [
-      {
-        "entregaId": "uuid",
-        "colaboradorNome": "Carlos Oliveira",
-        "tipoEpiNome": "Capacete de Segurança",
-        "dataEntrega": "2025-06-01T10:00:00.000Z",
-        "dataDevolucao": "2025-07-07T15:00:00.000Z",
-        "diasUso": 36,
-        "motivoDevolucao": "Fim do período de uso",
-        "condicaoItem": "BOM",
-        "numeroSerie": "CS-001"
-      }
-    ],
-    "estatisticas": {
-      "totalDevolucoes": 125,
-      "itensEmBomEstado": 98,
-      "itensDanificados": 22,
-      "itensPerdidos": 5,
-      "tempoMedioUso": 45
-    }
-  },
+  "data": [],
   "pagination": {
     "page": 1,
-    "limit": 20,
-    "total": 125,
-    "totalPages": 7
+    "limit": 10,
+    "total": 0,
+    "totalPages": 1,
+    "hasNext": false,
+    "hasPrev": false
   }
 }
 ```
+
+### **📝 Resumo das Principais Mudanças no Sistema de Devoluções**
+
+#### **🆕 Novos Recursos:**
+- **Destino QUARENTENA como padrão:** Todos os itens devolvidos passam por inspeção
+- **Processamento em lote:** Múltiplas devoluções em uma única operação
+- **Validação obrigatória de assinatura:** Só permite devolução de entregas assinadas
+- **Rastreabilidade atômica:** Cada item tem movimentação unitária
+
+#### **🔧 Melhorias Técnicas:**
+- **Transações atômicas:** Consistência garantida entre entrega e estoque
+- **Operações em batch:** Performance otimizada para múltiplas devoluções
+- **Validações rigorosas:** Regras de negócio implementadas no backend
+- **Histórico completo:** Todas as devoluções são registradas no histórico da ficha
+
+#### **🎯 Fluxo de Devolução Atualizado:**
+1. **Validação:** Verificar se entrega está assinada
+2. **Processamento:** Atualizar status dos itens para `DEVOLVIDO`
+3. **Estoque:** Criar movimentação `ENTRADA_DEVOLUCAO` 
+4. **Destino:** Todos os itens vão para `QUARENTENA`
+5. **Histórico:** Registrar ação no histórico da ficha
+6. **Status:** Manter entrega como `ASSINADA` (não altera)
 
 ---
 

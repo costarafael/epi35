@@ -122,12 +122,10 @@ class SeedMovimentacoes {
       
       try {
         // 1. Criar nota em rascunho via use case
-        const notaRascunho = await this.gerenciarNotaUseCase.execute({
-          almoxarifadoId: almoxarifado.id,
-          responsavelId: responsavel.id,
-          tipoNota: 'ENTRADA',
-          numeroDocumento,
-          dataDocumento,
+        const notaRascunho = await this.gerenciarNotaUseCase.criarNota({
+          tipo: 'ENTRADA',
+          usuarioId: responsavel.id,
+          almoxarifadoDestinoId: almoxarifado.id,
           observacoes: `Nota de entrada de EPIs - Lote ${i + 1}`,
         });
         
@@ -158,7 +156,7 @@ class SeedMovimentacoes {
         // 3. Concluir nota via use case (cria movimentações e atualiza estoque)
         await this.concluirNotaUseCase.execute({
           notaId: notaRascunho.id,
-          responsavelId: responsavel.id,
+          usuarioId: responsavel.id,
         });
         
         notasRascunho.push(notaRascunho);
@@ -241,9 +239,11 @@ class SeedMovimentacoes {
         // Criar entrega via use case
         const entrega = await this.criarEntregaUseCase.execute({
           fichaEpiId: ficha.id,
-          almoxarifadoId: almoxarifado.id,
-          responsavelId: responsavel.id,
-          itens: itensParaEntrega,
+          quantidade: itensParaEntrega.reduce((total, item) => total + item.quantidadeEntregue, 0),
+          itens: itensParaEntrega.map(item => ({
+            estoqueItemOrigemId: item.estoqueItemOrigemId,
+          })),
+          usuarioId: responsavel.id,
           observacoes: `Entrega de EPIs - ${itensParaEntrega.length} tipos`,
         });
         
@@ -320,8 +320,12 @@ class SeedMovimentacoes {
         // Processar devolução via use case
         await this.processarDevolucaoUseCase.execute({
           entregaId: entrega.id,
-          responsavelId: responsavel.id,
-          itens: itensParaProcessar,
+          itensParaDevolucao: itensParaProcessar.map(item => ({
+            itemId: item.entregaItemId,
+            motivoDevolucao: item.motivoDevolucao,
+            destinoItem: item.destinoPos,
+          })),
+          usuarioId: responsavel.id,
           observacoes: `Devolução de ${itensParaProcessar.length} itens`,
         });
         

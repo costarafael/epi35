@@ -42,7 +42,12 @@
     "deploy:db:seed": "node scripts/deploy-db.js --seed",
     "prisma:studio": "prisma studio",
     "prisma:test:deploy": "DATABASE_URL=postgresql://postgres:postgres@localhost:5436/epi_test_db_v35?schema=public prisma migrate deploy",
-    "prisma:test:reset": "DATABASE_URL=postgresql://postgres:postgres@localhost:5436/epi_test_db_v35?schema=public prisma migrate reset --force"
+    "prisma:test:reset": "DATABASE_URL=postgresql://postgres:postgres@localhost:5436/epi_test_db_v35?schema=public prisma migrate reset --force",
+    "seed": "ts-node prisma/seed.ts",
+    "seed:base": "ts-node prisma/seed-base.ts",
+    "seed:movimentacoes": "tsx scripts/seed-movimentacoes.ts",
+    "seed:demo": "npm run seed:base && npm run seed:movimentacoes",
+    "seed:reset": "npm run prisma:migrate && npm run seed:demo"
   },
   "prisma": {
     "seed": "ts-node prisma/seed.ts"

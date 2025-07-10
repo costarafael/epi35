@@ -672,6 +672,7 @@ export const FichaListItemSchema = z.object({
   id: IdSchema,
   colaborador: z.object({
     nome: z.string(),
+    cpf: z.string(),
     matricula: z.string().nullable(),
     cargo: z.string().nullable(),
     empresa: z.string().nullable(),
@@ -699,10 +700,11 @@ export const FichaListEnhancedSchema = z.object({
 export const FichaListQuerySchema = z.object({
   page: z.coerce.number().min(1).default(1),
   limit: z.coerce.number().min(1).max(100).default(20),
-  search: z.string().optional(),
+  search: z.string().optional().describe('Busca unificada por nome, matrícula ou CPF do colaborador'),
   status: z.enum(['ativa', 'inativa', 'vencida', 'pendente_devolucao']).optional(),
   cargo: z.string().optional(),
-  empresa: z.string().optional(),
+  empresa: z.string().optional().describe('Nome da empresa para filtro por texto'),
+  empresaId: z.string().optional().describe('ID da empresa (UUID) para filtro exato'),
   vencimentoProximo: z.union([
     z.boolean(),
     z.string().transform(val => {

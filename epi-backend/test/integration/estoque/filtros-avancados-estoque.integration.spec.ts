@@ -1,14 +1,10 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
+import request from 'supertest';
 import { PrismaService } from '../../../src/infrastructure/database/prisma.service';
 import { ConfiguracaoService } from '../../../src/domain/services/configuracao.service';
 import { ListarEstoqueItensUseCase } from '../../../src/application/use-cases/estoque/listar-estoque-itens.use-case';
-import { EstoqueController } from '../../../src/presentation/controllers/estoque.controller';
-import { RelatorioPosicaoEstoqueUseCase } from '../../../src/application/use-cases/queries/relatorio-posicao-estoque.use-case';
-import { RealizarAjusteDirectoUseCase } from '../../../src/application/use-cases/estoque/realizar-ajuste-direto.use-case';
-import { ListarAlmoxarifadosUseCase } from '../../../src/application/use-cases/estoque/listar-almoxarifados.use-case';
-import { ZodValidationPipe } from '../../../src/presentation/pipes/zod-validation.pipe';
+import { AppModule } from '../../../src/app.module';
 import { ListarEstoqueItensQuerySchema } from '../../../src/presentation/dto/schemas/estoque.schemas';
 
 describe('Filtros Avançados de Estoque (Integration)', () => {
@@ -28,34 +24,16 @@ describe('Filtros Avançados de Estoque (Integration)', () => {
   let itemInspecaoSemEstoque: string;
 
   beforeAll(async () => {
+    // Setup environment variables
+    process.env.NODE_ENV = 'test';
+    process.env.DATABASE_URL = 'postgresql://postgres:postgres@localhost:5436/epi_test_db_v35?schema=public';
+
     const moduleFixture: TestingModule = await Test.createTestingModule({
-      controllers: [EstoqueController],
-      providers: [
-        {
-          provide: ConfigService,
-          useValue: {
-            get: (key: string, defaultValue?: any) => {
-              const config = {
-                DATABASE_URL: process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5436/epi_test_db_v35?schema=public',
-                NODE_ENV: 'test',
-                PERMITIR_ESTOQUE_NEGATIVO: 'false',
-                PERMITIR_AJUSTES_FORCADOS: 'true',
-                ESTOQUE_MINIMO_EQUIPAMENTO: '10',
-              };
-              return config[key] || defaultValue;
-            },
-          },
-        },
-        PrismaService,
-        ConfiguracaoService,
-        ListarEstoqueItensUseCase,
-        ListarAlmoxarifadosUseCase,
-        RelatorioPosicaoEstoqueUseCase,
-        RealizarAjusteDirectoUseCase,
-      ],
+      imports: [AppModule],
     }).compile();
 
     app = moduleFixture.createNestApplication();
+    app.setGlobalPrefix('api');
     await app.init();
 
     prisma = moduleFixture.get<PrismaService>(PrismaService);
@@ -143,8 +121,12 @@ describe('Filtros Avançados de Estoque (Integration)', () => {
   });
 
   afterAll(async () => {
-    await prisma.$disconnect();
-    await app.close();
+    if (prisma) {
+      await prisma.$disconnect();
+    }
+    if (app) {
+      await app.close();
+    }
   });
 
   describe('Endpoint de Configuração de Filtros', () => {

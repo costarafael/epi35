@@ -10,6 +10,7 @@ import {
   ApiResponse,
   ApiBearerAuth,
   ApiParam,
+  ApiQuery,
 } from '@nestjs/swagger';
 import { ZodValidationPipe } from '../../pipes/zod-validation.pipe';
 import { ObterFichaCompletaUseCase } from '../../../application/use-cases/fichas/obter-ficha-completa.use-case';
@@ -187,8 +188,16 @@ export class FichasOtimizadasController {
   @Get('list-enhanced')
   @ApiOperation({ 
     summary: 'Listar fichas otimizada (Frontend Optimized)',
-    description: 'Lista fichas com dados pré-processados pelo backend: status calculado, estatísticas por ficha, filtros avançados',
+    description: 'Lista fichas com dados pré-processados pelo backend: status calculado, estatísticas por ficha, filtros avançados incluindo busca unificada por CPF e filtro por empresa (ID ou nome)',
   })
+  @ApiQuery({ name: 'page', required: false, type: Number, description: 'Página (padrão: 1)' })
+  @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Itens por página (padrão: 20, máx: 100)' })
+  @ApiQuery({ name: 'search', required: false, type: String, description: 'Busca unificada por nome, matrícula ou CPF do colaborador' })
+  @ApiQuery({ name: 'status', required: false, enum: ['ativa', 'inativa', 'vencida', 'pendente_devolucao'], description: 'Status da ficha' })
+  @ApiQuery({ name: 'cargo', required: false, type: String, description: 'Cargo do colaborador (busca por contém)' })
+  @ApiQuery({ name: 'empresa', required: false, type: String, description: 'Nome da empresa (busca por contém)' })
+  @ApiQuery({ name: 'empresaId', required: false, type: String, description: 'ID da empresa (UUID) para filtro exato - recomendado para frontend' })
+  @ApiQuery({ name: 'vencimentoProximo', required: false, type: Boolean, description: 'Fichas com vencimento nos próximos 30 dias' })
   @ApiResponse({ 
     status: 200, 
     description: 'Lista de fichas com dados processados',

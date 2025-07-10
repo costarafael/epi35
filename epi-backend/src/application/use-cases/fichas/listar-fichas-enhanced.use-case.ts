@@ -13,37 +13,57 @@ export class ListarFichasEnhancedUseCase {
 
   @MonitorUseCase('listar-fichas-enhanced')
   async execute(filters: FichaListQuery): Promise<FichaListEnhanced> {
-    const { page, limit, search, status, cargo, empresa, vencimentoProximo } = filters;
+    const { page, limit, search, status, cargo, empresa, empresaId, vencimentoProximo } = filters;
     
     const skip = (page - 1) * limit;
     const hoje = new Date();
 
-    // Construir where clause
-    const whereClause: any = {
-      colaborador: {
-        ativo: true,
-      },
+    // Construir filtros para colaborador
+    const colaboradorFilters: any = {
+      ativo: true,
     };
 
-    // Filtro por busca (nome, matrícula)
+    // Filtro por busca unificada (nome, matrícula, CPF)
     if (search) {
-      whereClause.colaborador.OR = [
-        { nome: { contains: search, mode: 'insensitive' } },
-        { matricula: { contains: search, mode: 'insensitive' } },
+      const searchTerm = search.trim();
+      // Remove formatação do CPF para busca (mantém apenas dígitos)
+      const cpfSearchTerm = searchTerm.replace(/\D/g, '');
+      
+      colaboradorFilters.OR = [
+        { nome: { contains: searchTerm, mode: 'insensitive' } },
+        { matricula: { contains: searchTerm, mode: 'insensitive' } },
+        // Busca por CPF (tanto formatado quanto não formatado)
+        ...(cpfSearchTerm.length >= 3 ? [
+          { cpf: { contains: cpfSearchTerm } }
+        ] : [])
       ];
     }
 
     // Filtro por cargo
     if (cargo) {
-      whereClause.colaborador.cargo = { contains: cargo, mode: 'insensitive' };
+      colaboradorFilters.cargo = { contains: cargo, mode: 'insensitive' };
     }
 
-    // Filtro por empresa
-    if (empresa) {
-      whereClause.colaborador.contratada = {
+    // Filtro por empresa (prioriza ID se fornecido, senão usa nome)
+    if (empresaId) {
+      colaboradorFilters.contratada = {
+        id: empresaId,
+      };
+      // Garantir que contratadaId não seja null
+      colaboradorFilters.contratadaId = { not: null };
+    } else if (empresa) {
+      colaboradorFilters.contratada = {
         nome: { contains: empresa, mode: 'insensitive' },
       };
+      // Garantir que contratadaId não seja null
+      colaboradorFilters.contratadaId = { not: null };
     }
+
+    // Construir where clause final
+    const whereClause: any = {
+      colaborador: colaboradorFilters,
+    };
+
 
     // Buscar fichas com dados relacionados
     const [fichas, total] = await Promise.all([
@@ -131,6 +151,7 @@ export class ListarFichasEnhancedUseCase {
       id: ficha.id,
       colaborador: {
         nome: ficha.colaborador.nome,
+        cpf: ficha.colaborador.cpf,
         matricula: ficha.colaborador.matricula,
         cargo: ficha.colaborador.cargo,
         empresa: ficha.colaborador.contratada?.nome || null,

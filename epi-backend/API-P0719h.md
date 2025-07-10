@@ -788,25 +788,47 @@ GET /api/estoque/alertas
 }
 ```
 
-### **6.11. Listar Itens de Estoque**
+### **6.11. Listar Itens de Estoque** ⭐ **[ATUALIZADO - Filtros Avançados]**
 ```http
 GET /api/estoque/itens
 ```
 
+**Descrição:** Lista itens de estoque com sistema avançado de filtros condicionais baseado na configuração `PERMITIR_ESTOQUE_NEGATIVO`.
+
 **Query Parameters:**
 - `almoxarifadoId`: ID do almoxarifado (string, opcional)
 - `tipoEpiId`: ID do tipo de EPI (string, opcional)
-- `status`: Status do item (string: "DISPONIVEL", "AGUARDANDO_INSPECAO", "QUARENTENA", "SEM_ESTOQUE", opcional)
+- `status`: **[NOVO]** Status do item com lógica condicional (enum: "DISPONIVEL", "AGUARDANDO_INSPECAO", "QUARENTENA", "SEM_ESTOQUE", opcional)
 - `apenasDisponiveis`: Apenas itens disponíveis (boolean, opcional)
-- `apenasComSaldo`: Apenas itens com saldo (boolean, opcional)
-- `page`: Página (number)
-- `limit`: Itens por página (number)
+- `apenasComSaldo`: Apenas itens com saldo > 0 (boolean, opcional)
+- `page`: Página (number, padrão: 1)
+- `limit`: Itens por página (number, padrão: 50, máx: 100)
 
-**Exemplos de Uso:**
+**🔄 Lógica Condicional do Filtro `status`:**
+
+**Quando `PERMITIR_ESTOQUE_NEGATIVO = false` (Padrão):**
+- `status=DISPONIVEL`: Itens com `status = DISPONIVEL` AND `quantidade > 0`
+- `status=SEM_ESTOQUE`: Itens com `quantidade ≤ 0` AND `status NOT IN (QUARENTENA, AGUARDANDO_INSPECAO)`
+- `status=QUARENTENA`: Itens com `status = QUARENTENA`
+- `status=AGUARDANDO_INSPECAO`: Itens com `status = AGUARDANDO_INSPECAO`
+
+**Quando `PERMITIR_ESTOQUE_NEGATIVO = true`:**
+- `status=DISPONIVEL`: Itens com `status = DISPONIVEL` (independente da quantidade)
+- `status=SEM_ESTOQUE`: **Funciona normalmente** (mas frontend deve ocultar a tab)
+- `status=QUARENTENA`: Itens com `status = QUARENTENA`
+- `status=AGUARDANDO_INSPECAO`: Itens com `status = AGUARDANDO_INSPECAO`
+
+**💡 Exemplos de Uso:**
 - `GET /api/estoque/itens?status=QUARENTENA` - Lista apenas itens em quarentena
-- `GET /api/estoque/itens?status=DISPONIVEL` - Lista apenas itens disponíveis (com lógica condicional)
+- `GET /api/estoque/itens?status=DISPONIVEL` - Lista itens disponíveis (com lógica condicional de quantidade)
 - `GET /api/estoque/itens?status=AGUARDANDO_INSPECAO` - Lista apenas itens aguardando inspeção
 - `GET /api/estoque/itens?status=SEM_ESTOQUE` - Lista itens sem estoque (quantidade ≤ 0, exceto quarentena/inspeção)
+- `GET /api/estoque/itens?almoxarifadoId=uuid&status=DISPONIVEL` - Combina filtros de almoxarifado e status
+
+**🎯 Compatibilidade e Prioridade:**
+- **Filtro `status`** tem prioridade sobre `apenasDisponiveis`
+- **Todos os filtros** podem ser combinados (almoxarifado, tipo EPI, etc.)
+- **Backward compatible** com sistemas existentes
 
 **Resposta:**
 ```json
@@ -850,18 +872,25 @@ GET /api/estoque/itens
 }
 ```
 
-### **6.12. Configuração dos Filtros de Estoque** ⭐ **[NOVO]**
+### **6.12. Configuração dos Filtros de Estoque** ⭐ **[NOVO - 09/07/2025]**
 ```http
 GET /api/estoque/configuracao-filtros
 ```
 
-**Descrição:** Retorna as configurações que determinam quais filtros/tabs devem ser exibidos no frontend baseado na configuração do sistema.
+**Descrição:** Retorna as configurações dinâmicas que determinam quais filtros/tabs devem ser exibidos no frontend baseado na configuração `PERMITIR_ESTOQUE_NEGATIVO`.
 
-**Lógica Condicional:**
-- **Se `PERMITIR_ESTOQUE_NEGATIVO = false`**: Tab "Sem Estoque" deve ser exibida
-- **Se `PERMITIR_ESTOQUE_NEGATIVO = true`**: Tab "Sem Estoque" NÃO deve ser exibida
+**🎯 Objetivo:** Permitir que o frontend adapte a interface de filtros dinamicamente com base nas regras de negócio configuradas no sistema.
 
-**Resposta:**
+**📋 Lógica Condicional Implementada:**
+- **Se `PERMITIR_ESTOQUE_NEGATIVO = false`**: Tab "Sem Estoque" deve ser **EXIBIDA**
+- **Se `PERMITIR_ESTOQUE_NEGATIVO = true`**: Tab "Sem Estoque" deve ser **OCULTA**
+
+**💡 Casos de Uso:**
+- **Inicialização do frontend:** Consultar para determinar quais tabs mostrar
+- **Mudanças de configuração:** Recarregar configuração quando admin alterar settings
+- **Validação de interface:** Garantir que UX está alinhada com regras de negócio
+
+**Resposta quando `PERMITIR_ESTOQUE_NEGATIVO = false`:**
 ```json
 {
   "success": true,
@@ -874,6 +903,38 @@ GET /api/estoque/configuracao-filtros
       "semEstoque": true
     }
   }
+}
+```
+
+**Resposta quando `PERMITIR_ESTOQUE_NEGATIVO = true`:**
+```json
+{
+  "success": true,
+  "data": {
+    "permitirEstoqueNegativo": true,
+    "tabsDisponiveis": {
+      "disponivel": true,
+      "quarentena": true,
+      "aguardandoInspecao": true,
+      "semEstoque": false
+    }
+  }
+}
+```
+
+**🔧 Implementação no Frontend:**
+```javascript
+// Exemplo de uso no frontend
+const response = await fetch('/api/estoque/configuracao-filtros');
+const config = await response.json();
+
+// Mostrar/ocultar tab baseado na configuração
+if (config.data.tabsDisponiveis.semEstoque) {
+  // Mostrar tab "Sem Estoque"
+  showSemEstoqueTab();
+} else {
+  // Ocultar tab "Sem Estoque"
+  hideSemEstoqueTab();
 }
 ```
 
@@ -2752,35 +2813,112 @@ Esta documentação cobre todos os endpoints disponíveis na API do Módulo de G
 - **Exemplo de uso:** `GET /api/colaboradores?semFicha=true&ativo=true`
 - **Benefício:** Compatibilidade total com query parameters HTTP que sempre são strings
 
-### **🔍 Filtros Avançados de Estoque com Lógica Condicional (09/07/2025)**
-- **Endpoint:** `GET /api/estoque/itens?status=SEM_ESTOQUE`
-- **Funcionalidade:** Sistema avançado de filtros com lógica baseada em configurações
+### **🔍 Filtros Avançados de Estoque com Lógica Condicional** ⭐ **[NOVO - 09/07/2025]**
+
+**🚀 Implementação Completa:** Sistema inteligente de filtros que adapta comportamento baseado na configuração `PERMITIR_ESTOQUE_NEGATIVO`.
+
+#### **📍 Endpoints Implementados:**
+- **Principal:** `GET /api/estoque/itens?status=SEM_ESTOQUE`
+- **Configuração:** `GET /api/estoque/configuracao-filtros`
 - **Status disponíveis:** `DISPONIVEL`, `AGUARDANDO_INSPECAO`, `QUARENTENA`, `SEM_ESTOQUE`
-- **Novo endpoint:** `GET /api/estoque/configuracao-filtros` - Configuração das tabs disponíveis
 
-#### **Lógica Condicional Baseada na Configuração `PERMITIR_ESTOQUE_NEGATIVO`**
+#### **🔄 Lógica Condicional Baseada na Configuração `PERMITIR_ESTOQUE_NEGATIVO`**
 
-**Cenário A: `PERMITIR_ESTOQUE_NEGATIVO = false` (Padrão)**
-- **Tab "Disponível"**: Itens com `status = DISPONIVEL` AND `quantidade > 0`
-- **Tab "Sem Estoque"**: Itens com `quantidade ≤ 0` AND `status NOT IN (QUARENTENA, AGUARDANDO_INSPECAO)`
-- **Tab "Quarentena"**: Itens com `status = QUARENTENA`
-- **Tab "Aguardando Inspeção"**: Itens com `status = AGUARDANDO_INSPECAO`
+**📊 Cenário A: `PERMITIR_ESTOQUE_NEGATIVO = false` (Padrão)**
+```json
+{
+  "permitirEstoqueNegativo": false,
+  "tabsDisponiveis": {
+    "disponivel": true,
+    "quarentena": true, 
+    "aguardandoInspecao": true,
+    "semEstoque": true
+  }
+}
+```
+- **Tab "Disponível"**: `status = DISPONIVEL` AND `quantidade > 0`
+- **Tab "Sem Estoque"**: `quantidade ≤ 0` AND `status NOT IN (QUARENTENA, AGUARDANDO_INSPECAO)` - **VISÍVEL**
+- **Tab "Quarentena"**: `status = QUARENTENA`
+- **Tab "Aguardando Inspeção"**: `status = AGUARDANDO_INSPECAO`
 
-**Cenário B: `PERMITIR_ESTOQUE_NEGATIVO = true`**
-- **Tab "Disponível"**: Itens com `status = DISPONIVEL` (independente da quantidade)
-- **Tab "Sem Estoque"**: **NÃO APARECE** no frontend
-- **Tab "Quarentena"**: Itens com `status = QUARENTENA`
-- **Tab "Aguardando Inspeção"**: Itens com `status = AGUARDANDO_INSPECAO`
+**📊 Cenário B: `PERMITIR_ESTOQUE_NEGATIVO = true`**
+```json
+{
+  "permitirEstoqueNegativo": true,
+  "tabsDisponiveis": {
+    "disponivel": true,
+    "quarentena": true,
+    "aguardandoInspecao": true, 
+    "semEstoque": false
+  }
+}
+```
+- **Tab "Disponível"**: `status = DISPONIVEL` (independente da quantidade)
+- **Tab "Sem Estoque"**: **OCULTA** no frontend (`semEstoque: false`)
+- **Tab "Quarentena"**: `status = QUARENTENA`
+- **Tab "Aguardando Inspeção"**: `status = AGUARDANDO_INSPECAO`
 
-#### **Casos de Uso:**
-- **Quarentena:** `GET /api/estoque/itens?status=QUARENTENA`
-- **Disponíveis:** `GET /api/estoque/itens?status=DISPONIVEL` (com lógica condicional)
-- **Aguardando inspeção:** `GET /api/estoque/itens?status=AGUARDANDO_INSPECAO`
-- **Sem estoque:** `GET /api/estoque/itens?status=SEM_ESTOQUE` (apenas se config permitir)
-- **Configuração:** `GET /api/estoque/configuracao-filtros` (verificar tabs disponíveis)
+#### **💡 Casos de Uso Práticos:**
 
-#### **Integração e Compatibilidade:**
-- **Funciona com outros filtros:** `almoxarifadoId`, `tipoEpiId`, `apenasComSaldo`
-- **Prioridade:** Filtro `status` tem prioridade sobre `apenasDisponiveis`
-- **Validação:** Rejeita status inválidos com erro 400
-- **Performance:** Queries otimizadas com índices compostos
+**🔍 Consultas de Filtros:**
+```bash
+# Verificar configuração atual
+GET /api/estoque/configuracao-filtros
+
+# Filtrar por quarentena
+GET /api/estoque/itens?status=QUARENTENA
+
+# Filtrar disponíveis (lógica condicional automática)
+GET /api/estoque/itens?status=DISPONIVEL
+
+# Filtrar aguardando inspeção
+GET /api/estoque/itens?status=AGUARDANDO_INSPECAO
+
+# Filtrar sem estoque (quando permitido pela config)
+GET /api/estoque/itens?status=SEM_ESTOQUE
+
+# Combinar filtros
+GET /api/estoque/itens?almoxarifadoId=uuid&status=DISPONIVEL&limit=20
+```
+
+**🎯 Frontend Integration Pattern:**
+```javascript
+// 1. Carregar configuração
+const configResponse = await fetch('/api/estoque/configuracao-filtros');
+const { tabsDisponiveis } = configResponse.data;
+
+// 2. Renderizar tabs baseado na configuração
+const availableTabs = [
+  { key: 'disponivel', label: 'Disponível', visible: tabsDisponiveis.disponivel },
+  { key: 'quarentena', label: 'Quarentena', visible: tabsDisponiveis.quarentena },
+  { key: 'aguardandoInspecao', label: 'Aguardando Inspeção', visible: tabsDisponiveis.aguardandoInspecao },
+  { key: 'semEstoque', label: 'Sem Estoque', visible: tabsDisponiveis.semEstoque }
+].filter(tab => tab.visible);
+
+// 3. Filtrar dados por tab
+const loadTabData = async (tabKey) => {
+  const response = await fetch(`/api/estoque/itens?status=${tabKey.toUpperCase()}`);
+  return response.data.items;
+};
+```
+
+#### **⚙️ Características Técnicas:**
+- **🔄 Dinâmico:** Configuração pode ser alterada em runtime via `/api/configuracoes`
+- **🚀 Performance:** Queries otimizadas com índices compostos
+- **🔗 Compatibilidade:** Funciona com todos os filtros existentes (`almoxarifadoId`, `tipoEpiId`, `apenasComSaldo`)
+- **📝 Validação:** Rejeita status inválidos com erro 400 detalhado
+- **🎯 Prioridade:** Filtro `status` tem prioridade sobre `apenasDisponiveis`
+- **♻️ Backward Compatible:** Sistemas existentes continuam funcionando
+
+#### **🧪 Testes de Produção:**
+✅ **Endpoint configuração:** `https://epi-backend-s14g.onrender.com/api/estoque/configuracao-filtros`
+✅ **Filtro SEM_ESTOQUE:** `https://epi-backend-s14g.onrender.com/api/estoque/itens?status=SEM_ESTOQUE`
+✅ **Filtro DISPONIVEL:** `https://epi-backend-s14g.onrender.com/api/estoque/itens?status=DISPONIVEL`
+✅ **Validação schema:** Todos os status (`DISPONIVEL`, `QUARENTENA`, `AGUARDANDO_INSPECAO`, `SEM_ESTOQUE`)
+
+#### **📋 Benefícios para o Negócio:**
+- **🎛️ Flexibilidade:** Interface adapta-se às regras de negócio configuradas
+- **📊 Controle preciso:** Separação clara entre itens disponíveis e sem estoque
+- **🔍 Visibilidade:** Gestores podem escolher como visualizar o estoque
+- **⚡ Performance:** Filtros otimizados reduzem tempo de resposta
+- **🔄 Escalabilidade:** Sistema preparado para novas configurações futuras

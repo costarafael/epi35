@@ -263,7 +263,6 @@ async function criarTiposEPI() {
   for (const tipo of tiposSelecionados) {
     const tipoEpi = await prisma.tipoEPI.create({
       data: {
-        // ID será gerado automaticamente pelo middleware
         id: '', // Placeholder que será substituído pelo middleware
         nomeEquipamento: tipo.nome,
         numeroCa: tipo.ca,

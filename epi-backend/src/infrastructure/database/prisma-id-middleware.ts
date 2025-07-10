@@ -22,21 +22,21 @@ export const customIdMiddleware: Prisma.Middleware = async (params, next) => {
     // Gera ID customizado baseado no modelo
     switch (model) {
       case 'Entrega':
-        if (!args.data.id) {
+        if (!args.data.id || args.data.id === '') {
           args.data.id = generateEntregaId();
           console.log(`🆔 Generated Entrega ID: ${args.data.id}`);
         }
         break;
         
       case 'EstoqueItem':
-        if (!args.data.id) {
+        if (!args.data.id || args.data.id === '') {
           args.data.id = generateEstoqueItemId();
           console.log(`🆔 Generated EstoqueItem ID: ${args.data.id}`);
         }
         break;
         
       case 'TipoEPI':
-        if (!args.data.id) {
+        if (!args.data.id || args.data.id === '') {
           args.data.id = generateTipoEpiId();
           console.log(`🆔 Generated TipoEPI ID: ${args.data.id}`);
         }

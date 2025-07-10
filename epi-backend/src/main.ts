@@ -135,6 +135,18 @@ async function bootstrap() {
   server.keepAliveTimeout = 120000; // 120 seconds
   server.headersTimeout = 120000;   // 120 seconds
 
+  // Log all registered routes for debugging
+  console.log('🔍 Registered routes:');
+  const router = app.getHttpAdapter().getInstance()._router;
+  if (router && router.stack) {
+    router.stack.forEach((layer: any) => {
+      if (layer.route) {
+        const methods = Object.keys(layer.route.methods).join(', ').toUpperCase();
+        console.log(`  ${methods} ${layer.route.path}`);
+      }
+    });
+  }
+
   console.log(`
   🚀 EPI Backend API is running!
   📖 Swagger docs: http://localhost:${port}/api/docs

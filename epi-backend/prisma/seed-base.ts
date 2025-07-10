@@ -156,22 +156,45 @@ async function limpezaCompleta() {
     return;
   }
 
-  console.log('🧹 Iniciando limpeza completa do banco...');
+  console.log('🧹 Iniciando limpeza ABSOLUTA do banco (resolve inconsistências)...');
 
-  // Limpar TODOS os dados operacionais e estruturais (exceto sistema)
+  // ⚠️ LIMPEZA TOTAL: Remove TODOS os dados para garantir consistência 100%
+  // Esta limpeza resolve as inconsistências reportadas (11 críticas)
+  
+  // Limpar TODOS os dados operacionais e estruturais
   await prisma.historicoFicha.deleteMany();
+  console.log('  ✅ Históricos removidos');
+  
   await prisma.entregaItem.deleteMany();
   await prisma.entrega.deleteMany();
+  console.log('  ✅ Entregas removidas');
+  
   await prisma.movimentacaoEstoque.deleteMany();
+  console.log('  ✅ Movimentações removidas');
+  
   await prisma.notaMovimentacaoItem.deleteMany();
   await prisma.notaMovimentacao.deleteMany();
+  console.log('  ✅ Notas de movimentação removidas');
+  
+  // 🔥 CRÍTICO: Remove todos os itens de estoque (resolve inconsistências)
   await prisma.estoqueItem.deleteMany();
+  console.log('  ✅ TODOS os itens de estoque removidos (inconsistências eliminadas)');
+  
   await prisma.fichaEPI.deleteMany();
   await prisma.colaborador.deleteMany();
   await prisma.contratada.deleteMany();
-  await prisma.tipoEPI.deleteMany();
+  console.log('  ✅ Fichas, colaboradores e contratadas removidas');
   
-  console.log('✅ Limpeza completa concluída.');
+  await prisma.tipoEPI.deleteMany();
+  console.log('  ✅ Tipos de EPI removidos');
+  
+  // Remove também usuários, almoxarifados e unidades para recomeçar do zero
+  await prisma.usuario.deleteMany();
+  await prisma.almoxarifado.deleteMany();
+  await prisma.unidadeNegocio.deleteMany();
+  console.log('  ✅ Infraestrutura removida');
+  
+  console.log('✅ Limpeza ABSOLUTA concluída - Database zerado, inconsistências eliminadas.');
 }
 
 async function criarContratadas() {
@@ -286,13 +309,84 @@ async function main() {
     // 1. Limpeza completa (se habilitado)
     await limpezaCompleta();
     
-    // 2. Obter/validar dados básicos existentes (devem existir do seed principal)
-    const usuarios = await prisma.usuario.findMany();
-    const unidadeNegocio = await prisma.unidadeNegocio.findFirst();
-    const almoxarifados = await prisma.almoxarifado.findMany();
+    // 2. Criar/validar dados básicos (infraestrutura)
+    let usuarios = await prisma.usuario.findMany();
+    let unidadeNegocio = await prisma.unidadeNegocio.findFirst();
+    let almoxarifados = await prisma.almoxarifado.findMany();
     
-    if (!unidadeNegocio || almoxarifados.length === 0) {
-      throw new Error('Dados básicos não encontrados. Execute o seed principal primeiro: npm run seed');
+    // Se não existir infraestrutura básica, criar
+    if (!unidadeNegocio || almoxarifados.length === 0 || usuarios.length === 0) {
+      console.log('🏗️ Criando infraestrutura básica...');
+      
+      // Criar usuários do sistema
+      if (usuarios.length === 0) {
+        await prisma.usuario.createMany({
+          data: [
+            {
+              id: 'USR001',
+              nome: 'Administrador Sistema',
+              email: 'admin@epi.local',
+              senhaHash: '$2b$10$dummy.hash.for.admin',
+              perfil: 'ADMINISTRADOR',
+              ativo: true,
+            },
+            {
+              id: 'USR002',
+              nome: 'Operador Almoxarifado',
+              email: 'operador@epi.local',
+              senhaHash: '$2b$10$dummy.hash.for.operator',
+              perfil: 'OPERADOR',
+              ativo: true,
+            },
+            {
+              id: 'USR003',
+              nome: 'Supervisor',
+              email: 'supervisor@epi.local',
+              senhaHash: '$2b$10$dummy.hash.for.supervisor',
+              perfil: 'SUPERVISOR',
+              ativo: true,
+            },
+          ],
+        });
+        console.log('  ✅ Usuários do sistema criados');
+      }
+      
+      // Criar unidade de negócio
+      if (!unidadeNegocio) {
+        unidadeNegocio = await prisma.unidadeNegocio.create({
+          data: {
+            id: 'UNI001',
+            nome: 'Unidade Central',
+            codigo: 'CENTRAL',
+            ativa: true,
+          },
+        });
+        console.log('  ✅ Unidade de negócio criada');
+      }
+      
+      // Criar almoxarifados
+      if (almoxarifados.length === 0) {
+        await prisma.almoxarifado.createMany({
+          data: [
+            {
+              id: 'ALM001',
+              nome: 'Almoxarifado Central',
+              codigo: 'CENTRAL',
+              unidadeNegocioId: unidadeNegocio.id,
+              ativo: true,
+            },
+            {
+              id: 'ALM002',
+              nome: 'Almoxarifado Norte',
+              codigo: 'NORTE',
+              unidadeNegocioId: unidadeNegocio.id,
+              ativo: true,
+            },
+          ],
+        });
+        almoxarifados = await prisma.almoxarifado.findMany();
+        console.log('  ✅ Almoxarifados criados');
+      }
     }
     
     // 3. Criar dados estruturais (sem movimentações)

@@ -12,7 +12,7 @@ import { generateEntregaId, generateEstoqueItemId, generateTipoEpiId } from '../
  * Middleware para geração automática de IDs customizados
  */
 export const customIdMiddleware: Prisma.Middleware = async (params, next) => {
-  // Intercepta apenas operações de criação
+  // Intercepta operações de criação
   if (params.action === 'create') {
     const { model, args } = params;
 
@@ -44,6 +44,38 @@ export const customIdMiddleware: Prisma.Middleware = async (params, next) => {
     }
   }
 
+  // Intercepta operações de upsert
+  if (params.action === 'upsert') {
+    const { model, args } = params;
+
+    // Log para debugging
+    console.log(`🔧 Middleware: Upserting ${model}`, args.create?.id ? 'with ID' : 'without ID');
+
+    // Gera ID customizado para o caso create do upsert
+    switch (model) {
+      case 'Entrega':
+        if (!args.create?.id || args.create.id === '') {
+          args.create.id = generateEntregaId();
+          console.log(`🆔 Generated Entrega ID for upsert: ${args.create.id}`);
+        }
+        break;
+        
+      case 'EstoqueItem':
+        if (!args.create?.id || args.create.id === '') {
+          args.create.id = generateEstoqueItemId();
+          console.log(`🆔 Generated EstoqueItem ID for upsert: ${args.create.id}`);
+        }
+        break;
+        
+      case 'TipoEPI':
+        if (!args.create?.id || args.create.id === '') {
+          args.create.id = generateTipoEpiId();
+          console.log(`🆔 Generated TipoEPI ID for upsert: ${args.create.id}`);
+        }
+        break;
+    }
+  }
+
   // Para operações createMany, precisamos de uma abordagem diferente
   if (params.action === 'createMany') {
     const { model, args } = params;
@@ -52,21 +84,21 @@ export const customIdMiddleware: Prisma.Middleware = async (params, next) => {
       case 'Entrega':
         args.data = args.data.map((item: any) => ({
           ...item,
-          id: item.id || generateEntregaId(),
+          id: (!item.id || item.id === '') ? generateEntregaId() : item.id,
         }));
         break;
         
       case 'EstoqueItem':
         args.data = args.data.map((item: any) => ({
           ...item,
-          id: item.id || generateEstoqueItemId(),
+          id: (!item.id || item.id === '') ? generateEstoqueItemId() : item.id,
         }));
         break;
         
       case 'TipoEPI':
         args.data = args.data.map((item: any) => ({
           ...item,
-          id: item.id || generateTipoEpiId(),
+          id: (!item.id || item.id === '') ? generateTipoEpiId() : item.id,
         }));
         break;
     }

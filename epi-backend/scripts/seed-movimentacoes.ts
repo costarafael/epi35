@@ -10,6 +10,9 @@ import { ConcluirNotaMovimentacaoUseCase } from '../src/application/use-cases/es
 import { CriarEntregaFichaUseCase } from '../src/application/use-cases/fichas/criar-entrega-ficha.use-case';
 import { ProcessarDevolucaoUseCase } from '../src/application/use-cases/fichas/processar-devolucao.use-case';
 
+// Enums necessários
+import { TipoNotaMovimentacao } from '../src/domain/enums/estoque.enum';
+
 // Configuração das movimentações
 const CONFIG = {
   notasEntrada: 15,        // Notas de entrada de EPIs
@@ -123,7 +126,7 @@ class SeedMovimentacoes {
       try {
         // 1. Criar nota em rascunho via use case
         const notaRascunho = await this.gerenciarNotaUseCase.criarNota({
-          tipo: 'ENTRADA',
+          tipo: TipoNotaMovimentacao.ENTRADA,
           usuarioId: responsavel.id,
           almoxarifadoDestinoId: almoxarifado.id,
           observacoes: `Nota de entrada de EPIs - Lote ${i + 1}`,

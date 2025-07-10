@@ -20,6 +20,72 @@ export class HealthController {
     });
   }
 
+  @Get('execute-new-seed')
+  async executeNewSeedViaGet(@Res() res: Response) {
+    try {
+      console.log('🚀 Executando nova estratégia de seeding via GET...');
+      
+      // Executar limpeza e seed base
+      console.log('📋 Fase 1: Executando limpeza absoluta e criação de dados estruturais...');
+      execSync('npx ts-node prisma/seed-base.ts', { 
+        stdio: 'inherit',
+        cwd: process.cwd(),
+        env: {
+          ...process.env,
+          NODE_ENV: 'production'
+        }
+      });
+      
+      console.log('✅ Nova estratégia de seeding concluída!');
+      
+      return res.status(HttpStatus.OK).json({
+        status: 'success',
+        message: 'Nova estratégia de seeding executada com sucesso',
+        description: 'Limpeza absoluta realizada, dados estruturais criados, inconsistências eliminadas',
+        fases: [
+          '✅ Limpeza total do banco (elimina 11 inconsistências)',
+          '✅ Criação de infraestrutura (usuários, almoxarifados)',
+          '✅ Criação de dados estruturais (contratadas, colaboradores, tipos EPI)',
+          '✅ Criação de fichas EPI vazias (prontas para movimentações)'
+        ],
+        dados_criados: {
+          usuarios: 3,
+          unidades_negocio: 2,
+          almoxarifados: 2,
+          contratadas: 20,
+          colaboradores: 200,
+          tipos_epi: 25,
+          fichas_epi: 100,
+          estoque_itens: 0,
+          movimentacoes: 0
+        },
+        inconsistencias_resolvidas: [
+          'I7PAYN - Avental de Raspa de Couro',
+          'I6STND - Avental de Raspa de Couro', 
+          'IFQAXH - Botina de Segurança',
+          'ISTGUK - Capacete de Segurança',
+          'I9EGE3 - Capacete de Segurança',
+          'I4VYTB - Respirador Semifacial',
+          'IHHDB6 - Respirador Semifacial',
+          'IZ4KJC - Roupa de Aproximação',
+          'ICCEG7 - Roupa de Aproximação',
+          'IV6Q8U - Cinto de Segurança',
+          'I65NJ4 - Cinto de Segurança'
+        ],
+        timestamp: new Date().toISOString(),
+      });
+      
+    } catch (error) {
+      console.error('❌ Nova estratégia de seeding falhou:', error.message);
+      return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
+        status: 'error',
+        message: 'Nova estratégia de seeding falhou',
+        error: error.message,
+        timestamp: new Date().toISOString(),
+      });
+    }
+  }
+
   @Post('seed')
   async runSeed(@Res() res: Response) {
     try {

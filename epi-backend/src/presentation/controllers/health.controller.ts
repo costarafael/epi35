@@ -50,6 +50,44 @@ export class HealthController {
     }
   }
 
+  @Post('seed-novo')
+  async runNewSeeding(@Res() res: Response) {
+    try {
+      console.log('🚀 Running new two-phase seeding strategy...');
+      
+      // Phase 1: Base seed
+      console.log('📋 Phase 1: Creating structural data...');
+      execSync('npx ts-node prisma/seed-base.ts', { 
+        stdio: 'inherit',
+        cwd: process.cwd(),
+        env: {
+          ...process.env,
+          NODE_ENV: 'production'
+        }
+      });
+      
+      console.log('✅ Phase 1 completed: Structural data created');
+      
+      return res.status(HttpStatus.OK).json({
+        status: 'success',
+        message: 'New two-phase seeding completed successfully',
+        description: 'Phase 1: Structural data (companies, employees, EPI types, empty cards) - Phase 2 skipped due to complexity',
+        phase1: 'Completed - 20 companies, 200 employees, 25 EPI types, 100 empty EPI cards',
+        phase2: 'Skipped - Movements would need to be created via API calls',
+        timestamp: new Date().toISOString(),
+      });
+      
+    } catch (error) {
+      console.error('❌ New seeding failed:', error.message);
+      return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
+        status: 'error',
+        message: 'New seeding failed',
+        error: error.message,
+        timestamp: new Date().toISOString(),
+      });
+    }
+  }
+
   @Post('seed-demo')
   async runDemoSeed(@Res() res: Response) {
     try {

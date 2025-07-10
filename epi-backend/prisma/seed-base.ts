@@ -326,25 +326,16 @@ async function main() {
               id: 'USR001',
               nome: 'Administrador Sistema',
               email: 'admin@epi.local',
-              senhaHash: '$2b$10$dummy.hash.for.admin',
-              perfil: 'ADMINISTRADOR',
-              ativo: true,
             },
             {
               id: 'USR002',
               nome: 'Operador Almoxarifado',
               email: 'operador@epi.local',
-              senhaHash: '$2b$10$dummy.hash.for.operator',
-              perfil: 'OPERADOR',
-              ativo: true,
             },
             {
               id: 'USR003',
               nome: 'Supervisor',
               email: 'supervisor@epi.local',
-              senhaHash: '$2b$10$dummy.hash.for.supervisor',
-              perfil: 'SUPERVISOR',
-              ativo: true,
             },
           ],
         });
@@ -358,7 +349,6 @@ async function main() {
             id: 'UNI001',
             nome: 'Unidade Central',
             codigo: 'CENTRAL',
-            ativa: true,
           },
         });
         console.log('  ✅ Unidade de negócio criada');
@@ -371,16 +361,14 @@ async function main() {
             {
               id: 'ALM001',
               nome: 'Almoxarifado Central',
-              codigo: 'CENTRAL',
               unidadeNegocioId: unidadeNegocio.id,
-              ativo: true,
+              isPrincipal: true,
             },
             {
               id: 'ALM002',
               nome: 'Almoxarifado Norte',
-              codigo: 'NORTE',
               unidadeNegocioId: unidadeNegocio.id,
-              ativo: true,
+              isPrincipal: false,
             },
           ],
         });

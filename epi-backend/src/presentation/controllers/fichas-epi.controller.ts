@@ -386,17 +386,10 @@ export class FichasEpiController {
   ): Promise<SuccessResponse> {
     const usuarioId = req.user?.id || 'user-temp';
 
-    const entrega = await this.criarEntregaFichaUseCase.execute({
+    const entrega = await this.criarEntregaFichaUseCase.execute(
+      entregaDto,
       fichaEpiId,
-      quantidade: entregaDto.quantidade,
-      itens: entregaDto.itens.map(item => ({
-        numeroSerie: item.numeroSerie,
-        estoqueItemOrigemId: item.estoqueItemOrigemId!, // Assert not null since schema validates it
-      })),
-      assinaturaColaborador: entregaDto.assinaturaColaborador,
-      observacoes: entregaDto.observacoes,
-      usuarioId,
-    });
+    );
 
     return {
       success: true,

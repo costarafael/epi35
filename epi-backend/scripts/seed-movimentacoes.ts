@@ -240,15 +240,17 @@ class SeedMovimentacoes {
         }
         
         // Criar entrega via use case
-        const entrega = await this.criarEntregaUseCase.execute({
-          fichaEpiId: ficha.id,
-          quantidade: itensParaEntrega.reduce((total, item) => total + item.quantidadeEntregue, 0),
-          itens: itensParaEntrega.map(item => ({
-            estoqueItemOrigemId: item.estoqueItemOrigemId,
-          })),
-          usuarioId: responsavel.id,
-          observacoes: `Entrega de EPIs - ${itensParaEntrega.length} tipos`,
-        });
+        const entrega = await this.criarEntregaUseCase.execute(
+          {
+            quantidade: itensParaEntrega.reduce((total, item) => total + item.quantidadeEntregue, 0),
+            itens: itensParaEntrega.map(item => ({
+              estoqueItemOrigemId: item.estoqueItemOrigemId,
+            })),
+            usuarioId: responsavel.id,
+            observacoes: `Entrega de EPIs - ${itensParaEntrega.length} tipos`,
+          },
+          ficha.id,
+        );
         
         entregas.push(entrega);
         console.log(`✅ Entrega criada para ficha ${ficha.id} (${itensParaEntrega.length} tipos de EPI).`);

@@ -102,7 +102,7 @@ export const ItemEntregaSchema = z.object({
 });
 
 export const CriarEntregaSchema = z.object({
-  fichaEpiId: IdSchema,
+  fichaEpiId: IdSchema.optional(),
   quantidade: z.number().int().positive('Quantidade deve ser positiva'),
   itens: z.array(ItemEntregaSchema),
   assinaturaColaborador: z.string().optional(),

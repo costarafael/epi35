@@ -59,12 +59,20 @@ export class CriarEntregaFichaUseCase {
    * @throws {BusinessError} Quando ficha inativa, estoque insuficiente ou validação falha
    * @throws {NotFoundError} Quando ficha ou item de estoque não encontrado
    */
-  async execute(input: CriarEntregaInput): Promise<EntregaOutput> {
+  async execute(
+    input: CriarEntregaInput,
+    fichaEpiIdFromParam?: string,
+  ): Promise<EntregaOutput> {
+    const fichaEpiId = fichaEpiIdFromParam || input.fichaEpiId;
+    if (!fichaEpiId) {
+      throw new BusinessError('ID da Ficha de EPI é obrigatório.');
+    }
+
     // Validar dados de entrada
     await this.validarInput(input);
 
     // Buscar dados da ficha com detalhes
-    const fichaComDetalhes = await this.obterFichaComDetalhes(input.fichaEpiId);
+    const fichaComDetalhes = await this.obterFichaComDetalhes(fichaEpiId);
 
     // Validar disponibilidade de estoque
     await this.validarDisponibilidadeEstoque(fichaComDetalhes, input.quantidade, input);

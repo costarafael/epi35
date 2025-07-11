@@ -93,17 +93,10 @@ export class EntregasController {
       console.log('📋 IDs completos:', estoqueIds);
     }
 
-    const entrega = await this.criarEntregaFichaUseCase.execute({
-      fichaEpiId: fichaId,
-      quantidade: criarEntregaDto.quantidade,
-      itens: criarEntregaDto.itens.map(item => ({
-        numeroSerie: item.numeroSerie,
-        estoqueItemOrigemId: item.estoqueItemOrigemId,
-      })),
-      assinaturaColaborador: criarEntregaDto.assinaturaColaborador,
-      observacoes: criarEntregaDto.observacoes,
-      usuarioId: criarEntregaDto.usuarioId,
-    });
+    const entrega = await this.criarEntregaFichaUseCase.execute(
+      criarEntregaDto,
+      fichaId,
+    );
 
     return {
       success: true,

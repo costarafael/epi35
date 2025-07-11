@@ -1,9 +1,8 @@
 
 # Especificação Técnica Detalhada: Módulo de Gestão de Fichas de EPI e Estoque
 
-**Versão**: 3.7.3 (Sistema de Notas de Movimentação + Correção Crítica + IDs Customizados)
 
-**Data**: 07 de julho de 2025
+
 
 ## 🌐 URLs de Produção
 
@@ -24,35 +23,40 @@
 - **Health Checks**: Contínuos (5s interval)
 - **Status**: ✅ Operacional desde 05/07/2025 13:50 UTC
 - **Auto-Deploy**: Ativo para commits na main
-- **Commit Atual**: `d25c5ae` (07/07/2025 16:15 UTC-3)
+- **Commit Atual**: `3466b24` (10/07/2025 20:25 UTC-3)
 
-### **Status de Produção (07/07/2025 16:15)**
-#### **✅ Sistema Completo + Notas de Movimentação + IDs Customizados + Endpoints Frontend-Ready**
-- **Dashboard**: Funcionando com dados reais (5 fichas ativas, 6 itens estoque)
-- **Database**: Populado com dados de demonstração
-  - 3 contratadas cadastradas (Alpha, Beta, Gamma)
-  - 5 colaboradores ativos (2 diretos + 3 de contratadas)
-  - 6 itens de estoque distribuídos em almoxarifados
-  - 2 almoxarifados (SP e RJ) operacionais
+### **Status de Produção (10/07/2025 20:25)**
+#### **✅ Sistema Completo + Middleware de IDs Corrigido + Ciclo EPI Demonstrado**
+- **Dashboard**: Funcionando com dados reais (210 colaboradores, 114 fichas ativas, 33 tipos de EPI)
+- **Database**: Populado com dados de produção
+  - 210 colaboradores cadastrados
+  - 114 fichas EPI ativas
+  - 33 tipos de EPI distribuídos em 2 almoxarifados (SP e RJ)
+  - Estoque otimizado com 260+ itens distribuídos
 - **APIs**: 70+ endpoints testados e funcionais (incluindo sistema completo de notas de movimentação)
 - **OTIMIZAÇÃO FRONTEND**: ✅ Endpoints otimizados implementados e testados
   - `GET /api/fichas-epi/:id/complete` - Dados processados pelo backend
   - `GET /api/fichas-epi/list-enhanced` - Listagem otimizada com estatísticas
-  - `POST /api/entregas/create-complete` - Criação otimizada de entregas
-  - `POST /api/devolucoes/process-batch` - Processamento em lote de devoluções
+  - `POST /api/fichas-epi/:fichaId/entregas` - Criação de entregas (endpoint real)
+  - `POST /api/fichas-epi/:fichaId/devolucoes` - Processamento de devoluções (endpoint real)
 - **NOTAS DE MOVIMENTAÇÃO**: ✅ Sistema completo implementado e funcional
   - `POST /api/notas-movimentacao` - Criação de notas (ENTRADA, TRANSFERENCIA, DESCARTE)
   - `GET /api/notas-movimentacao` - Listagem com filtros avançados
   - `GET /api/notas-movimentacao/:id` - Consulta individual
   - Validação específica por tipo de nota com constraints corretos
 - **CONTROLLERS OTIMIZADOS**: 3 novos controllers especializados implementados
-- **SISTEMA DE IDs CUSTOMIZADOS**: ✅ Implementado para melhor legibilidade
-  - Entregas: E+5chars (ex: E4UI02)
-  - EstoqueItems: I+5chars (ex: I7XK91)
-  - TipoEPI: C+5chars (ex: C2MN58)
-  - Compatibilidade total com UUIDs existentes
-  - Geração automática via Prisma middleware
+- **SISTEMA DE IDs CUSTOMIZADOS**: ⚠️ **PARCIALMENTE CORRIGIDO** - Middleware funcionando para novos registros
+  - Entregas: E+5chars (ex: EQ4H23, E2AHUV) - ✅ Formato correto aplicado
+  - EstoqueItems: I+5chars (ex: IVYAGQ, I7XK91) - ✅ **CORRIGIDO** - middleware upsert funcionando
+  - TipoEPI: C+5chars (ex: C6TBX6, C29B6K) - ⚠️ **MISTO** - 23 novos + 10 legados (EPI001-008)
+  - Compatibilidade total com UUIDs existentes e IDs legados
+  - Geração automática via Prisma middleware **VALIDADO EM PRODUÇÃO**
 - **TESTES**: ✅ Ambiente de testes 100% funcional, validações completas
+- **CICLO COMPLETO DEMONSTRADO**: ✅ **NOVO** - Demonstração end-to-end funcionando
+  - Entregas criadas e assinadas em produção
+  - Devoluções processadas com rastreabilidade unitária
+  - Consistência 100% entre Read Model e Event Log
+  - Estoque atualizado corretamente (28 disponíveis + 2 em quarentena = 30 total)
 - **INTEGRAÇÃO**: Backend 100% pronto para conectar com frontend otimizado
 
 ## 1. Visão Geral e Arquitetura
@@ -65,7 +69,7 @@ Este documento detalha a arquitetura e implementação do **Módulo de Gestão d
 - **Propósito**: Armazenamento principal de todos os dados transacionais
 - **ORM**: Prisma para type-safety e migrations automatizadas
 - **Localização**: Schema e migrations em `/prisma/schema.prisma`
-- **Backup**: Gerenciado pela infraestrutura Render.com (retention: 7 dias Free / 30 dias Paid)
+- **Backup**: Gerenciado pela infraestrutura Render.com 
 
 #### **🔄 Cache e Sessões (Redis / Upstash)**
 - **Propósito Duplo**: 
@@ -88,38 +92,22 @@ Este documento detalha a arquitetura e implementação do **Módulo de Gestão d
   - **Não integrado** com sistemas de observabilidade de longo prazo (Prometheus, Datadog)
   - Funciona apenas como **ferramenta de debugging em tempo real**
 
-### 🚨 ALERTAS CRÍTICOS DE SEGURANÇA E ARQUITETURA
+### IMPORTANTE PONTO TEMPORÁRIO
 
-#### **⚠️ VULNERABILIDADE DE SEGURANÇA IDENTIFICADA**
+A variável `JWT_SECRET` está configurada como **opcional** no schema de ambiente (`environment.config.ts`).
+SERÁ IMPLEMENTADO POR OUTRO TIME.
 
-**Problema**: A variável `JWT_SECRET` está configurada como **opcional** no schema de ambiente (`environment.config.ts`).
+#### CONTRATADA APENAS PARA DEMONSTRAÇÃO
 
-**Risco**: Em ambiente de produção, se esta variável não estiver definida, o sistema pode:
-- Usar um segredo padrão fraco
-- Permitir tokens JWT sem validação adequada
-- Expor o sistema a ataques de autorização
+A entidade `Contratada` existe no schema Prisma mas **não possui relacionamentos** com outras entidades. SERÁ IMPLEMENTADO POR OUTRO TIME.
 
-**Ação Imediata Requerida**:
-```typescript
-// FIX OBRIGATÓRIO em src/infrastructure/config/environment.config.ts
-JWT_SECRET: z.string().refine(
-  (val) => process.env.NODE_ENV !== 'production' || val.length >= 32,
-  { message: 'JWT_SECRET deve ter pelo menos 32 caracteres em produção' }
-)
-```
 
-#### **🔍 MODELO DE DADOS INCOMPLETO**
 
-**Problema**: A entidade `Contratada` existe no schema Prisma mas **não possui relacionamentos** com outras entidades.
+---
 
-**Impacto**: 
-- Código morto ou funcionalidade incompleta
-- Ambiguidade no modelo de domínio
-- Potencial dívida técnica
+--- FLUXO AINDA A DEFINIR - IGNORAR ---
+#### **📋 PROCESSO DE NEGÓCIO IMPLÍCITO IDENTIFICADO
 
-**Ação Requerida**: Investigar e documentar o propósito desta entidade ou removê-la.
-
-#### **📋 PROCESSO DE NEGÓCIO IMPLÍCITO IDENTIFICADO**
 
 **Descoberta**: O status `AGUARDANDO_INSPECAO` indica um processo de negócio não documentado.
 
@@ -130,11 +118,13 @@ JWT_SECRET: z.string().refine(
 
 **Ação Requerida**: Implementar APIs de gerenciamento de inspeção de itens.
 
+---
+
 ### 1.0.1. Arquitetura Layered/Hexagonal Confirmada
 
 #### **🏗️ Estrutura de Camadas Validada**
 
-A análise profunda confirmou que o sistema implementa uma **Arquitetura Layered** com características de **Hexagonal Architecture**, com separação clara de responsabilidades:
+O sistema implementa uma **Arquitetura Layered** com características de **Hexagonal Architecture**, com separação clara de responsabilidades:
 
 ```typescript
 // Estrutura confirmada em src/app.module.ts
@@ -182,17 +172,17 @@ stateDiagram-v2
 3. **Filtragem no Banco**: Construção dinâmica de `whereClause` via Prisma
 4. **Paginação Robusta**: Count query + findMany com offset/limit
 
-### 1.1. Configurações Críticas do Ambiente
+### 1.1. Configurações 
 
 #### **⚙️ Configurações Operacionais (Environment Variables)**
 
 Estas variáveis controlam regras fundamentais de negócio e devem ser gerenciadas com extremo cuidado:
 
-| Variável | Tipo | Padrão | Cenário de Ativação | Procedimento de Uso | Impacto Colateral |
-|----------|------|--------|-------------------|-------------------|------------------|
-| `PERMITIR_ESTOQUE_NEGATIVO` | Boolean | `false` | **Situação de Emergência**: Import de dados falhou, necessário registrar saída física antes da entrada da nota fiscal chegar | 1. Notificar tech lead<br>2. Ativar durante janela de baixo tráfego<br>3. Executar operação específica<br>4. **Desativar imediatamente**<br>5. Auditar integridade dos dados | **RISCO ALTO**: Permite saldos negativos que podem corromper relatórios de inventário. Race conditions podem gerar inconsistências graves se múltiplas operações simultâneas ocorrerem. |
-| `PERMITIR_AJUSTES_FORCADOS` | Boolean | `false` | **Correção Manual**: Divergências encontradas em auditoria física, necessário ajuste direto sem fluxo de notas | 1. Validar necessidade com gestor<br>2. Documentar motivo do ajuste<br>3. Ativar flag temporariamente<br>4. Executar `POST /api/estoque/ajustes`<br>5. **Desativar imediatamente**<br>6. Registrar no log de auditoria | **RISCO ALTO**: Bypassa validações de integridade e fluxos de aprovação. Pode mascarar problemas sistêmicos se usado incorretamente. |
-| `ESTOQUE_MINIMO_EQUIPAMENTO` | Integer | `10` | **Configuração Global**: Definir limite mínimo padrão para alertas de reposição | Alterar via interface administrativa ou variável de ambiente | **RISCO BAIXO**: Afeta apenas alertas visuais, não impacta operações transacionais. |
+| Variável                     | Tipo    | Padrão  | Procedimento de Uso                                                                                                                                                                                                    |
+| ---------------------------- | ------- | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `PERMITIR_ESTOQUE_NEGATIVO`  | Boolean | `false` | 1. Notificar tech lead<br>2. Ativar durante janela de baixo tráfego<br>3. Executar operação específica<br>4. **Desativar imediatamente**<br>5. Auditar integridade dos dados                                           |
+| `PERMITIR_AJUSTES_FORCADOS`  | Boolean | `false` | 1. Validar necessidade com gestor<br>2. Documentar motivo do ajuste<br>3. Ativar flag temporariamente<br>4. Executar `POST /api/estoque/ajustes`<br>5. **Desativar imediatamente**<br>6. Registrar no log de auditoria |
+| `ESTOQUE_MINIMO_EQUIPAMENTO` | Integer | `10`    | Alterar via interface administrativa ou variável de ambiente. Definido para alertas.                                                                                                                                   |
 
 #### **🔐 Variáveis de Infraestrutura**
 

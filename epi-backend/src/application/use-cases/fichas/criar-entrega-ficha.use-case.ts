@@ -83,7 +83,7 @@ export class CriarEntregaFichaUseCase {
     // Executar entrega em transação
     return await this.prisma.$transaction(async (tx) => {
       // Criar entrega
-      const entrega = await this.criarEntrega(fichaComDetalhes, input, tx);
+      const entrega = await this.criarEntrega(fichaEpiId, input, tx);
 
       // Criar itens de entrega (comum a ambos os fluxos)
       await this.criarItensEntrega(entrega.id, input, tx);
@@ -436,7 +436,7 @@ export class CriarEntregaFichaUseCase {
     // Entregas iniciam como PENDENTE_ASSINATURA e devem ser assinadas posteriormente
   }
 
-  private async criarEntrega(ficha: any, input: CriarEntregaInput, tx: any): Promise<any> {
+  private async criarEntrega(fichaEpiId: string, input: CriarEntregaInput, tx: any): Promise<any> {
     // Schema v3.5: Buscar almoxarifado do primeiro item para relacionamento obrigatório
     const estoqueItem = await tx.estoqueItem.findUnique({
       where: { id: input.itens[0].estoqueItemOrigemId },
@@ -449,7 +449,7 @@ export class CriarEntregaFichaUseCase {
 
     return await tx.entrega.create({
       data: {
-        fichaEpiId: input.fichaEpiId,
+        fichaEpiId: fichaEpiId, // Correção: Usar o ID passado como parâmetro
         almoxarifadoId: estoqueItem.almoxarifadoId, // Schema v3.5: Campo obrigatório
         responsavelId: input.usuarioId, // Schema v3.5: Campo obrigatório 
         status: 'PENDENTE_ASSINATURA', // Status inicial para posterior assinatura

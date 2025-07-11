@@ -1,18 +1,7 @@
 import { z } from 'zod';
 
 // Common validation schemas
-export const IdSchema = z.string().refine(
-  (id) => {
-    // Aceita UUIDs (para compatibilidade com dados existentes)
-    const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    // Aceita IDs customizados (E, I, C + 5 chars alfanuméricos sem 0, 1, O, I, L)
-    const allowedChars = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ'.replace(/[01OIL]/g, '');
-    const customIdPattern = new RegExp(`^[EIC][${allowedChars}]{5}$`);
-    
-    return uuidPattern.test(id) || customIdPattern.test(id);
-  },
-  'ID deve ser um UUID válido ou um ID customizado (ex: E4U302, I7XK91, C2MN58)'
-);
+export const IdSchema = z.string().min(1, 'ID não pode ser vazio');
 
 // Schemas específicos para cada tipo de ID
 const allowedChars = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ'.replace(/[01OIL]/g, '');

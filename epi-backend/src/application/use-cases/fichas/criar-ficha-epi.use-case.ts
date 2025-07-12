@@ -83,7 +83,11 @@ export class CriarFichaEpiUseCase {
           },
         },
         entregas: {
-          where: { status: 'ASSINADA' },
+          where: { 
+            status: { 
+              in: ['ASSINADA', 'PENDENTE_ASSINATURA'] 
+            } 
+          },
           include: {
             itens: {
               where: { status: 'COM_COLABORADOR' },
@@ -198,7 +202,11 @@ export class CriarFichaEpiUseCase {
               },
             },
             entregas: {
-              where: { status: 'ASSINADA' },
+              where: { 
+                status: { 
+                  in: ['ASSINADA', 'PENDENTE_ASSINATURA'] 
+                } 
+              },
               include: {
                 itens: {
                   where: { status: 'COM_COLABORADOR' },
@@ -251,7 +259,11 @@ export class CriarFichaEpiUseCase {
           },
         },
         entregas: {
-          where: { status: 'ASSINADA' },
+          where: { 
+            status: { 
+              in: ['ASSINADA', 'PENDENTE_ASSINATURA'] 
+            } 
+          },
           include: {
             itens: {
               where: { status: 'COM_COLABORADOR' },

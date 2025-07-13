@@ -200,15 +200,11 @@ export class ListarFichasEnhancedUseCase {
 
   private contarEpisAtivos(entregas: any[]): number {
     let count = 0;
-    const hoje = new Date();
     
     for (const entrega of entregas) {
-      for (const item of entrega.itens) {
-        // Considerado ativo se não está vencido
-        if (!item.dataLimiteDevolucao || new Date(item.dataLimiteDevolucao) >= hoje) {
-          count++;
-        }
-      }
+      // Os itens já estão filtrados para status 'COM_COLABORADOR' na query include
+      // Portanto, contamos todos os itens que chegaram aqui
+      count += entrega.itens.length;
     }
     
     return count;

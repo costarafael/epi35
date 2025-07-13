@@ -3,7 +3,7 @@
 ## **Documentação Técnica Completa**
 
 **Versão:** 3.5  
-**Data:** 10/07/2025  
+**Data:** 13/07/2025  
 **Ambiente de Produção:** https://epi-backend-s14g.onrender.com  
 **Documentação Swagger:** `/api/docs`  
 **Health Check:** `/health`
@@ -322,13 +322,12 @@ GET /api/usuarios
 - `nome`: Filtro por nome (string, opcional)
 - `email`: Filtro por email (string, opcional)
 - `page`: Página (number, padrão: 1)
-- `limit`: Itens por página (number, padrão: 10, máximo: 100)
+- `limit`: Itens por página (number, padrão: 50, máximo: 100)
 
-**Resposta:**
+**⚠️ Formato de Resposta Especial:**
 ```json
 {
-  "success": true,
-  "data": [
+  "items": [
     {
       "id": "uuid",
       "nome": "João Silva",
@@ -338,14 +337,14 @@ GET /api/usuarios
   ],
   "pagination": {
     "page": 1,
-    "limit": 10,
+    "limit": 50,
     "total": 25,
-    "totalPages": 3,
-    "hasNext": true,
-    "hasPrev": false
+    "totalPages": 1
   }
 }
 ```
+
+**📋 Nota:** Este endpoint retorna formato `{items, pagination}` em vez do padrão `{success, data, pagination}` usado pelos demais endpoints.
 
 #### **3.1.2. Obter Usuário por ID**
 ```http
@@ -1276,6 +1275,111 @@ GET /api/fichas-epi/list-enhanced?status=ativa&cargo=engenheiro&empresaId=U12345
 - **Campo CPF**: Incluído no objeto colaborador da resposta
 - **Compatibilidade Frontend**: Estrutura otimizada para exibição direta
 
+#### **5.1.7. Obter Ficha Completa (Frontend Optimized)** ⭐ **[NOVO]**
+```http
+GET /api/fichas-epi/:id/complete
+```
+
+**Descrição:** Endpoint otimizado para frontend que retorna dados completos da ficha EPI com processamento avançado no backend, incluindo status calculados, display objects formatados, histórico estruturado e estatísticas pré-calculadas.
+
+**Parâmetros:**
+- `id`: ID da ficha EPI (UUID)
+
+**Funcionalidades Avançadas:**
+- **Status Calculado**: Status automático (ativa, inativa, vencida, pendente_devolucao)
+- **Display Objects**: Objetos de exibição com cores e labels pré-definidos
+- **Colaborador Formatado**: CPF mascarado, iniciais para avatar, dados estruturados
+- **Equipamentos com Status**: Vencimento calculado, status visual, contadores
+- **Histórico Formatado**: Eventos com tipos visuais, datas formatadas, resumos
+- **Estatísticas**: Contadores e métricas pré-calculadas
+
+**Resposta:**
+```json
+{
+  "success": true,
+  "data": {
+    "ficha": {
+      "id": "uuid",
+      "status": "ativa",
+      "statusDisplay": {
+        "cor": "green",
+        "label": "Ativa"
+      },
+      "colaborador": {
+        "id": "uuid",
+        "nome": "Carlos Oliveira",
+        "cpf": "12345678901",
+        "cpfDisplay": "123.456.***-01",
+        "matricula": "MAT001",
+        "cargo": "Engenheiro",
+        "empresa": "Construtora ABC Ltda",
+        "iniciais": "CO"
+      }
+    },
+    "equipamentosEmPosse": [
+      {
+        "id": "uuid",
+        "nomeEquipamento": "Capacete de Segurança",
+        "numeroCA": "CA-12345",
+        "categoria": "PROTECAO_CABECA",
+        "dataEntrega": "2025-07-01",
+        "dataLimiteDevolucao": "2025-12-31",
+        "statusVencimento": "dentro_prazo",
+        "statusVencimentoDisplay": {
+          "texto": "No prazo",
+          "cor": "green",
+          "diasRestantes": 180,
+          "statusDetalhado": "dentro_prazo"
+        },
+        "diasParaVencimento": 180,
+        "podeDevolver": true,
+        "entregaId": "uuid",
+        "itemEntregaId": "uuid"
+      }
+    ],
+    "historico": [
+      {
+        "id": "uuid",
+        "data": "2025-07-01T10:00:00.000Z",
+        "dataFormatada": "01/07/2025 às 10:00",
+        "tipo": "entrega",
+        "tipoDisplay": {
+          "label": "Entrega",
+          "tipo": "entrega",
+          "cor": "green"
+        },
+        "acao": "Entrega de equipamento",
+        "responsavel": "João Silva",
+        "mudancaStatus": "Disponível → Com Colaborador",
+        "detalhes": {
+          "resumo": "1x Capacete de Segurança (CA-12345)",
+          "dados": {
+            "quantidade": 1,
+            "equipamento": "Capacete de Segurança",
+            "numeroCA": "CA-12345",
+            "categoria": "PROTECAO_CABECA"
+          }
+        }
+      }
+    ],
+    "estatisticas": {
+      "totalEpisAtivos": 1,
+      "totalEpisVencidos": 0,
+      "proximoVencimento": "2025-12-31",
+      "diasProximoVencimento": 180
+    }
+  },
+  "message": "Ficha completa carregada com sucesso com dados processados pelo backend."
+}
+```
+
+**Características do Endpoint:**
+- **Pre-processamento Backend**: Todos os cálculos feitos no servidor
+- **Display Objects**: Objetos prontos para exibição no frontend
+- **Status Visuais**: Cores e estados calculados automaticamente
+- **Performance Otimizada**: Reduz processamento no frontend
+- **Dados Estruturados**: Formatação consistente para componentes UI
+
 ### **5.2. Entregas**
 
 #### **5.2.1. Criar Entrega**
@@ -1926,6 +2030,27 @@ async execute(input: CriarEntregaInput): Promise<EntregaOutput> {
 
 ## **🚀 Atualizações Recentes v3.5**
 
+### **📊 Endpoints Otimizados para Frontend (13/07/2025)** ⭐ **[NOVO]**
+
+#### **🎯 Novos Endpoints Frontend-First**
+- **`GET /api/fichas-epi/:id/complete`** - Ficha completa com dados pré-processados
+- **`GET /api/fichas-epi/list-enhanced`** - Listagem otimizada com filtros avançados
+
+#### **🔧 Características dos Endpoints Otimizados**
+- **Status Calculados**: Todos os status são calculados pelo backend
+- **Display Objects**: Objetos prontos para exibição (cores, labels, formatação)
+- **Busca Unificada**: Campo `search` aceita nome, matrícula ou CPF
+- **Filtros Empresas**: Suporte a filtro por ID (`empresaId`) ou nome (`empresa`)
+- **Performance**: Redução significativa de processamento frontend
+- **Dados Estruturados**: Formatação consistente para componentes UI
+
+#### **📋 Melhorias de Compatibilidade**
+- **Endpoint Usuários**: Documentado formato especial `{items, pagination}`
+- **Busca por CPF**: Aceita formato com ou sem máscara (123.456.789-01 ou 12345678901)
+- **Filtros Boolean**: Parâmetros query aceitam strings ("true"/"false")
+
+---
+
 ### **📊 Melhorias Implementadas (09/07/2025)**
 
 #### **🆕 Filtros Avançados de Estoque com Lógica Condicional**
@@ -1956,6 +2081,104 @@ async execute(input: CriarEntregaInput): Promise<EntregaOutput> {
 - **Transações**: Operações atômicas para consistência
 - **Rastreabilidade**: Controle unitário de EPIs
 - **Performance**: Operações em lote e cache otimizado
+
+---
+
+## **🐛 Correção Crítica de Bug (12/07/2025)**
+
+### **🔧 Fix: Campo `totalEpisComColaborador` Corrigido**
+
+**Problema identificado:** O endpoint `/api/fichas-epi/:id` estava retornando `totalEpisComColaborador: 0` quando deveria mostrar a quantidade correta de EPIs em posse do colaborador.
+
+**Causa raiz:** O filtro de entregas no método `obterFicha()` estava incluindo apenas entregas com status `ASSINADA`, ignorando entregas com status `PENDENTE_ASSINATURA`. Isso resultava em EPIs de entregas não assinadas sendo excluídos da contagem.
+
+**Cenário de falha:**
+- Colaborador possui EPI de entrega assinada (devolvido) + EPI de entrega pendente de assinatura (ainda em posse)
+- Sistema contava apenas EPIs de entregas assinadas
+- Resultado: `totalEpisComColaborador: 0` (incorreto)
+
+**Solução implementada:**
+```typescript
+// ❌ ANTES (incorreto) - só entregas assinadas
+where: { status: 'ASSINADA' }
+
+// ✅ DEPOIS (correto) - inclui ambos os status
+where: { 
+  status: { 
+    in: ['ASSINADA', 'PENDENTE_ASSINATURA'] 
+  } 
+}
+```
+
+**Arquivos corrigidos:**
+- `src/application/use-cases/fichas/criar-ficha-epi.use-case.ts`
+  - Método `obterFicha()` (linha 86)
+  - Método `listarFichas()` com paginação (linha 205)
+  - Método `listarFichas()` sem paginação (linha 262)
+
+**Validação:**
+```bash
+# Teste do endpoint corrigido
+curl "https://epi-backend-s14g.onrender.com/api/fichas-epi/44061bb5-5868-4a8e-8d80-96ff4d2a7c52"
+
+# Resultado após correção:
+{
+  "episInfo": {
+    "totalEpisComColaborador": 1,  // ✅ Agora correto
+    "tiposEpisAtivos": [
+      {
+        "tipoEpiId": "C29B6K",
+        "tipoEpiNome": "Botina de Segurança com Bico de Aço",
+        "quantidade": 1
+      }
+    ]
+  }
+}
+```
+
+**Impacto:**
+- ✅ Contagem correta de EPIs em posse
+- ✅ Estatísticas de vencimento precisas
+- ✅ Cálculo correto de próximos vencimentos
+- ✅ Compatibilidade com devoluções parciais
+
+**Data do fix:** 12/07/2025  
+**Commit:** `1fc3681 - fix(fichas): corrigir cálculo de totalEpisComColaborador incluindo entregas PENDENTE_ASSINATURA`
+
+### **📋 Status dos Endpoints de Fichas EPI (Verificação 12/07/2025)**
+
+| Status | Método | Endpoint | Descrição | Observações |
+|:------:|:-------|:---------|:----------|:------------|
+| ✅ | GET    | `/api/fichas-epi/{fichaId}/complete` | Busca os detalhes completos de uma ficha de EPI específica | **Funcionando** - Dados otimizados com estatísticas |
+| ✅ | GET    | `/api/fichas-epi/list-enhanced` | Busca uma lista paginada e com filtros das fichas de EPI | **Funcionando** - Busca unificada e filtros por empresa |
+| ✅ | GET    | `/api/fichas-epi/search` | Realiza uma busca por fichas de EPI | **Funcionando** - Busca básica disponível |
+| ✅ | GET    | `/api/fichas-epi/estatisticas` | Obtém estatísticas gerais sobre as fichas de EPI | **Funcionando** - Estatísticas completas |
+| ✅ | GET    | `/api/estoque/itens` | Busca os EPIs disponíveis no estoque (com filtros) | **Funcionando** - Filtros avançados implementados |
+| ⚠️ | GET    | `/api/usuarios` | Busca a lista de usuários do sistema | **Formato diferente** - Retorna `{items, pagination}` em vez de `{success, data}` |
+| ✅ | POST   | `/api/fichas-epi/{fichaEpiId}/entregas` | Cria uma nova entrega de equipamento para uma ficha | **Funcionando** - Validação ativa |
+| ⭐ | POST   | `/api/fichas-epi/entregas/validar` | Valida os dados de uma entrega antes de criá-la | **Disponível** - Endpoint de validação |
+| ⭐ | PUT    | `/api/fichas-epi/entregas/{entregaId}/assinar` | Confirma a assinatura de uma entrega pelo colaborador | **Disponível** - Processo de assinatura |
+| ❓ | POST   | `/api/entregas/{entregaId}/cancel` | Cancela uma entrega de equipamento | **A verificar** - Endpoint de cancelamento |
+| ❓ | GET    | `/api/entregas/{entregaId}/print` | Gera um PDF para impressão da entrega | **A verificar** - Geração de PDF |
+| ❓ | PUT    | `/api/entregas/{entregaId}` | Atualiza os dados de uma entrega existente | **A verificar** - Edição de entregas |
+| ⭐ | POST   | `/api/fichas-epi/{fichaId}/devolucoes` | Registra a devolução de um item vinculado a uma entrega | **Disponível** - Sistema de devoluções |
+| ❓ | POST   | `/api/fichas-epi/entregas/{entregaId}/devolucao/validar` | Valida uma devolução antes de registrá-la | **A verificar** - Validação de devoluções |
+| ❓ | POST   | `/api/devolucoes/process-batch` | Processa múltiplas devoluções de equipamentos em lote | **A verificar** - Processamento em lote |
+| ❓ | GET    | `/api/devolucoes/validate/{equipamentoId}` | Valida se um equipamento específico pode ser devolvido | **A verificar** - Validação individual |
+| ❓ | GET    | `/api/devolucoes/historico/{fichaId}` | Busca o histórico de devoluções de uma ficha específica | **A verificar** - Histórico de devoluções |
+| ❓ | POST   | `/api/devolucoes/{devolucaoId}/cancel` | Cancela um registro de devolução | **A verificar** - Cancelamento de devoluções |
+
+**Legendas:**
+- ✅ **Funcionando**: Endpoint verificado e operacional
+- ⭐ **Disponível**: Endpoint documentado mas não testado nesta verificação
+- ⚠️ **Formato diferente**: Endpoint funcional mas com formato de resposta diferente do padrão
+- ❓ **A verificar**: Endpoint listado mas necessita verificação de existência/funcionamento
+
+**Observações importantes:**
+1. **Endpoint `/api/usuarios`**: Retorna formato `{items, pagination}` em vez do padrão `{success, data, pagination}`
+2. **Prefix correto**: Todos os endpoints usam `/api/` como prefixo (corrigido na v3.5)
+3. **Fichas EPI**: Endpoints principais funcionando corretamente após correção do bug `totalEpisComColaborador`
+4. **Sistema de devoluções**: Endpoint principal `/api/fichas-epi/{fichaId}/devolucoes` está disponível
 
 ---
 

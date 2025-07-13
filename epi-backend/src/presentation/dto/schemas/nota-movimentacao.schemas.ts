@@ -43,6 +43,11 @@ export const AtualizarQuantidadeItemSchema = z.object({
   quantidade: z.number().int().positive('Quantidade deve ser positiva'),
 });
 
+export const AtualizarCustoUnitarioItemSchema = z.object({
+  tipoEpiId: IdSchema,
+  custoUnitario: z.number().nonnegative('Custo unitário não pode ser negativo'),
+});
+
 export const AtualizarNotaSchema = z.object({
   observacoes: ObservacoesSchema,
 });
@@ -74,6 +79,7 @@ export const NotaMovimentacaoItemResponseSchema = z.object({
   id: IdSchema,
   tipoEpiId: IdSchema,
   quantidade: z.number(),
+  custoUnitario: z.number().nullable(),
   quantidadeProcessada: z.number(),
   observacoes: z.string().nullable(),
   tipoEpi: z.object({
@@ -168,6 +174,7 @@ export const FiltrosResumoNotaMovimentacaoSchema = z.object({
 export type CriarNotaMovimentacaoRequest = z.infer<typeof CriarNotaMovimentacaoSchema>;
 export type AdicionarItemNotaRequest = z.infer<typeof AdicionarItemNotaSchema>;
 export type AtualizarQuantidadeItemRequest = z.infer<typeof AtualizarQuantidadeItemSchema>;
+export type AtualizarCustoUnitarioItemRequest = z.infer<typeof AtualizarCustoUnitarioItemSchema>;
 export type AtualizarNotaRequest = z.infer<typeof AtualizarNotaSchema>;
 export type ConcluirNotaRequest = z.infer<typeof ConcluirNotaSchema>;
 export type CancelarNotaRequest = z.infer<typeof CancelarNotaSchema>;

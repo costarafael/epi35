@@ -5,6 +5,7 @@ export interface NotaMovimentacaoItem {
   id?: string;
   tipoEpiId: string;
   quantidade: number;
+  custoUnitario?: number;
   quantidadeProcessada: number;
   observacoes?: string;
 }

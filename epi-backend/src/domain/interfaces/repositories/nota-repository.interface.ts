@@ -18,6 +18,7 @@ export interface NotaMovimentacaoWithItens extends NotaMovimentacao {
     id: string;
     tipoEpiId: string;
     quantidade: number;
+    custoUnitario?: number;
     quantidadeProcessada: number;
     observacoes?: string;
     tipoEpi: {
@@ -71,6 +72,12 @@ export interface INotaRepository extends IBaseRepository<NotaMovimentacao> {
     notaId: string,
     itemId: string,
     quantidade: number,
+  ): Promise<void>;
+
+  atualizarCustoUnitarioItem(
+    notaId: string,
+    itemId: string,
+    custoUnitario: number,
   ): Promise<void>;
 
   atualizarQuantidadeProcessada(

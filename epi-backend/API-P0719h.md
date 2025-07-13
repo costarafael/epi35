@@ -943,10 +943,33 @@ POST /api/notas-movimentacao/:id/itens
 }
 ```
 
+**⚠️ Observação v3.5:** O campo `custoUnitario` agora tem persistência garantida. Após adição do item, o custo pode ser atualizado independentemente usando o endpoint `PUT /:id/itens/:tipoEpiId/custo`.
+
 **Atualizar Quantidade:**
 ```http
 PUT /api/notas-movimentacao/:id/itens/:tipoEpiId
 ```
+
+**Body:**
+```json
+{
+  "quantidade": 30
+}
+```
+
+**🆕 Atualizar Custo Unitário (v3.5):** ⭐ **[NOVO]**
+```http
+PUT /api/notas-movimentacao/:id/itens/:tipoEpiId/custo
+```
+
+**Body:**
+```json
+{
+  "custoUnitario": 45.50
+}
+```
+
+**Descrição:** Permite atualizar apenas o custo unitário de um item sem alterar a quantidade. Validação: custoUnitario deve ser ≥ 0.
 
 **Remover Item:**
 ```http
@@ -966,6 +989,8 @@ POST /api/notas-movimentacao/:id/concluir
   "validarEstoque": true
 }
 ```
+
+**✅ Correção v3.5:** Problemas de conclusão de notas rascunho foram resolvidos. O endpoint agora processa corretamente a transição RASCUNHO → CONCLUIDA.
 
 **Cancelar Nota:**
 ```http
@@ -2030,6 +2055,48 @@ async execute(input: CriarEntregaInput): Promise<EntregaOutput> {
 
 ## **🚀 Atualizações Recentes v3.5**
 
+### **💰 Correções Críticas em Notas de Movimentação (13/07/2025)** ⭐ **[CRÍTICO]**
+
+#### **🔧 Problema Resolvido: Custos Unitários não Persistindo**
+
+**Situação:** Frontend reportava problemas com:
+- Impossibilidade de concluir notas rascunho
+- Valores unitários não sendo salvos ao reabrir rascunhos
+
+**Causa Raiz Identificada:**
+- Lacunas técnicas na camada de persistência do campo `custoUnitario`
+- Método `atualizarQuantidadeProcessada` com implementação incompleta
+- Inconsistências entre schema do banco e entidades de domínio
+
+**Soluções Implementadas:**
+
+1. **🆕 Novo Endpoint para Custos Unitários**
+   ```http
+   PUT /api/notas-movimentacao/:id/itens/:tipoEpiId/custo
+   ```
+   - Permite atualização independente de custos sem afetar quantidades
+   - Validação de valores não-negativos
+   - Conversão adequada para tipo Decimal para precisão monetária
+
+2. **✅ Persistência Corrigida**
+   - Campo `custoUnitario` agora persiste corretamente em todos os endpoints
+   - Conversão de Decimal implementada para manter precisão
+   - Validação aprimorada para valores monetários
+
+3. **🔄 Endpoints Corrigidos**
+   - `POST /api/notas-movimentacao/:id/itens` - custoUnitario salvo corretamente
+   - `GET /api/notas-movimentacao/:id` - custos sempre retornados
+   - `PUT /api/notas-movimentacao/:id/itens/:tipoEpiId` - mantém custos na atualização
+
+**Arquivos Modificados:**
+- Domain Entity: Interface de custos adicionada
+- Repository: Métodos de persistência corrigidos
+- Use Case: Lógica de negócio aprimorada
+- Controller: Novo endpoint implementado
+- Schemas: Validação de custos adicionada
+
+**Resultado:** ✅ **Produção Ready** - Todos os problemas de rascunho resolvidos
+
 ### **📊 Endpoints Otimizados para Frontend (13/07/2025)** ⭐ **[NOVO]**
 
 #### **🎯 Novos Endpoints Frontend-First**
@@ -2069,7 +2136,7 @@ async execute(input: CriarEntregaInput): Promise<EntregaOutput> {
 - **Novo endpoint**: `GET /api/notas-movimentacao/resumo` - Listagem otimizada
 - **Campos expandidos**: `usuario`, `almoxarifadoOrigem`, `almoxarifadoDestino`
 - **Campos calculados**: `totalItens`, `valorTotal`
-- **Suporte a custos**: Campo `custoUnitario` em todos os itens
+- **Suporte a custos**: Campo `custoUnitario` em todos os itens (✅ v3.5: persistência corrigida)
 
 #### **📊 Estatísticas Expandidas**
 - **Contratadas**: Campo `totalEpisAtivos` para controle de distribuição

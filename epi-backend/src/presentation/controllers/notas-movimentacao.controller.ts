@@ -27,6 +27,7 @@ import {
   CriarNotaMovimentacaoSchema,
   AdicionarItemNotaSchema,
   AtualizarQuantidadeItemSchema,
+  AtualizarCustoUnitarioItemSchema,
   AtualizarNotaSchema,
   ConcluirNotaSchema,
   CancelarNotaSchema,
@@ -35,6 +36,7 @@ import {
   CriarNotaMovimentacaoRequest,
   AdicionarItemNotaRequest,
   AtualizarQuantidadeItemRequest,
+  AtualizarCustoUnitarioItemRequest,
   AtualizarNotaRequest,
   ConcluirNotaRequest,
   CancelarNotaRequest,
@@ -87,7 +89,12 @@ export class NotasMovimentacaoController {
     // Para desenvolvimento: buscar usuário admin do seed
     // TODO: Implementar autenticação real com JWT
     const adminUser = await this.prismaService.usuario.findFirst({
-      where: { email: 'admin@epi.com' }
+      where: { 
+        OR: [
+          { email: 'admin@epi.com' },
+          { email: 'admin@epi.local' }
+        ]
+      }
     });
     
     if (!adminUser) {
@@ -510,6 +517,33 @@ export class NotasMovimentacaoController {
     return {
       success: true,
       message: 'Quantidade do item atualizada com sucesso',
+      data: null,
+    };
+  }
+
+  @Put(':id/itens/:tipoEpiId/custo')
+  @ApiOperation({ 
+    summary: 'Atualizar custo unitário do item',
+    description: 'Atualiza o custo unitário de um item específico na nota',
+  })
+  @ApiParam({ name: 'id', type: 'string', format: 'uuid', description: 'ID da nota' })
+  @ApiParam({ name: 'tipoEpiId', type: 'string', format: 'uuid', description: 'ID do tipo de EPI' })
+  @ApiResponse({ status: 200, description: 'Custo unitário atualizado com sucesso' })
+  async atualizarCustoUnitarioItem(
+    @Param('id', new ZodValidationPipe(IdSchema)) notaId: string,
+    @Param('tipoEpiId', new ZodValidationPipe(IdSchema)) tipoEpiId: string,
+    @Body(new ZodValidationPipe(AtualizarCustoUnitarioItemSchema)) 
+    atualizarDto: AtualizarCustoUnitarioItemRequest,
+  ): Promise<SuccessResponse> {
+    await this.gerenciarNotaUseCase.atualizarCustoUnitarioItem({
+      notaId,
+      tipoEpiId,
+      custoUnitario: atualizarDto.custoUnitario,
+    });
+
+    return {
+      success: true,
+      message: 'Custo unitário do item atualizado com sucesso',
       data: null,
     };
   }

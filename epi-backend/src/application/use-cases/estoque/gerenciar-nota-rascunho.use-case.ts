@@ -26,6 +26,12 @@ export interface AtualizarQuantidadeItemInput {
   quantidade: number;
 }
 
+export interface AtualizarCustoUnitarioItemInput {
+  notaId: string;
+  tipoEpiId: string;
+  custoUnitario: number;
+}
+
 @Injectable()
 export class GerenciarNotaRascunhoUseCase {
   constructor(
@@ -122,6 +128,35 @@ export class GerenciarNotaRascunhoUseCase {
       input.notaId,
       item.id,
       input.quantidade,
+    );
+  }
+
+  async atualizarCustoUnitarioItem(input: AtualizarCustoUnitarioItemInput): Promise<void> {
+    const nota = await this.obterNota(input.notaId);
+    
+    if (!nota.isEditavel()) {
+      throw new BusinessError('Nota não está em modo de edição');
+    }
+
+    if (input.custoUnitario < 0) {
+      throw new BusinessError('Custo unitário deve ser não negativo');
+    }
+
+    // Buscar o item específico através da nota com itens
+    const notaComItens = await this.notaRepository.findWithItens(input.notaId);
+    if (!notaComItens) {
+      throw new NotFoundError('Nota de movimentação', input.notaId);
+    }
+
+    const item = notaComItens.itens.find(item => item.tipoEpiId === input.tipoEpiId);
+    if (!item) {
+      throw new BusinessError('Item não encontrado na nota');
+    }
+
+    await this.notaRepository.atualizarCustoUnitarioItem(
+      input.notaId,
+      item.id,
+      input.custoUnitario,
     );
   }
 

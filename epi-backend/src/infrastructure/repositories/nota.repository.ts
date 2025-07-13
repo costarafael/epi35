@@ -212,8 +212,8 @@ export class NotaRepository implements INotaRepository {
       id: item.id,
       tipoEpiId: item.tipoEpiId,
       quantidade: item.quantidade,
-      custoUnitario: item.custoUnitario,
-      quantidadeProcessada: 0, // Valor padrão
+      custoUnitario: item.custoUnitario ? Number(item.custoUnitario) : undefined,
+      quantidadeProcessada: 0, // Valor padrão - campo não existe no schema mas é esperado pelo domínio
       observacoes: undefined,
     }));
     
@@ -352,15 +352,32 @@ export class NotaRepository implements INotaRepository {
     });
   }
 
+  async atualizarCustoUnitarioItem(
+    notaId: string,
+    itemId: string,
+    custoUnitario: number,
+  ): Promise<void> {
+    await this.prisma.notaMovimentacaoItem.update({
+      where: { id: itemId },
+      data: { custoUnitario },
+    });
+  }
+
   async atualizarQuantidadeProcessada(
     notaId: string,
     itemId: string,
     _quantidadeProcessada: number,
   ): Promise<void> {
-    await this.prisma.notaMovimentacaoItem.update({
-      where: { id: itemId },
-      data: { /* quantidadeProcessada field removed */ },
-    });
+    // NOTA: quantidadeProcessada não existe no schema da base de dados v3.5
+    // Este método é mantido para compatibilidade com a interface,
+    // mas não realiza nenhuma operação real na base de dados
+    // TODO: Considerar remover este campo do domínio ou adicionar à base de dados
+    
+    // Log para debugging (pode ser removido em produção)
+    console.warn(`atualizarQuantidadeProcessada chamado para item ${itemId} com valor ${_quantidadeProcessada}, mas campo não existe no schema`);
+    
+    // Não realiza operação na base de dados
+    return Promise.resolve();
   }
 
   async obterEstatisticas(

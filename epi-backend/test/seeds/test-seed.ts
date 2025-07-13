@@ -1,5 +1,6 @@
 
 import { PrismaService } from '@infrastructure/database/prisma.service';
+import { generateTipoEpiId, generateEstoqueItemId } from '../../src/shared/utils/id-generator.util';
 
 // Função principal de seed que é exportada
 export async function seedTestData(prisma: PrismaService): Promise<void> {
@@ -182,6 +183,7 @@ async function createEpiTypes(prisma: PrismaService): Promise<any[]> {
   // Capacete - Proteção para Cabeça
   tiposEpi.push(await prisma.tipoEPI.create({
     data: {
+      id: generateTipoEpiId(),
       nomeEquipamento: 'Capacete de Segurança',
       numeroCa: 'CA-12345',
       categoria: 'PROTECAO_CABECA',
@@ -194,6 +196,7 @@ async function createEpiTypes(prisma: PrismaService): Promise<any[]> {
   // Luva - Proteção de Mãos e Braços
   tiposEpi.push(await prisma.tipoEPI.create({
     data: {
+      id: generateTipoEpiId(),
       nomeEquipamento: 'Luva de Proteção',
       numeroCa: 'CA-67890',
       categoria: 'PROTECAO_MAOS_BRACCOS',
@@ -206,6 +209,7 @@ async function createEpiTypes(prisma: PrismaService): Promise<any[]> {
   // Óculos - Proteção para Olhos e Rosto
   tiposEpi.push(await prisma.tipoEPI.create({
     data: {
+      id: generateTipoEpiId(),
       nomeEquipamento: 'Óculos de Proteção',
       numeroCa: 'CA-11111',
       categoria: 'PROTECAO_OLHOS_ROSTO',
@@ -218,6 +222,7 @@ async function createEpiTypes(prisma: PrismaService): Promise<any[]> {
   // Bota - Proteção dos Pés
   tiposEpi.push(await prisma.tipoEPI.create({
     data: {
+      id: generateTipoEpiId(),
       nomeEquipamento: 'Bota de Segurança',
       numeroCa: 'CA-22222',
       categoria: 'PROTECAO_PES',
@@ -230,6 +235,7 @@ async function createEpiTypes(prisma: PrismaService): Promise<any[]> {
   // Máscara - Proteção Respiratória
   tiposEpi.push(await prisma.tipoEPI.create({
     data: {
+      id: generateTipoEpiId(),
       nomeEquipamento: 'Máscara Respiratória',
       numeroCa: 'CA-33333',
       categoria: 'PROTECAO_RESPIRATORIA',
@@ -242,6 +248,7 @@ async function createEpiTypes(prisma: PrismaService): Promise<any[]> {
   // Protetor Auricular - Proteção dos Ouvidos
   tiposEpi.push(await prisma.tipoEPI.create({
     data: {
+      id: generateTipoEpiId(),
       nomeEquipamento: 'Protetor Auricular',
       numeroCa: 'CA-44444',
       categoria: 'PROTECAO_OUVIDOS',
@@ -254,6 +261,7 @@ async function createEpiTypes(prisma: PrismaService): Promise<any[]> {
   // Jaqueta Térmica - Proteção Climática
   tiposEpi.push(await prisma.tipoEPI.create({
     data: {
+      id: generateTipoEpiId(),
       nomeEquipamento: 'Jaqueta Térmica',
       numeroCa: 'CA-55555',
       categoria: 'PROTECAO_CLIMATICA',
@@ -266,6 +274,7 @@ async function createEpiTypes(prisma: PrismaService): Promise<any[]> {
   // Roupa de Aproximação - Bombeiros
   tiposEpi.push(await prisma.tipoEPI.create({
     data: {
+      id: generateTipoEpiId(),
       nomeEquipamento: 'Roupa de Aproximação',
       numeroCa: 'CA-66666',
       categoria: 'ROUPA_APROXIMACAO',
@@ -278,6 +287,7 @@ async function createEpiTypes(prisma: PrismaService): Promise<any[]> {
   // EPI Descontinuado para testes
   tiposEpi.push(await prisma.tipoEPI.create({
     data: {
+      id: generateTipoEpiId(),
       nomeEquipamento: 'EPI Teste Descontinuado',
       numeroCa: 'CA-99999',
       categoria: 'PROTECAO_CABECA',
@@ -300,6 +310,7 @@ async function createInitialStock(
   // Estoque no almoxarifado principal (excluir apenas o descontinuado)
   for (const tipo of tiposEpi.slice(0, -1)) { // Excluir o último (descontinuado)
     estoquesData.push({
+      id: generateEstoqueItemId(),
       almoxarifadoId: almoxarifados[0].id,
       tipoEpiId: tipo.id,
       quantidade: Math.floor(Math.random() * 100) + 50, // 50-149 unidades
@@ -309,6 +320,7 @@ async function createInitialStock(
     // Alguns itens em inspeção
     if (Math.random() > 0.7) {
       estoquesData.push({
+        id: generateEstoqueItemId(),
         almoxarifadoId: almoxarifados[0].id,
         tipoEpiId: tipo.id,
         quantidade: Math.floor(Math.random() * 10) + 1, // 1-10 unidades
@@ -320,6 +332,7 @@ async function createInitialStock(
   // Estoque menor no almoxarifado secundário (primeiros 5 tipos)
   for (const tipo of tiposEpi.slice(0, 5)) {
     estoquesData.push({
+      id: generateEstoqueItemId(),
       almoxarifadoId: almoxarifados[1].id,
       tipoEpiId: tipo.id,
       quantidade: Math.floor(Math.random() * 30) + 10, // 10-39 unidades
@@ -338,19 +351,11 @@ async function createEmployees(prisma: PrismaService, unidades: any[], contratad
   // Obter a unidade principal para associar aos colaboradores
   const unidadePrincipal = unidades[0]; // Usando a primeira unidade como principal
 
+  // Reduced to 3 employees for faster testing
   const funcionarios = [
     { nome: 'João Silva Santos', cpf: '11111111111', matricula: 'MAT001', cargo: 'Operador', setor: 'Produção' },
     { nome: 'Maria Oliveira Costa', cpf: '22222222222', matricula: 'MAT002', cargo: 'Técnica', setor: 'Manutenção' },
     { nome: 'Pedro Santos Silva', cpf: '33333333333', matricula: 'MAT003', cargo: 'Supervisor', setor: 'Produção' },
-    { nome: 'Ana Paula Ferreira', cpf: '44444444444', matricula: 'MAT004', cargo: 'Analista', setor: 'Qualidade' },
-    { nome: 'Carlos Eduardo Lima', cpf: '55555555555', matricula: 'MAT005', cargo: 'Soldador', setor: 'Produção' },
-    { nome: 'Fernanda Silva Lima', cpf: '66666666666', matricula: 'MAT006', cargo: 'Operadora', setor: 'Embalagem' },
-    { nome: 'Roberto Alves Mendes', cpf: '77777777777', matricula: 'MAT007', cargo: 'Coordenador', setor: 'Logística' },
-    { nome: 'Lucia Santos Costa', cpf: '88888888888', matricula: 'MAT008', cargo: 'Auxiliar', setor: 'Limpeza' },
-    { nome: 'Gabriel Costa Ferreira', cpf: '99999999999', matricula: 'MAT009', cargo: 'Técnico', setor: 'Elétrica' },
-    { nome: 'Patricia Lima Oliveira', cpf: '10101010101', matricula: 'MAT010', cargo: 'Operadora', setor: 'Produção' },
-    { nome: 'Rafael Mendes Silva', cpf: '12121212121', matricula: 'MAT011', cargo: 'Inspetor', setor: 'Qualidade' },
-    { nome: 'Claudia Ferreira Santos', cpf: '13131313131', matricula: 'MAT012', cargo: 'Assistente', setor: 'Administrativo' },
   ];
 
   for (let i = 0; i < funcionarios.length; i++) {

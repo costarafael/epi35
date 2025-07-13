@@ -16,29 +16,37 @@ export const customIdMiddleware: Prisma.Middleware = async (params, next) => {
   if (params.action === 'create') {
     const { model, args } = params;
 
-    // Log para debugging
-    console.log(`🔧 Middleware: Creating ${model}`, args.data.id ? 'with ID' : 'without ID');
+    // Log para debugging (disabled in test environment)
+    if (process.env.NODE_ENV !== 'test') {
+      console.log(`🔧 Middleware: Creating ${model}`, args.data.id ? 'with ID' : 'without ID');
+    }
 
     // Gera ID customizado baseado no modelo
     switch (model) {
       case 'Entrega':
         if (!args.data.id || args.data.id === '') {
           args.data.id = generateEntregaId();
-          console.log(`🆔 Generated Entrega ID: ${args.data.id}`);
+          if (process.env.NODE_ENV !== 'test') {
+            console.log(`🆔 Generated Entrega ID: ${args.data.id}`);
+          }
         }
         break;
         
       case 'EstoqueItem':
         if (!args.data.id || args.data.id === '') {
           args.data.id = generateEstoqueItemId();
-          console.log(`🆔 Generated EstoqueItem ID: ${args.data.id}`);
+          if (process.env.NODE_ENV !== 'test') {
+            console.log(`🆔 Generated EstoqueItem ID: ${args.data.id}`);
+          }
         }
         break;
         
       case 'TipoEPI':
         if (!args.data.id || args.data.id === '') {
           args.data.id = generateTipoEpiId();
-          console.log(`🆔 Generated TipoEPI ID: ${args.data.id}`);
+          if (process.env.NODE_ENV !== 'test') {
+            console.log(`🆔 Generated TipoEPI ID: ${args.data.id}`);
+          }
         }
         break;
     }
@@ -48,29 +56,37 @@ export const customIdMiddleware: Prisma.Middleware = async (params, next) => {
   if (params.action === 'upsert') {
     const { model, args } = params;
 
-    // Log para debugging
-    console.log(`🔧 Middleware: Upserting ${model}`, args.create?.id ? 'with ID' : 'without ID');
+    // Log para debugging (disabled in test environment)
+    if (process.env.NODE_ENV !== 'test') {
+      console.log(`🔧 Middleware: Upserting ${model}`, args.create?.id ? 'with ID' : 'without ID');
+    }
 
     // Gera ID customizado para o caso create do upsert
     switch (model) {
       case 'Entrega':
         if (!args.create?.id || args.create.id === '') {
           args.create.id = generateEntregaId();
-          console.log(`🆔 Generated Entrega ID for upsert: ${args.create.id}`);
+          if (process.env.NODE_ENV !== 'test') {
+            console.log(`🆔 Generated Entrega ID for upsert: ${args.create.id}`);
+          }
         }
         break;
         
       case 'EstoqueItem':
         if (!args.create?.id || args.create.id === '') {
           args.create.id = generateEstoqueItemId();
-          console.log(`🆔 Generated EstoqueItem ID for upsert: ${args.create.id}`);
+          if (process.env.NODE_ENV !== 'test') {
+            console.log(`🆔 Generated EstoqueItem ID for upsert: ${args.create.id}`);
+          }
         }
         break;
         
       case 'TipoEPI':
         if (!args.create?.id || args.create.id === '') {
           args.create.id = generateTipoEpiId();
-          console.log(`🆔 Generated TipoEPI ID for upsert: ${args.create.id}`);
+          if (process.env.NODE_ENV !== 'test') {
+            console.log(`🆔 Generated TipoEPI ID for upsert: ${args.create.id}`);
+          }
         }
         break;
     }

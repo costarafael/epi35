@@ -40,6 +40,7 @@ export interface RelatorioMovimentacoesEstoqueOutput {
     id: string;
     numeroDocumento: string;
     tipoNota: string;
+    observacoes?: string;
   };
   entrega?: {
     id: string;
@@ -132,6 +133,7 @@ export class RelatorioMovimentacoesEstoqueUseCase {
             id: true,
             numeroDocumento: true,
             tipoNota: true,
+            observacoes: true,
           },
         },
         entrega: {

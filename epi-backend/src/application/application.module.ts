@@ -42,6 +42,7 @@ import { RelatoriopesquisarFichasTipoEpiUseCase } from './use-cases/queries/rela
 import { RelatorioPosicaoEstoqueUseCase } from './use-cases/queries/relatorio-posicao-estoque.use-case';
 import { RelatorioSaldoEstoqueUseCase } from './use-cases/queries/relatorio-saldo-estoque.use-case';
 import { RelatorioDescartesUseCase } from './use-cases/queries/relatorio-descartes.use-case';
+import { RelatorioMovimentacoesEstoqueUseCase } from './use-cases/queries/relatorio-movimentacoes-estoque.use-case';
 
 // Configuracao Use Cases
 import { ObterConfiguracoesUseCase } from './use-cases/configuracoes/obter-configuracoes.use-case';
@@ -106,6 +107,7 @@ import { ProcessarDevolucoesBatchUseCase } from './use-cases/devolucoes/processa
     RelatorioPosicaoEstoqueUseCase,
     RelatorioSaldoEstoqueUseCase,
     RelatorioDescartesUseCase,
+    RelatorioMovimentacoesEstoqueUseCase,
     
     // Configuracao Use Cases
     ObterConfiguracoesUseCase,
@@ -168,6 +170,7 @@ import { ProcessarDevolucoesBatchUseCase } from './use-cases/devolucoes/processa
     RelatorioPosicaoEstoqueUseCase,
     RelatorioSaldoEstoqueUseCase,
     RelatorioDescartesUseCase,
+    RelatorioMovimentacoesEstoqueUseCase,
     
     // Configuracao Use Cases
     ObterConfiguracoesUseCase,

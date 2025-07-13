@@ -63,6 +63,7 @@ export const FiltrosRelatorioMovimentacaoSchema = z.object({
   dataFim: z.coerce.date().optional(),
   page: z.coerce.number().int().positive().default(1),
   limit: z.coerce.number().int().positive().max(100).default(10),
+  includeDeliveryData: z.coerce.boolean().default(false),
 });
 
 // System health filters
@@ -205,6 +206,8 @@ export const ItemRelatorioMovimentacaoSchema = z.object({
   usuarioNome: z.string(),
   observacoes: z.string().optional(),
   documento: z.string().optional(),
+  entregaId: z.string().optional(),
+  colaboradorNome: z.string().optional(),
 });
 
 export const RelatorioMovimentacaoResponseSchema = z.object({

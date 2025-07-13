@@ -17,6 +17,7 @@ import {
   FiltrosRelatorioMovimentacao,
 } from '../../dto/schemas/relatorios.schemas';
 import { SuccessResponse } from '../../dto/schemas/common.schemas';
+import { RelatorioMovimentacoesEstoqueUseCase } from '../../../application/use-cases/queries/relatorio-movimentacoes-estoque.use-case';
 
 @ApiTags('relatorios')
 @ApiBearerAuth()
@@ -24,6 +25,7 @@ import { SuccessResponse } from '../../dto/schemas/common.schemas';
 export class RelatorioMovimentacoesController {
   constructor(
     private readonly prisma: PrismaService,
+    private readonly relatorioMovimentacoesUseCase: RelatorioMovimentacoesEstoqueUseCase,
   ) {}
 
   @Get('movimentacoes')
@@ -50,6 +52,7 @@ export class RelatorioMovimentacoesController {
   @ApiQuery({ name: 'dataFim', required: false, type: String, format: 'date', description: 'Data final do período' })
   @ApiQuery({ name: 'page', required: false, type: Number, description: 'Página (padrão: 1)' })
   @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Itens por página (padrão: 10, máx: 100)' })
+  @ApiQuery({ name: 'includeDeliveryData', required: false, type: Boolean, description: 'Incluir dados de entrega (entregaId, colaboradorNome)' })
   @ApiResponse({ 
     status: 200, 
     description: 'Relatório de movimentações gerado com sucesso',
@@ -74,6 +77,8 @@ export class RelatorioMovimentacoesController {
                   usuarioNome: { type: 'string' },
                   observacoes: { type: 'string' },
                   documento: { type: 'string' },
+                  entregaId: { type: 'string' },
+                  colaboradorNome: { type: 'string' },
                 },
               },
             },
@@ -99,62 +104,59 @@ export class RelatorioMovimentacoesController {
     @Query(new ZodValidationPipe(FiltrosRelatorioMovimentacaoSchema)) 
     filtros: FiltrosRelatorioMovimentacao,
   ): Promise<SuccessResponse> {
-    // Construir filtros para consulta
-    const where: any = {};
-    
-    if (filtros.almoxarifadoId) {
-      where.estoqueItem = { almoxarifadoId: filtros.almoxarifadoId };
-    }
-    if (filtros.tipoEpiId) {
-      where.estoqueItem = { ...where.estoqueItem, tipoEpiId: filtros.tipoEpiId };
-    }
-    if (filtros.tipoMovimentacao) where.tipoMovimentacao = filtros.tipoMovimentacao;
-    if (filtros.usuarioId) where.responsavelId = filtros.usuarioId;
-    
-    if (filtros.dataInicio || filtros.dataFim) {
-      where.dataMovimentacao = {};
-      if (filtros.dataInicio) where.dataMovimentacao.gte = filtros.dataInicio;
-      if (filtros.dataFim) where.dataMovimentacao.lte = filtros.dataFim;
-    }
-
-    // Buscar movimentações
-    const movimentacoes = await this.prisma.movimentacaoEstoque.findMany({
-      where,
-      include: {
-        estoqueItem: {
-          include: {
-            almoxarifado: { select: { nome: true } },
-            tipoEpi: { select: { nomeEquipamento: true } },
-          },
-        },
-        responsavel: { select: { nome: true } },
-        notaMovimentacao: { select: { numeroDocumento: true, observacoes: true } },
-      },
-      orderBy: { dataMovimentacao: 'desc' },
-      skip: (Number(filtros.page) - 1) * Number(filtros.limit),
-      take: Number(filtros.limit),
+    // Use existing use case with proper relationships
+    const movimentacoes = await this.relatorioMovimentacoesUseCase.execute({
+      almoxarifadoId: filtros.almoxarifadoId,
+      tipoEpiId: filtros.tipoEpiId,
+      tipoMovimentacao: filtros.tipoMovimentacao,
+      responsavelId: filtros.usuarioId,
+      dataInicio: filtros.dataInicio,
+      dataFim: filtros.dataFim,
+      limit: Number(filtros.limit),
+      offset: (Number(filtros.page) - 1) * Number(filtros.limit),
     });
 
-    // Calcular resumo
-    const resumoQuery = await this.prisma.movimentacaoEstoque.groupBy({
-      by: ['tipoMovimentacao'],
-      where,
-      _count: { id: true },
-      _sum: { quantidadeMovida: true },
-    });
+    // Calcular resumo usando os dados do use case
+    const resumoQuery = movimentacoes.reduce((acc, mov) => {
+      const existing = acc.find(item => item.tipoMovimentacao === mov.tipoMovimentacao);
+      if (existing) {
+        existing._count.id += 1;
+        existing._sum.quantidadeMovida += mov.quantidadeMovida;
+      } else {
+        acc.push({
+          tipoMovimentacao: mov.tipoMovimentacao,
+          _count: { id: 1 },
+          _sum: { quantidadeMovida: mov.quantidadeMovida },
+        });
+      }
+      return acc;
+    }, [] as Array<{ tipoMovimentacao: string; _count: { id: number }; _sum: { quantidadeMovida: number } }>);
 
     const relatorio = {
-      movimentacoes: movimentacoes.map(mov => ({
-        id: mov.id,
-        data: mov.dataMovimentacao,
-        almoxarifadoNome: mov.estoqueItem?.almoxarifado?.nome || 'N/A',
-        tipoEpiNome: mov.estoqueItem?.tipoEpi?.nomeEquipamento || 'N/A',
-        tipoMovimentacao: mov.tipoMovimentacao,
-        quantidade: mov.quantidadeMovida,
-        usuarioNome: mov.responsavel?.nome || 'Sistema',
-        observacoes: mov.notaMovimentacao?.observacoes || undefined,
-        documento: mov.notaMovimentacao?.numeroDocumento,
-      })),
+      movimentacoes: movimentacoes.map(mov => {
+        const baseResponse = {
+          id: mov.id,
+          data: mov.dataMovimentacao,
+          almoxarifadoNome: mov.estoqueItem?.almoxarifado?.nome || 'N/A',
+          tipoEpiNome: mov.estoqueItem?.tipoEpi?.nomeEquipamento || 'N/A',
+          tipoMovimentacao: mov.tipoMovimentacao,
+          quantidade: mov.quantidadeMovida,
+          usuarioNome: mov.responsavel?.nome || 'Sistema',
+          observacoes: mov.notaMovimentacao?.observacoes || undefined,
+          documento: mov.notaMovimentacao?.numeroDocumento,
+        };
+
+        // Include delivery data when requested
+        if (filtros.includeDeliveryData) {
+          return {
+            ...baseResponse,
+            entregaId: mov.entrega?.id || null,
+            colaboradorNome: mov.entrega?.fichaEpi?.colaborador?.nome || null,
+          };
+        }
+
+        return baseResponse;
+      }),
       resumo: {
         totalMovimentacoes: movimentacoes.length,
         totalEntradas: resumoQuery

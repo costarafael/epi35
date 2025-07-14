@@ -102,7 +102,7 @@ export class ContratadaRepository implements IContratadaRepository {
       };
     }
 
-    if (filtros.cnpj) {
+    if (filtros.cnpj && filtros.cnpj.trim() !== '') {
       where.cnpj = {
         contains: filtros.cnpj.replace(/\D/g, ''),
       };

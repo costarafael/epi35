@@ -60,9 +60,9 @@ export const AtualizarContratadaSchema = z.object({
 export const FiltrosContratadaSchema = z.object({
   nome: z.string().optional(),
   cnpj: z.string()
-    .transform(val => val ? val.replace(/\D/g, '') : '')
-    .refine(val => !val || val.length >= 14, 'CNPJ deve ter 14 dígitos quando informado')
-    .optional(),
+    .optional()
+    .transform(val => val ? val.replace(/\D/g, '') : undefined)
+    .refine(val => !val || val.length >= 14, 'CNPJ deve ter 14 dígitos quando informado'),
   page: z.string().optional(),
   limit: z.string().optional(),
 });
